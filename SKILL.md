@@ -1,18 +1,17 @@
 ---
 name: playwright-automation
-description: Bộ công cụ automation testing bằng Playwright + TypeScript dành cho tester/QA. Dùng skill này bất cứ khi nào người dùng muốn viết hoặc sinh script automation, tự động hóa test case, dựng khung dự án automation (framework), test E2E giao diện web, kiểm thử API, visual regression, responsive / cross-browser, accessibility (WCAG), mock API, chuyển file test case Excel thành script, chạy test và đọc report, xử lý test flaky, hoặc tích hợp test vào CI/CD. Cũng kích hoạt khi người dùng nhắc tới Playwright, Selenium, Cypress, E2E, POM / Page Object, smoke suite, regression suite, "chạy thử app xem đúng chưa", "test tự động", "auto test", hoặc đưa link/localhost kèm yêu cầu kiểm tra chức năng. Use this skill for any web test automation request, in Vietnamese or English, even when the user does not say the word "Playwright".
-license: Apache-2.0 — toàn văn trong LICENSE
+description: Bộ công cụ automation testing, tái hiện bug và verify fix thực tế bằng Playwright + TypeScript dành cho tester/QA. Dùng skill này khi người dùng muốn đọc bug log/issue sheet, hiểu cách tester mô tả lỗi bằng KQMM/KQTT/EVD, tái hiện bug trước khi DEV sửa, verify/retest sau khi DEV fix trên STG/UAT/production, phân biệt lỗi code với config/data/infra, viết hoặc sinh script automation, tự động hóa test case, dựng framework, test E2E/API/visual/responsive/accessibility, mock API, chuyển file test case Excel thành script, đọc report, xử lý flaky, hoặc tích hợp CI/CD. Cũng kích hoạt khi người dùng nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, "reproduce bug", "verify bug", "verify fix", "retest bug", "log bug", "dev đã fix", "chạy thử app xem đúng chưa", "test tự động", hoặc đưa link/localhost kèm yêu cầu kiểm tra chức năng, bằng tiếng Việt hoặc tiếng Anh.
 ---
 
 # Playwright Automation cho Tester
 
-Skill này biến yêu cầu kiểm thử của tester thành **test tự động chạy được và bảo trì được**, bằng Playwright + TypeScript (`@playwright/test`).
+Skill này biến yêu cầu kiểm thử hoặc bug log của tester thành **kết luận có bằng chứng** và **test tự động chạy được, bảo trì được**, bằng Playwright + TypeScript (`@playwright/test`).
 
 Đối tượng dùng skill này thường là tester thủ công đang chuyển sang automation. Họ biết rất rõ *nghiệp vụ cần test gì*, nhưng chưa chắc rành *selector, async, CI*. Vì vậy: giải thích ngắn gọn bằng tiếng Việt, viết code sạch, và luôn để lại thứ họ chạy lại được — đừng chỉ in kết quả ra màn hình rồi thôi.
 
-## Nguyên tắc cốt lõi: Recon → Codify
+## Nguyên tắc cốt lõi
 
-Automation hỏng chủ yếu vì **đoán selector**. Không bao giờ viết `page.click('.btn-primary')` dựa trên tưởng tượng.
+Với test case hoặc tính năng mới, dùng **Recon → Codify**. Automation hỏng chủ yếu vì đoán selector; không bao giờ viết `page.click('.btn-primary')` dựa trên tưởng tượng.
 
 ```
 Pha A — RECON: mở app thật, chờ render xong, đọc DOM, lấy locator có thật
@@ -21,12 +20,17 @@ Pha B — CODIFY: biến những gì đã xác minh thành spec + Page Object co
 
 Bỏ pha A là nguyên nhân số 1 của test flaky. Bỏ pha B thì tester chỉ nhận được một script dùng một lần, tuần sau vứt đi.
 
+Với bug log thực tế, dùng **Decode → Reproduce baseline → Classify → Verify fix → Codify regression**. Không nhảy thẳng từ một dòng issue sang code: phải đọc cả row, evidence, phản hồi DEV và timeline; tách fact khỏi suy luận; chính agent phải tái hiện đúng bug tester mô tả trên môi trường/build gốc và lưu baseline trước khi bàn giao DEV. Sau khi DEV sửa mới chạy fix verification trên build đích. Nếu không tái hiện được vì thiếu build/data/quyền hoặc guardrail production, báo `Not reproduced`, `Blocked` hoặc `Inconclusive`; không được bỏ qua baseline rồi tuyên bố “đã fix”.
+
 ## Bước 1 — Định tuyến
 
 Đọc bảng này, xác định người dùng đang cần gì, rồi mở đúng file `references/`. **Chỉ đọc file thật sự cần** — đọc hết sẽ làm loãng context.
 
 | Người dùng nói gì | Làm gì | Đọc thêm |
 |---|---|---|
+| "Đọc bug log", "reproduce/retest bug", KQMM/KQTT/EVD, issue STG/UAT/prod | Decode full row + evidence → tái hiện → phân loại → báo cáo/retest | `references/bug-reproduction.md`, rồi `references/ui-e2e.md` nếu cần browser |
+| "Verify bug", "verify fix", "xác nhận DEV đã fix", "retest để Close/Reopen" | Kiểm baseline do agent đã tái hiện → chạy lại đúng fingerprint trên build đã fix → kiểm KQMM + persistence/side effect → regression gần vùng sửa → verdict | `references/bug-reproduction.md`, mục **Verify bug sau khi DEV fix** |
+| "Đọc kỹ" workbook bug có nhiều tab, học cách tester log lỗi | Inventory cả visible/hidden tab + filtered/hidden row → phân loại bug/evidence/metadata → đọc mọi bug list + xem ảnh evidence → nêu coverage | `references/bug-reproduction.md` |
 | "Test giúp chức năng X xem chạy đúng không" | Recon → viết spec nhanh → chạy → báo cáo | `references/ui-e2e.md` |
 | "Dựng khung automation cho dự án" | `scripts/scaffold.mjs` | `references/project-setup.md` |
 | "Viết script đăng nhập / form / luồng nghiệp vụ" | Recon → POM + spec | `references/ui-e2e.md` |
@@ -42,9 +46,11 @@ Bỏ pha A là nguyên nhân số 1 của test flaky. Bỏ pha B thì tester ch�
 
 Nếu yêu cầu chạm nhiều mảng (ví dụ "test luồng đặt hàng, có cả API và ảnh chụp"), làm UI E2E trước rồi bổ sung dần — đừng cố dựng mọi thứ trong một lượt.
 
-## Bước 2 — Hỏi đúng 3 thứ trước khi code
+## Bước 2 — Thu đủ điều kiện trước khi code hoặc tái hiện
 
-Chỉ hỏi nếu chưa có thông tin; đừng phỏng vấn dài dòng:
+Nếu đầu vào là bug log/issue sheet, **không hỏi lại những gì row đã nói**. Đọc full row và evidence trước, chuẩn hóa thành environment/platform, precondition, test data/state, actions, actual, expected và unknown. Chỉ hỏi phần thật sự chặn tái hiện như URL/build đích, tài khoản hoặc seed data an toàn, evidence nằm ngoài sheet, hay acceptance criterion còn mâu thuẫn. Xem `references/bug-reproduction.md`.
+
+Nếu đầu vào là yêu cầu kiểm thử mới, chỉ hỏi những mục chưa có; đừng phỏng vấn dài dòng:
 
 1. **URL** app cần test (staging/local/prod?) và app có cần đăng nhập không → nếu có, xin tài khoản test.
 2. **Phạm vi**: một chức năng cụ thể, hay cả luồng nghiệp vụ, hay cả bộ regression?
@@ -184,6 +190,8 @@ Sau khi chạy, đừng chỉ dán log thô. Tổng kết theo cách tester đ�
 - Đường dẫn tới HTML report và ảnh/trace của ca fail.
 - Cái gì chưa cover được và tại sao (ví dụ: OTP qua SMS thật, cần mock).
 
+Với bug log, dùng đúng giọng tester nhưng tách rõ `Pre`, bước, `KQTT`, `KQMM`, evidence và tần suất tái hiện. Giữ nguyên exact UI copy/test value cần đối chiếu, nhưng che PII, account ID, business/transaction ID và không tái sử dụng dữ liệu production. `Closed`, `Resolved` hoặc `Notbug` chỉ là trạng thái nguồn, không thay cho kết quả tái hiện/verify độc lập. Báo riêng `Reproduction outcome`, `Fix-verification verdict` và `Status recommendation`; không sửa status nguồn nếu người dùng chưa yêu cầu rõ. Mẫu đầy đủ nằm trong `references/bug-reproduction.md`.
+
 ## Checklist trước khi coi là xong
 
 - [ ] Locator lấy từ DOM thật, không phải đoán
@@ -191,12 +199,23 @@ Sau khi chạy, đừng chỉ dán log thô. Tổng kết theo cách tester đ�
 - [ ] Test chạy được **hai lần liên tiếp** đều pass (chạy lại lần 2 để lộ test phụ thuộc dữ liệu cũ)
 - [ ] Không có mật khẩu / token hard-code trong code — nằm ở `.env`, và `.env` đã `.gitignore`
 - [ ] Tên test khớp mã test case của tester
+- [ ] Với bug log: đã đọc full row + evidence + timeline, không chỉ title/status
+- [ ] Bug ID/source row truy vết được và wording gốc vẫn còn bên cạnh bản chuẩn hóa
+- [ ] Với bug log: actual/expected và fact/inference/unknown được tách riêng
+- [ ] Trước verify: chính agent đã tái hiện baseline trên build gốc và lưu evidence; evidence lịch sử chỉ hỗ trợ điều tra, không thay gate này cho verdict `Verified fixed`
+- [ ] Verify chạy đúng target build/deployment, platform, role, state và data class của bug gốc
+- [ ] Không chỉ kiểm "lỗi biến mất": đã assert tích cực KQMM và side effect/persistence liên quan
+- [ ] Đã chạy targeted regression quanh vùng sửa và ghi attempts `x/y` cho lỗi flaky
+- [ ] Verdict verify (`Verified fixed`/`Failed`/`Partial`/`Regression`/`Not reproduced`/`Blocked`/`Inconclusive`) tách khỏi status nguồn
+- [ ] Không dùng dữ liệu định danh hoặc giao dịch thật từ production trong test
+- [ ] Mọi side effect trên production đã được người dùng cho phép rõ ràng; evidence đã che PII/secrets
 - [ ] Đã nói rõ cách chạy lại và cách xem report
 
 ## Bản đồ tài liệu
 
 | File | Nội dung |
 |---|---|
+| `references/bug-reproduction.md` | Đọc ngôn ngữ tester Việt, tái hiện/retest bug STG/UAT/prod, evidence, phân loại nguyên nhân, mẫu báo cáo |
 | `references/project-setup.md` | Cài đặt, `playwright.config.ts`, đa môi trường, cấu trúc thư mục, npm scripts |
 | `references/ui-e2e.md` | Locator, Page Object, assertion, upload/download, iframe, tab mới, dialog, table, date picker |
 | `references/api-testing.md` | `request` fixture, kiểm tra status/schema, chain token, tạo dữ liệu qua API |

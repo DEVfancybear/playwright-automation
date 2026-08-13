@@ -1,5 +1,7 @@
 # Chuyển file test case Excel thành script
 
+> **Chỉ dùng cho test case/UAT có steps và expected rõ. Không dùng trực tiếp cho bug list/issue tracker** có các cột Actual/KQTT, Status, Evidence, Solution/Comment hoặc timeline. `scripts/excel_to_spec.py` hiện không bảo toàn đầy đủ các trường đó; chạy nó trên bug log sẽ làm mất ngữ cảnh tái hiện và triage. Với bug STG/UAT/production, đọc `bug-reproduction.md`, chuẩn hóa issue rồi chỉ codify regression sau khi đã tái hiện và chốt oracle.
+
 Tester thường đã có sẵn file test case (mẫu KỊCH BẢN NGHIỆM THU / UAT). Đó là tài sản quý: nó chứa nghiệp vụ, tiền điều kiện, dữ liệu và kết quả mong đợi — tức là gần như đủ mọi thứ để viết automation, trừ selector.
 
 Skill này đi theo hướng **giữ Excel làm nguồn sự thật về nghiệp vụ**, sinh ra khung code tương ứng, rồi bổ sung selector từ pha Recon.

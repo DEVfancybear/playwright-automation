@@ -22,17 +22,19 @@ npx playwright test --trace on
 
 Đây là câu hỏi đầu tiên tester cần trả lời, và trả lời sai thì hoặc là báo bug oan cho dev, hoặc là bỏ lọt bug thật.
 
+Nếu đầu vào là bug log STG/UAT/production, đọc `bug-reproduction.md` trước. Không kết luận từ một dấu hiệu duy nhất; status `Closed/Notbug`, HTTP 4xx/5xx hoặc locator timeout đều cần đối chiếu với đúng build, config/data, state và evidence.
+
 | Dấu hiệu | Nhiều khả năng là |
 |---|---|
-| Ảnh chụp cho thấy app hiện thông báo lỗi / trang trắng / 500 | **Bug của app** |
+| Ảnh chụp cho thấy app hiện thông báo lỗi / trang trắng / 500 | Có lỗi quan sát được; có thể là code, config/data, infra/dependency |
 | Ảnh cho thấy app bình thường, nhưng locator không tìm thấy | **Lỗi script** (selector cũ, hoặc UI vừa đổi text) |
-| Fail ở cùng một bước trên mọi trình duyệt, mọi lần chạy | **Bug của app** |
-| Fail ngẫu nhiên, chạy lại thì pass | **Lỗi script** (thiếu chờ) hoặc bug race condition của app |
+| Fail ở cùng một bước trên mọi trình duyệt, mọi lần chạy | Nghiêng về lỗi sản phẩm/chung backend; vẫn kiểm tra oracle và dữ liệu |
+| Fail ngẫu nhiên, chạy lại thì pass | Thiếu chờ/dữ liệu hoặc race condition của app; ghi tỷ lệ trước khi phân loại |
 | Chỉ fail khi chạy song song, chạy đơn thì pass | **Lỗi script** (test đụng dữ liệu nhau) |
 | Chỉ fail trên CI | Thường là môi trường — xem mục riêng bên dưới |
-| Network log có request trả 4xx/5xx | **Bug của app** (hoặc dữ liệu test sai) |
+| Network log có request trả 4xx/5xx | Tín hiệu backend/config/auth/data; đọc response và request context trước khi kết luận |
 
-Cách kiểm chứng nhanh: **làm lại thao tác đó bằng tay trên đúng môi trường đó.** Mất 2 phút và cho câu trả lời chắc chắn. Khi báo cáo, nói rõ đã kiểm chứng thủ công hay chưa — đừng để dev mất thời gian điều tra một lỗi script.
+Cách kiểm chứng nhanh: **làm lại thao tác đó bằng tay trên đúng môi trường và cùng state/data class.** Khi báo cáo, nói rõ đã kiểm chứng thủ công hay chưa, fingerprint môi trường và bằng chứng nào hỗ trợ kết luận.
 
 ## Test flaky (lúc pass lúc fail)
 
