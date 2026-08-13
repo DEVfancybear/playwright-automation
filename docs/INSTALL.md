@@ -1,16 +1,42 @@
 # Hướng dẫn cài đặt
 
-Mục lục: [Chọn cách cài](#chọn-cách-cài) · [claude.ai](#cách-1--claudeai-web--desktop) · [Claude Code cá nhân](#cách-2--claude-code-dùng-cho-mọi-dự-án) · [Theo dự án](#cách-3--theo-dự-án-chia-sẻ-cho-cả-team) · [Kiểm tra](#kiểm-tra-đã-cài-được-chưa) · [Công cụ đi kèm](#cài-công-cụ-để-chạy-test) · [Cập nhật & gỡ](#cập-nhật) · [Sự cố](#sự-cố-thường-gặp)
+Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhất--npm) · [claude.ai](#cách-1--claudeai-web--desktop) · [Claude Code cá nhân](#cách-2--claude-code-dùng-cho-mọi-dự-án) · [Theo dự án](#cách-3--theo-dự-án-chia-sẻ-cho-cả-team) · [Kiểm tra](#kiểm-tra-đã-cài-được-chưa) · [Công cụ đi kèm](#cài-công-cụ-để-chạy-test) · [Cập nhật & gỡ](#cập-nhật) · [Sự cố](#sự-cố-thường-gặp)
 
 ## Chọn cách cài
 
 | Bạn dùng Claude ở đâu | Cách cài | Ai dùng được |
 |---|---|---|
+| Claude Code (terminal / IDE) | `npx @duonglt/playwright-automation install` | Chỉ mình bạn, ở mọi dự án trên máy |
+| Claude Code, muốn chia sẻ cho team | Thêm `--project` rồi commit `.claude/skills/` | Cả team, khi làm việc trong dự án đó |
+| Claude Code, muốn sửa skill | Clone bằng git vào `~/.claude/skills/` | Chỉ mình bạn, sửa trực tiếp được |
 | claude.ai (web hoặc app desktop) | Upload file `.skill` vào profile | Chỉ mình bạn, ở mọi cuộc trò chuyện |
-| Claude Code (terminal / IDE) | Clone vào `~/.claude/skills/` | Chỉ mình bạn, ở mọi dự án trên máy |
-| Claude Code, muốn chia sẻ cho team | Đặt trong `.claude/skills/` của dự án và commit | Cả team, khi làm việc trong dự án đó |
 
 Cài nhiều cách cùng lúc cũng được. Bản trong dự án sẽ được ưu tiên hơn bản cá nhân.
+
+---
+
+## Cách nhanh nhất — npm
+
+```bash
+npx @duonglt/playwright-automation install
+```
+
+Skill được copy vào `~/.claude/skills/playwright-automation/`. Khởi động lại Claude Code là dùng được.
+
+Các lệnh khác:
+
+```bash
+npx @duonglt/playwright-automation install --project   # cài vào .claude/skills/ của dự án
+npx @duonglt/playwright-automation install --force     # ghi đè bản đã cài
+npx @duonglt/playwright-automation install --dir <đường dẫn>   # cài vào chỗ tự chọn
+npx @duonglt/playwright-automation where               # xem đang cài ở đâu
+npx @duonglt/playwright-automation uninstall           # gỡ
+npx @duonglt/playwright-automation --help
+```
+
+Cập nhật lên bản mới: chạy lại lệnh `install --force`. `npx` luôn lấy phiên bản mới nhất trên npm.
+
+Cách này không dựng liên kết tới repo, nên nếu bạn định **sửa nội dung skill** thì dùng [cách clone bằng git](#cách-2--claude-code-dùng-cho-mọi-dự-án) sẽ tiện hơn.
 
 ---
 

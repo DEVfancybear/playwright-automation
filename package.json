@@ -1,0 +1,50 @@
+{
+  "name": "@duonglt/playwright-automation",
+  "version": "1.0.0",
+  "description": "Claude Agent Skill cho tester: automation testing bằng Playwright + TypeScript. Trinh sát app lấy locator thật, dựng suite E2E/API/visual/accessibility, chuyển test case Excel thành script.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agent-skill",
+    "claude-skill",
+    "playwright",
+    "testing",
+    "automation",
+    "e2e",
+    "e2e-testing",
+    "api-testing",
+    "visual-regression",
+    "accessibility",
+    "qa",
+    "tester",
+    "typescript"
+  ],
+  "homepage": "https://github.com/DEVfancybear/playwright-automation#readme",
+  "bugs": {
+    "url": "https://github.com/DEVfancybear/playwright-automation/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DEVfancybear/playwright-automation.git"
+  },
+  "license": "Apache-2.0",
+  "author": "DuongLT",
+  "bin": {
+    "playwright-automation": "bin/install.mjs"
+  },
+  "files": [
+    "SKILL.md",
+    "bin/",
+    "references/",
+    "scripts/",
+    "assets/",
+    "docs/",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

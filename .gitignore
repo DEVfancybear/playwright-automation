@@ -1,6 +1,8 @@
-# Gói build ra từ mã nguồn — không commit, tải ở Releases
+# Gói build ra từ mã nguồn — không commit, tải ở Releases hoặc npm
 *.skill
 *.zip
+*.tgz
+package-lock.json
 
 # Kết quả chạy thử script trong lúc phát triển
 recon-output/

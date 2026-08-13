@@ -1,5 +1,9 @@
 # playwright-automation
 
+[![npm](https://img.shields.io/npm/v/@duonglt/playwright-automation)](https://www.npmjs.com/package/@duonglt/playwright-automation)
+[![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
+
 > Skill cho Claude giúp tester biến yêu cầu kiểm thử thành test tự động **chạy được và bảo trì được**, bằng Playwright + TypeScript.
 
 Đây là một [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) — một gói hướng dẫn + script mà Claude tự nạp khi bạn nhờ nó làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; Claude lo phần selector, cấu hình và code.
@@ -44,15 +48,28 @@ Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trướ
 
 ## Cài đặt nhanh
 
-**Trên claude.ai** — tải file `.skill` ở [Releases](../../releases) (hoặc tự đóng gói, xem [docs/INSTALL.md](docs/INSTALL.md)), rồi vào **Settings → Capabilities → Skills → Upload skill**.
-
-**Trên Claude Code** — clone vào thư mục skill cá nhân:
+**Trên Claude Code** — một lệnh, không cần clone:
 
 ```bash
-git clone https://github.com/DEVfancybear/playwright-automation.git ~/.claude/skills/playwright-automation
+npx @duonglt/playwright-automation install
 ```
 
-Chi tiết đầy đủ (cài theo dự án, cập nhật, gỡ, kiểm tra đã nhận skill chưa): [docs/INSTALL.md](docs/INSTALL.md)
+Cài cho riêng dự án hiện tại để cả team dùng chung (commit `.claude/skills/` vào repo):
+
+```bash
+npx @duonglt/playwright-automation install --project
+```
+
+Gỡ hoặc xem đang cài ở đâu:
+
+```bash
+npx @duonglt/playwright-automation uninstall
+npx @duonglt/playwright-automation where
+```
+
+**Trên claude.ai** — tải file `.skill` ở [Releases](../../releases) (hoặc tự đóng gói, xem [docs/INSTALL.md](docs/INSTALL.md)), rồi vào **Settings → Capabilities → Skills → Upload skill**.
+
+Chi tiết đầy đủ (clone bằng git, cài theo dự án, cập nhật, gỡ, kiểm tra đã nhận skill chưa): [docs/INSTALL.md](docs/INSTALL.md)
 
 ## Dùng thế nào
 
