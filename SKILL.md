@@ -1,6 +1,7 @@
 ---
 name: playwright-automation
 description: Bộ công cụ automation testing bằng Playwright + TypeScript dành cho tester/QA. Dùng skill này bất cứ khi nào người dùng muốn viết hoặc sinh script automation, tự động hóa test case, dựng khung dự án automation (framework), test E2E giao diện web, kiểm thử API, visual regression, responsive / cross-browser, accessibility (WCAG), mock API, chuyển file test case Excel thành script, chạy test và đọc report, xử lý test flaky, hoặc tích hợp test vào CI/CD. Cũng kích hoạt khi người dùng nhắc tới Playwright, Selenium, Cypress, E2E, POM / Page Object, smoke suite, regression suite, "chạy thử app xem đúng chưa", "test tự động", "auto test", hoặc đưa link/localhost kèm yêu cầu kiểm tra chức năng. Use this skill for any web test automation request, in Vietnamese or English, even when the user does not say the word "Playwright".
+license: Apache-2.0 — toàn văn trong LICENSE
 ---
 
 # Playwright Automation cho Tester

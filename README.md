@@ -153,4 +153,6 @@ python scripts/excel_to_spec.py --file <file.xlsx> --dry-run
 
 ## Giấy phép
 
-Chưa khai báo. Thêm file `LICENSE` nếu bạn định chia sẻ công khai.
+[Apache License 2.0](LICENSE) — Copyright 2026 DuongLT.
+
+Bạn được tự do dùng, sửa, phân phối và dùng cho mục đích thương mại. Điều kiện: giữ lại thông báo bản quyền và giấy phép, đồng thời ghi rõ những file bạn đã sửa. Giấy phép cũng cấp quyền sử dụng bằng sáng chế (patent grant) và không đi kèm bảo hành nào.
