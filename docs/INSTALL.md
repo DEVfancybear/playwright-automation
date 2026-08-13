@@ -6,7 +6,7 @@ Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhấ
 
 | Bạn dùng Claude ở đâu | Cách cài | Ai dùng được |
 |---|---|---|
-| Claude Code (terminal / IDE) | `npx @duonglt/playwright-automation install` | Chỉ mình bạn, ở mọi dự án trên máy |
+| Claude Code (terminal / IDE) | `npx @duong.dev/playwright-automation install` | Chỉ mình bạn, ở mọi dự án trên máy |
 | Claude Code, muốn chia sẻ cho team | Thêm `--project` rồi commit `.claude/skills/` | Cả team, khi làm việc trong dự án đó |
 | Claude Code, muốn sửa skill | Clone bằng git vào `~/.claude/skills/` | Chỉ mình bạn, sửa trực tiếp được |
 | claude.ai (web hoặc app desktop) | Upload file `.skill` vào profile | Chỉ mình bạn, ở mọi cuộc trò chuyện |
@@ -18,7 +18,7 @@ Cài nhiều cách cùng lúc cũng được. Bản trong dự án sẽ được
 ## Cách nhanh nhất — npm
 
 ```bash
-npx @duonglt/playwright-automation install
+npx @duong.dev/playwright-automation install
 ```
 
 Skill được copy vào `~/.claude/skills/playwright-automation/`. Khởi động lại Claude Code là dùng được.
@@ -26,12 +26,12 @@ Skill được copy vào `~/.claude/skills/playwright-automation/`. Khởi độ
 Các lệnh khác:
 
 ```bash
-npx @duonglt/playwright-automation install --project   # cài vào .claude/skills/ của dự án
-npx @duonglt/playwright-automation install --force     # ghi đè bản đã cài
-npx @duonglt/playwright-automation install --dir <đường dẫn>   # cài vào chỗ tự chọn
-npx @duonglt/playwright-automation where               # xem đang cài ở đâu
-npx @duonglt/playwright-automation uninstall           # gỡ
-npx @duonglt/playwright-automation --help
+npx @duong.dev/playwright-automation install --project   # cài vào .claude/skills/ của dự án
+npx @duong.dev/playwright-automation install --force     # ghi đè bản đã cài
+npx @duong.dev/playwright-automation install --dir <đường dẫn>   # cài vào chỗ tự chọn
+npx @duong.dev/playwright-automation where               # xem đang cài ở đâu
+npx @duong.dev/playwright-automation uninstall           # gỡ
+npx @duong.dev/playwright-automation --help
 ```
 
 Cập nhật lên bản mới: chạy lại lệnh `install --force`. `npx` luôn lấy phiên bản mới nhất trên npm.

@@ -1,6 +1,6 @@
 # playwright-automation
 
-[![npm](https://img.shields.io/npm/v/@duonglt/playwright-automation)](https://www.npmjs.com/package/@duonglt/playwright-automation)
+[![npm](https://img.shields.io/npm/v/@duong.dev/playwright-automation)](https://www.npmjs.com/package/@duong.dev/playwright-automation)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
 
@@ -51,20 +51,20 @@ Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trướ
 **Trên Claude Code** — một lệnh, không cần clone:
 
 ```bash
-npx @duonglt/playwright-automation install
+npx @duong.dev/playwright-automation install
 ```
 
 Cài cho riêng dự án hiện tại để cả team dùng chung (commit `.claude/skills/` vào repo):
 
 ```bash
-npx @duonglt/playwright-automation install --project
+npx @duong.dev/playwright-automation install --project
 ```
 
 Gỡ hoặc xem đang cài ở đâu:
 
 ```bash
-npx @duonglt/playwright-automation uninstall
-npx @duonglt/playwright-automation where
+npx @duong.dev/playwright-automation uninstall
+npx @duong.dev/playwright-automation where
 ```
 
 **Trên claude.ai** — tải file `.skill` ở [Releases](../../releases) (hoặc tự đóng gói, xem [docs/INSTALL.md](docs/INSTALL.md)), rồi vào **Settings → Capabilities → Skills → Upload skill**.

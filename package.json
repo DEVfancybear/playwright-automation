@@ -1,5 +1,5 @@
 {
-  "name": "@duonglt/playwright-automation",
+  "name": "@duong.dev/playwright-automation",
   "version": "1.0.0",
   "description": "Claude Agent Skill cho tester: automation testing bằng Playwright + TypeScript. Trinh sát app lấy locator thật, dựng suite E2E/API/visual/accessibility, chuyển test case Excel thành script.",
   "keywords": [

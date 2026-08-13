@@ -24,9 +24,9 @@ const HELP = `
 playwright-automation — skill automation testing Playwright + TypeScript cho tester
 
 CÁCH DÙNG
-  npx @duonglt/playwright-automation install [tuỳ chọn]     Cài skill
-  npx @duonglt/playwright-automation uninstall [tuỳ chọn]   Gỡ skill
-  npx @duonglt/playwright-automation where                  In ra nơi skill đang được cài
+  npx @duong.dev/playwright-automation install [tuỳ chọn]     Cài skill
+  npx @duong.dev/playwright-automation uninstall [tuỳ chọn]   Gỡ skill
+  npx @duong.dev/playwright-automation where                  In ra nơi skill đang được cài
 
 TUỲ CHỌN
   --project        Cài vào .claude/skills/ của dự án hiện tại (commit được, cả team dùng chung)
@@ -36,10 +36,10 @@ TUỲ CHỌN
   --help
 
 VÍ DỤ
-  npx @duonglt/playwright-automation install
-  npx @duonglt/playwright-automation install --project
-  npx @duonglt/playwright-automation install --force
-  npx @duonglt/playwright-automation uninstall
+  npx @duong.dev/playwright-automation install
+  npx @duong.dev/playwright-automation install --project
+  npx @duong.dev/playwright-automation install --force
+  npx @duong.dev/playwright-automation uninstall
 
 SAU KHI CÀI
   Khởi động lại Claude Code, rồi thử:
@@ -92,7 +92,7 @@ switch (command) {
     if (existsSync(dest) && !args.force) {
       console.error(
         `Skill đã có sẵn tại:\n  ${dest}\n\n` +
-        `Dùng --force để ghi đè, hoặc gỡ trước bằng: npx @duonglt/playwright-automation uninstall`
+        `Dùng --force để ghi đè, hoặc gỡ trước bằng: npx @duong.dev/playwright-automation uninstall`
       );
       process.exit(1);
     }
