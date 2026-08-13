@@ -1,0 +1,26 @@
+# Gói build ra từ mã nguồn — không commit, tải ở Releases
+*.skill
+*.zip
+
+# Kết quả chạy thử script trong lúc phát triển
+recon-output/
+recon-*/
+test-results/
+playwright-report/
+blob-report/
+
+# Bí mật — không bao giờ commit, kể cả tài khoản staging
+.env
+.env.local
+.auth/
+
+node_modules/
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

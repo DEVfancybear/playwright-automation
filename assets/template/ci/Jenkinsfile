@@ -1,0 +1,56 @@
+pipeline {
+  agent {
+    docker {
+      // Phiên bản image PHẢI khớp @playwright/test trong package.json, lệch là lỗi khó đoán.
+      image 'mcr.microsoft.com/playwright:v{{PW_VERSION}}-noble'
+      // Chromium dùng bộ nhớ chia sẻ; thiếu --ipc=host thì trình duyệt hay crash trong container.
+      args '--ipc=host'
+    }
+  }
+
+  options {
+    timeout(time: 60, unit: 'MINUTES')
+    buildDiscarder(logRotator(numToKeepStr: '30'))
+  }
+
+  environment {
+    CI = 'true'
+    BASE_URL = '{{BASE_URL}}'
+    API_URL = '{{API_URL}}'
+  }
+
+  stages {
+    stage('Cài dependency') {
+      steps { sh 'npm ci' }
+    }
+
+    stage('Chạy test') {
+      steps {
+        withCredentials([usernamePassword(
+          credentialsId: 'e2e-test-account',
+          usernameVariable: 'TEST_USER',
+          passwordVariable: 'TEST_PASS'
+        )]) {
+          sh 'npx playwright test'
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      junit allowEmptyResults: true, testResults: 'test-results/junit.xml'
+
+      publishHTML(target: [
+        allowMissing: true,
+        alwaysLinkToLastBuild: true,
+        keepAll: true,
+        reportDir: 'playwright-report',
+        reportFiles: 'index.html',
+        reportName: 'Playwright Report'
+      ])
+
+      archiveArtifacts artifacts: 'test-results/**', allowEmptyArchive: true
+    }
+  }
+}

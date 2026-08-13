@@ -1,0 +1,31 @@
+/*
+ * CSS áp vào trang ngay trước khi chụp ảnh cho visual test.
+ * Mục đích: loại bỏ mọi thứ thay đổi giữa các lần chạy, vì ảnh chỉ ổn định
+ * khi đầu vào ổn định — chỉnh ngưỡng maxDiffPixelRatio chỉ là chữa triệu chứng.
+ *
+ * Bật trong playwright.config.ts:
+ *   expect: { toHaveScreenshot: { stylePath: './screenshot.css' } }
+ */
+
+*, *::before, *::after {
+  animation: none !important;
+  transition: none !important;
+  caret-color: transparent !important;
+  scroll-behavior: auto !important;
+}
+
+/* Ẩn phần tử luôn đổi. Thêm selector của dự án bạn vào đây. */
+[data-dynamic],
+.toast,
+.notification-badge,
+.ads-banner,
+.live-chat-widget,
+iframe[src*="googletagmanager"],
+iframe[src*="youtube"] {
+  visibility: hidden !important;
+}
+
+/* Ảnh chưa tải xong làm ảnh chụp khác nhau — cho nền xám cố định */
+img {
+  background: #eee !important;
+}

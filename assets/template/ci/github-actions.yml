@@ -1,0 +1,63 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  schedule:
+    - cron: '0 22 * * 1-5'   # 5h sáng giờ VN (UTC+7), các ngày trong tuần
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Playwright
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cài dependency
+        run: npm ci
+
+      - name: Cài trình duyệt
+        run: npx playwright install --with-deps chromium
+
+      - name: Chạy test
+        run: npx playwright test
+        env:
+          BASE_URL: ${{ vars.BASE_URL || '{{BASE_URL}}' }}
+          API_URL: ${{ vars.API_URL || '{{API_URL}}' }}
+          # Mật khẩu để trong secrets, URL để trong vars.
+          # Đừng viết thẳng vào file này — nó nằm trong git và ai đọc repo cũng thấy.
+          TEST_USER: ${{ secrets.TEST_USER }}
+          TEST_PASS: ${{ secrets.TEST_PASS }}
+
+      # !cancelled() để report vẫn được lưu KHI TEST FAIL — đó chính là lúc cần nó nhất.
+      - name: Lưu report
+        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Lưu ảnh/video của ca fail
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+      # - name: Báo Slack khi fail
+      #   if: failure()
+      #   run: |
+      #     curl -X POST -H 'Content-type: application/json' \
+      #       --data "{\"text\":\"🔴 E2E fail trên ${{ github.ref_name }} — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+      #       ${{ secrets.SLACK_WEBHOOK }}

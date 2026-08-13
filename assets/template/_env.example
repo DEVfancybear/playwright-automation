@@ -1,0 +1,18 @@
+# Sao chép file này thành .env rồi điền giá trị thật.
+# .env đã được .gitignore — KHÔNG commit, kể cả tài khoản staging.
+
+# Môi trường cần test
+BASE_URL={{BASE_URL}}
+API_URL={{API_URL}}
+
+# Tài khoản test thường
+TEST_USER=
+TEST_PASS=
+
+# Tài khoản quản trị (nếu cần test phân quyền)
+ADMIN_USER=
+ADMIN_PASS=
+
+# Chạy trên môi trường khác mà không sửa file:
+#   Linux/macOS:  BASE_URL=https://uat.example.com npx playwright test
+#   PowerShell:   $env:BASE_URL="https://uat.example.com"; npx playwright test

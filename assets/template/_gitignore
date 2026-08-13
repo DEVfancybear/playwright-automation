@@ -1,0 +1,21 @@
+node_modules/
+
+# Bí mật
+.env
+.env.local
+
+# Phiên đăng nhập — chứa cookie thật, ai có file này là vào được tài khoản
+.auth/
+
+# Kết quả chạy test
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+allure-results/
+allure-report/
+
+# Ảnh baseline của visual test thì PHẢI commit (nằm trong *-snapshots/),
+# nhưng ảnh diff sinh ra lúc chạy thì không.
+**/*-diff.png
+**/*-actual.png
