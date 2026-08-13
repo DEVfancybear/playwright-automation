@@ -1,6 +1,6 @@
 # Đọc, tái hiện và retest bug thực tế
 
-Mục lục: [Nguyên tắc tổng quát](#nguyên-tắc-tổng-quát) · [Ngôn ngữ tester](#ngôn-ngữ-tester) · [Dạng bug log](#các-dạng-bug-log-phổ-biến) · [Chuẩn hóa một issue](#chuẩn-hóa-một-issue) · [Đọc evidence](#đọc-evidence) · [Quy trình tái hiện](#quy-trình-tái-hiện) · [Phân loại](#phân-loại-nguyên-nhân) · [Verify sau khi DEV fix](#verify-bug-sau-khi-dev-fix) · [Regression](#regression-sau-verify) · [Báo cáo](#mẫu-báo-cáo)
+Mục lục: [Nguyên tắc tổng quát](#nguyên-tắc-tổng-quát) · [Ngôn ngữ tester](#ngôn-ngữ-tester) · [Dạng bug log](#các-dạng-bug-log-phổ-biến) · [Chuẩn hóa một issue](#chuẩn-hóa-một-issue) · [Đọc evidence](#đọc-evidence) · [Quy trình tái hiện](#quy-trình-tái-hiện) · [Luồng dài/race](complex-flow-race-reproduction.md) · [Phân loại](#phân-loại-nguyên-nhân) · [Verify sau khi DEV fix](#verify-bug-sau-khi-dev-fix) · [Regression](#regression-sau-verify) · [Báo cáo](#mẫu-báo-cáo)
 
 ## Nguyên tắc tổng quát
 
@@ -109,6 +109,7 @@ test_data:
   - masked value or synthetic replacement
 actions:
   - ordered visible action
+scenario_map: [] # dùng cho log dài/multi-screen/timing-sensitive; mỗi step giữ raw anchor
 observation_points:
   - before submit / after submit / after navigation
 actual: "KQTT/mô tả lỗi"
@@ -132,7 +133,7 @@ contradictions: []
 2. Tách `[Feature]` khỏi triệu chứng; không suy module chỉ từ prefix ID cũ.
 3. Parse môi trường thành stage/surface/platform. Ghi `Unknown` cho URL, build, device, browser, account nếu không có.
 4. Kéo các điều kiện nhúng trong prose ra `preconditions`: đã/chưa login, role/quyền, bản ghi mới/đã tồn tại, draft/đã submit, feature flag, config hoặc data state hiện tại.
-5. Tách action theo numbering và các dấu `>>`, `=>`, `->`. Mỗi action phải là thao tác quan sát được.
+5. Tách action theo numbering và các dấu `>>`, `=>`, `->`. Mỗi action phải là thao tác quan sát được. Với log dài, nhiều actor/page/state hoặc có từ chỉ timing/lặp, không dừng ở `actions[]`: lập scenario map và chạy completeness gate theo `complex-flow-race-reproduction.md`; mọi clause nguồn phải truy vết được hoặc ghi `Unknown`.
 6. Map `Mô tả lỗi`, `KQTT`, “kết quả thực hiện/thực tế” sang `actual`; map `KQMM`, “kết quả mong muốn”, “phải…” sang `expected`.
 7. Giữ exact input, error copy và UI label trong dấu nháy. Thay PII bằng alias/masked value trong artifact mới.
 8. Đưa phản hồi DEV vào `triage_notes`; không trộn với sự thật đã quan sát của tester.
@@ -206,9 +207,11 @@ Mở app thật, chờ render, xác minh visible label/DOM và state đầu vào
 - Với stateful bug, giữ đúng chuỗi nhiều phiên: tạo draft → thoát → sửa profile → quay lại đơn, hoặc mua lần hai sau giao dịch trước.
 - Thu UI + network/console/API ở cùng timestamp khi symptom có thể do backend/config.
 
+Nếu flow qua nhiều màn hình/tab/role hoặc bug phụ thuộc “ngay/nhanh/liên tục”, đọc `complex-flow-race-reproduction.md`. Giữ toàn bộ causal chain trong một test/attempt, chia `setup → critical burst → oracle`; không thêm readiness wait/assertion ở giữa burst rồi vô tình làm mất trigger.
+
 ### 6. Lặp và đối chứng
 
-Nếu an toàn, chạy lại cùng state ít nhất một lần và ghi `x/y`; với suspected race/flaky, tăng số lần có chủ đích. So sánh platform hoặc stage chỉ khi được phép và ghi rõ build/config không tương đương nếu biết.
+Nếu an toàn, chạy lại cùng state ít nhất một lần và ghi `x/y`; với suspected race/flaky, chọn attempt budget và cadence/instrumentation profile trước khi chạy. Reset state cho từng attempt; ở pha đo dùng một worker và không retry để denominator không bị trộn. Ghi requested/observed timing thay vì chỉ nói “đã bấm nhanh”; xem `complex-flow-race-reproduction.md`.
 
 Sau khi replay nguyên bản, chạy **một controlled variation** nếu nó an toàn và giúp cô lập trigger: chỉ đổi một biến như platform, session state, data class, blur/submit hoặc build; giữ các biến còn lại cố định. Ghi rõ đây là đối chứng, không âm thầm thay thế case tester đã log.
 
@@ -334,7 +337,7 @@ Không ghi `Pass` cho platform, role, data class hoặc breakpoint chưa chạy;
 - **Visual/responsive:** chạy đúng device/OS/browser/viewport gốc, rồi breakpoint lân cận; kiểm overlap, clipping, hidden control, scroll và orientation nếu liên quan.
 - **State/session:** lặp đúng chuỗi tạo/sửa/quay lại/back/refresh/relogin; kiểm state không reset, stale hoặc duplicate.
 - **API/data/config:** kiểm request/response, trạng thái UI, persistence/read-back và parity build/config; HTTP 2xx một mình không chứng minh nghiệp vụ đúng.
-- **Async/race/intermittent:** giữ cùng fingerprint, đo tỷ lệ trước/sau, ghi timing/network; không tuyên bố fixed sau một lần pass.
+- **Async/race/intermittent:** giữ cùng fingerprint + cadence + instrumentation profile, đo tỷ lệ trước/sau và ghi timing/network; không tuyên bố fixed sau một lần pass. Nếu trace/video làm tỷ lệ thay đổi, báo riêng từng profile và ghi đây là suspected observer effect, không gộp denominator.
 - **Permission/role:** verify đúng role gốc và thêm role đối chứng; không dùng tài khoản quyền cao để vô tình bỏ qua bug.
 
 ## Regression sau verify

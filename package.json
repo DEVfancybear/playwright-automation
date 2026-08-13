@@ -1,6 +1,6 @@
 {
   "name": "@duong.dev/playwright-automation",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Agent Skill cho Codex và Claude: tái hiện bug, verify fix và automation testing bằng Playwright + TypeScript.",
   "keywords": [
     "codex",

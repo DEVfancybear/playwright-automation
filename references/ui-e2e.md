@@ -267,6 +267,8 @@ await page.getByRole('button', { name: 'Xóa' }).click();
 
 ## Chờ đúng cách
 
+Phân biệt hai khái niệm: **readiness wait** phải bám vào assertion/URL/event/response; còn delay giữa hai action chỉ hợp lệ khi chính cadence là biến đầu vào của bug timing-sensitive. Trường hợp đó đặt tên `cadenceMs`, đo timing, không chèn assertion/screenshot vào critical burst và làm theo `complex-flow-race-reproduction.md`.
+
 ```typescript
 await page.waitForURL('**/dashboard');
 await page.waitForURL(/\/orders\/\d+/);
@@ -282,6 +284,8 @@ await page.waitForLoadState('networkidle');   // hợp cho recon; app có pollin
 ```
 
 Sắp xếp theo mức độ nên dùng: chờ assertion cụ thể > chờ URL/response > `networkidle` > `waitForTimeout` (gần như không bao giờ).
+
+Với popup/download/request/response, luôn tạo waiter promise **trước** action, không `await` waiter trước trigger. Có thể dùng `Promise.all` để thu nhiều waiter đã arm; không dùng nó để chạy đồng thời các action người dùng vốn phải nối tiếp. Không dùng `waitForNavigation()`; dùng `waitForURL()` hoặc web-first assertion.
 
 ## Soft assertion
 

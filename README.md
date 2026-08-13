@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
 
-> Skill cho Codex và Claude giúp tester tái hiện bug, verify fix và biến yêu cầu kiểm thử thành test tự động **chạy được và bảo trì được**, bằng Playwright + TypeScript.
+> Skill cho Codex và Claude giúp tester tái hiện bug, verify fix và biến yêu cầu kiểm thử thành test tự động **chạy được và bảo trì được**, bằng Playwright + TypeScript — kể cả log dài, luồng nhiều màn hình/role và bug chỉ xuất hiện khi thao tác nhanh.
 
 Đây là một Agent Skill theo chuẩn mở, dùng được trong [Codex](https://learn.chatgpt.com/docs/build-skills) và Claude Code. Skill đóng gói hướng dẫn, reference và script để agent tự nạp khi bạn nhờ tái hiện bug hoặc làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; agent lo phần trinh sát, selector, cấu hình và code.
 
@@ -22,8 +22,23 @@ Tester chuyển sang automation thường vấp ba chỗ:
 | **Script dùng một lần rồi bỏ** | Kết tinh thành dự án có cấu trúc: Page Object, fixture, config đa môi trường, CI — commit vào repo được |
 | **File test case Excel nằm một nơi, code nằm một nơi** | `scripts/excel_to_spec.py` đọc file UAT có sẵn, sinh khung spec + bảng truy vết `test-map.json` |
 | **Bug tester mô tả nhanh, DEV cần verify lại sau fix** | Chuẩn hóa full row + evidence → tái hiện baseline → verify đúng build fix → targeted regression |
+| **Log dài, đi qua nhiều màn hình rồi Agent bỏ sót state/bước** | Compile từng raw clause thành scenario map có actor, context/page, from/to state, timing, branch và observation point; báo coverage `x/y` |
+| **Phải bấm nhanh/liên tục mới ra bug** | Tách `setup → critical burst → oracle`, chạy cadence/attempt matrix, đo timing thực tế và không chèn wait làm trigger biến mất |
 
 Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trước, rồi mới kết tinh thành suite.
+
+## Mới trong v1.2.0 — xử lý case khó
+
+Phiên bản `1.2.0` thêm một protocol riêng cho bug phức tạp, nằm ở [`references/complex-flow-race-reproduction.md`](references/complex-flow-race-reproduction.md):
+
+- **Log văn bản dài → scenario map:** giữ raw anchor của từng clause, actor/session/tab, state trước–sau, bước lặp/nhánh và từ khóa timing như “ngay”, “liên tục”, “lần thứ hai”. Agent phải báo `raw_clause_coverage: x/y`, không được tóm tắt mất bước.
+- **Luồng stateful xuyên màn hình:** giữ toàn bộ causal chain trong một test/attempt, nhưng chia code sạch bằng `test.step`, Page Object và flow helper. Tab/popup cùng session dùng chung `BrowserContext`; hai role độc lập dùng hai context.
+- **Critical burst:** setup được chờ readiness bình thường; đoạn trigger chỉ chứa action nguồn theo đúng thứ tự/cadence; oracle chạy sau burst. Agent không được thêm toast wait/screenshot/assertion ở giữa rồi vô tình “stabilize away” bug.
+- **Cadence và tần suất:** timing không rõ được ghi `Unknown` rồi khám phá bằng speed ladder. Mỗi profile báo requested/observed timing và `reproduced x/y`; baseline intermittent không mặc định chỉ chạy hai lượt.
+- **Evidence có thể ảnh hưởng race:** tách profile low-overhead và evidence-rich khi trace/video làm thay đổi tỷ lệ. Không gộp denominator và không kết luận `Not reproduced` chỉ vì bật trace thì bug ít xuất hiện hơn.
+- **Fix verification có căn cứ:** giữ cùng build fingerprint, state, cadence và instrumentation profile giữa baseline/target; chỉ `Verified fixed` khi symptom cũ không còn, KQMM + persistence đạt và targeted regression không lỗi.
+
+Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright về [auto-waiting/actionability](https://playwright.dev/docs/actionability), [events](https://playwright.dev/docs/events), [pages/contexts](https://playwright.dev/docs/pages), [input](https://playwright.dev/docs/input), [trace viewer](https://playwright.dev/docs/trace-viewer) và [retries](https://playwright.dev/docs/test-retries).
 
 ## Dành cho ai
 
@@ -47,6 +62,7 @@ Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trướ
 | **Hiệu năng** | Core Web Vitals, Lighthouse, ranh giới khi nào phải dùng k6 |
 | **Chẩn đoán** | Test flaky, timeout, lỗi chỉ xảy ra trên CI, locator gãy |
 | **Bug reproduction & fix verification** | Đọc bug log nhiều tab/evidence, tái hiện baseline, phân loại nguyên nhân, verify fix và đề xuất Close/Reopen |
+| **Complex flow & race reproduction** | Scenario map, multi-screen/tab/role, critical burst, cadence matrix, attempt rate và observer effect |
 
 ## Cài đặt nhanh
 
@@ -85,7 +101,7 @@ npx @duong.dev/playwright-automation uninstall
 npx @duong.dev/playwright-automation where
 ```
 
-**Trên claude.ai** — tải file `.skill` ở [Releases](../../releases) (hoặc tự đóng gói, xem [docs/INSTALL.md](docs/INSTALL.md)), rồi vào **Settings → Capabilities → Skills → Upload skill**.
+**Trên claude.ai** — tải file `.skill` ở [Releases](https://github.com/DEVfancybear/playwright-automation/releases) (hoặc tự đóng gói, xem [docs/INSTALL.md](docs/INSTALL.md)), rồi vào **Settings → Capabilities → Skills → Upload skill**.
 
 Chi tiết đầy đủ (clone bằng git, cài theo dự án, cập nhật, gỡ, kiểm tra đã nhận skill chưa): [docs/INSTALL.md](docs/INSTALL.md)
 
@@ -112,6 +128,12 @@ thành script Playwright.
 Test này lúc pass lúc fail trên Jenkins mà chạy máy tôi thì luôn xanh. Sao vậy?
 ```
 
+```
+Bug log này dài và đi qua nhiều màn hình. Hãy map đủ từng clause, giữ nguyên state
+giữa các màn hình, rồi tự tái hiện. Lỗi chỉ ra khi bấm Lưu → Quay lại thật nhanh;
+hãy đo cadence, chạy nhiều attempts và đừng chờ toast ở giữa hai action.
+```
+
 Nhiều kịch bản hơn kèm output mẫu: [docs/USAGE.md](docs/USAGE.md)
 
 ## Cấu trúc kho
@@ -122,6 +144,7 @@ playwright-automation/
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
 ├── references/                 # Tài liệu chuyên sâu, agent chỉ đọc file cần dùng
 │   ├── bug-reproduction.md     # Tái hiện bug, verify fix, evidence và verdict
+│   ├── complex-flow-race-reproduction.md # Log dài, multi-flow, cadence/race
 │   ├── project-setup.md        # Cài đặt, playwright.config.ts, đa môi trường
 │   ├── ui-e2e.md               # Locator, Page Object, form, bảng, iframe
 │   ├── api-testing.md          # request fixture, schema, checklist test API
@@ -175,6 +198,9 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 - **Khung spec sinh từ Excel cố tình FAIL** (`expect(true, ...).toBe(false)`). Một khung test luôn xanh nguy hiểm hơn không có test, vì nó tạo cảm giác đã kiểm tra trong khi chưa kiểm tra gì.
 - **`retries: 2` chỉ bật trên CI.** Retry ở local sẽ giấu lỗi thật của script.
+- **Race baseline chạy `retries=0`, thường `workers=1`.** Retry làm sai denominator `x/y`; parallel load chỉ được thêm như một biến thử nghiệm riêng.
+- **`waitForTimeout` không dùng để chờ readiness.** Nó chỉ được chấp nhận khi delay chính là test input cadence, được đặt tên, đo và đưa vào ma trận.
+- **`force`/`dispatchEvent` là nhánh chẩn đoán.** Bằng chứng chính vẫn phải dùng action user-like với actionability mặc định.
 - **Locator trong `assets/template/pages/LoginPage.ts` là phỏng đoán.** Cố ý — quy trình bắt buộc chạy `explore.mjs` lấy locator thật rồi thay vào.
 - **Nội dung viết bằng tiếng Việt**, thuật ngữ kỹ thuật giữ tiếng Anh. Tester đọc được thì vẫn sửa được test khi agent không có mặt.
 

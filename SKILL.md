@@ -1,6 +1,6 @@
 ---
 name: playwright-automation
-description: Bộ công cụ automation testing, tái hiện bug và verify fix thực tế bằng Playwright + TypeScript dành cho tester/QA. Dùng skill này khi người dùng muốn đọc bug log/issue sheet, hiểu cách tester mô tả lỗi bằng KQMM/KQTT/EVD, tái hiện bug trước khi DEV sửa, verify/retest sau khi DEV fix trên STG/UAT/production, phân biệt lỗi code với config/data/infra, viết hoặc sinh script automation, tự động hóa test case, dựng framework, test E2E/API/visual/responsive/accessibility, mock API, chuyển file test case Excel thành script, đọc report, xử lý flaky, hoặc tích hợp CI/CD. Cũng kích hoạt khi người dùng nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, "reproduce bug", "verify bug", "verify fix", "retest bug", "log bug", "dev đã fix", "chạy thử app xem đúng chưa", "test tự động", hoặc đưa link/localhost kèm yêu cầu kiểm tra chức năng, bằng tiếng Việt hoặc tiếng Anh.
+description: Automation testing, tái hiện bug và verify fix bằng Playwright + TypeScript dành cho tester/QA. Dùng skill này khi người dùng muốn đọc bug log/issue sheet, hiểu KQMM/KQTT/EVD, xử lý log văn bản dài, luồng stateful qua nhiều màn hình/tab/role, bug chỉ tái hiện khi thao tác nhanh/liên tục hoặc có race condition, tái hiện bug trước khi DEV sửa, verify/retest sau fix trên STG/UAT/production, phân biệt lỗi code với config/data/infra, viết hoặc sinh script automation, tự động hóa test case, dựng framework, test E2E/API/visual/responsive/accessibility, mock API, chuyển Excel thành script, đọc report, xử lý flaky, hoặc tích hợp CI/CD. Cũng kích hoạt khi người dùng nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, "reproduce bug", "verify/retest bug/fix", "log bug", "dev đã fix", "thao tác nhanh/liên tục", "nhiều màn hình/luồng", "race/flaky/intermittent", "chạy thử app xem đúng chưa", "test tự động", hoặc đưa link/localhost kèm yêu cầu kiểm tra chức năng, bằng tiếng Việt hoặc tiếng Anh.
 ---
 
 # Playwright Automation cho Tester
@@ -29,6 +29,7 @@ Với bug log thực tế, dùng **Decode → Reproduce baseline → Classify �
 | Người dùng nói gì | Làm gì | Đọc thêm |
 |---|---|---|
 | "Đọc bug log", "reproduce/retest bug", KQMM/KQTT/EVD, issue STG/UAT/prod | Decode full row + evidence → tái hiện → phân loại → báo cáo/retest | `references/bug-reproduction.md`, rồi `references/ui-e2e.md` nếu cần browser |
+| Log dài; nhiều màn hình/tab/role; back/reopen/relogin; “ngay”, “nhanh”, “liên tục”, double-click; race/intermittent | Lập scenario map có raw anchor → giữ causal flow → setup/critical burst/oracle → chạy cadence matrix + attempts | `references/bug-reproduction.md`, rồi `references/complex-flow-race-reproduction.md` |
 | "Verify bug", "verify fix", "xác nhận DEV đã fix", "retest để Close/Reopen" | Kiểm baseline do agent đã tái hiện → chạy lại đúng fingerprint trên build đã fix → kiểm KQMM + persistence/side effect → regression gần vùng sửa → verdict | `references/bug-reproduction.md`, mục **Verify bug sau khi DEV fix** |
 | "Đọc kỹ" workbook bug có nhiều tab, học cách tester log lỗi | Inventory cả visible/hidden tab + filtered/hidden row → phân loại bug/evidence/metadata → đọc mọi bug list + xem ảnh evidence → nêu coverage | `references/bug-reproduction.md` |
 | "Test giúp chức năng X xem chạy đúng không" | Recon → viết spec nhanh → chạy → báo cáo | `references/ui-e2e.md` |
@@ -155,10 +156,10 @@ test.describe('TC-LOGIN — Đăng nhập', () => {
 
 2. **Dùng assertion tự chờ (web-first).** `await expect(locator).toBeVisible()` tự retry tới khi hết timeout; `expect(await locator.isVisible()).toBe(true)` thì kiểm tra đúng một khoảnh khắc và sẽ fail ngẫu nhiên.
 
-3. **Không `waitForTimeout` cứng.** Sleep 3 giây vừa chậm vừa không chắc. Chờ đúng thứ cần: `await expect(...).toBeVisible()`, `page.waitForURL()`, `page.waitForResponse()`.
-   Ngoại lệ hiếm: animation không có tín hiệu nào để bám — khi đó ghi comment giải thích tại sao.
+3. **Không `waitForTimeout` để đồng bộ readiness.** Sleep 3 giây vừa chậm vừa không chắc. Chờ đúng thứ cần: `await expect(...).toBeVisible()`, `page.waitForURL()`, `page.waitForResponse()`.
+   Ngoại lệ riêng của bug timing-sensitive: delay có tham số được dùng như **test input cadence**, phải ghi requested/actual timing và nằm trong ma trận; xem `references/complex-flow-race-reproduction.md`. Animation không có tín hiệu để bám là ngoại lệ hiếm khác và phải có comment.
 
-4. **Mỗi test tự đứng được.** Không phụ thuộc test trước để lại dữ liệu hay trạng thái. Playwright chạy song song và có retry — test dây chuyền sẽ đổ theo domino.
+4. **Mỗi test tự đứng được.** Không phụ thuộc test trước để lại dữ liệu hay trạng thái. Một causal flow nhiều màn hình vẫn phải nằm trọn trong **một test/attempt**, chia bằng `test.step`/Page Object chứ không thành chuỗi test phụ thuộc nhau.
 
 5. **Dữ liệu test tự sinh, không hard-code.** `user_${Date.now()}@test.com` thay vì `test01@test.com` bị trùng khi chạy song song. Test nào tạo dữ liệu thì tự dọn ở `afterEach` (nhanh nhất là gọi API xóa).
 
@@ -196,12 +197,14 @@ Với bug log, dùng đúng giọng tester nhưng tách rõ `Pre`, bước, `KQT
 
 - [ ] Locator lấy từ DOM thật, không phải đoán
 - [ ] Không còn `waitForTimeout` cứng nào không có lý do
-- [ ] Test chạy được **hai lần liên tiếp** đều pass (chạy lại lần 2 để lộ test phụ thuộc dữ liệu cũ)
+- [ ] Regression deterministic chạy được **hai lần liên tiếp** đều pass; baseline intermittent/race dùng attempts + tỷ lệ `x/y`, không áp checklist “hai lần pass”
 - [ ] Không có mật khẩu / token hard-code trong code — nằm ở `.env`, và `.env` đã `.gitignore`
 - [ ] Tên test khớp mã test case của tester
 - [ ] Với bug log: đã đọc full row + evidence + timeline, không chỉ title/status
 - [ ] Bug ID/source row truy vết được và wording gốc vẫn còn bên cạnh bản chuẩn hóa
 - [ ] Với bug log: actual/expected và fact/inference/unknown được tách riêng
+- [ ] Với log dài/complex flow: báo `raw_clause_coverage: x/y`; mọi clause đã map hoặc ghi `Unknown`; actor/page/state/timing/branch và observation point không bị mất
+- [ ] Với bug thao tác nhanh/race: đã tách setup → critical burst → oracle; không chen wait/assertion làm đổi cadence; báo profile + requested/actual timing + `x/y`; intermittent baseline không mặc định chỉ chạy hai lượt
 - [ ] Trước verify: chính agent đã tái hiện baseline trên build gốc và lưu evidence; evidence lịch sử chỉ hỗ trợ điều tra, không thay gate này cho verdict `Verified fixed`
 - [ ] Verify chạy đúng target build/deployment, platform, role, state và data class của bug gốc
 - [ ] Không chỉ kiểm "lỗi biến mất": đã assert tích cực KQMM và side effect/persistence liên quan
@@ -216,6 +219,7 @@ Với bug log, dùng đúng giọng tester nhưng tách rõ `Pre`, bước, `KQT
 | File | Nội dung |
 |---|---|
 | `references/bug-reproduction.md` | Đọc ngôn ngữ tester Việt, tái hiện/retest bug STG/UAT/prod, evidence, phân loại nguyên nhân, mẫu báo cáo |
+| `references/complex-flow-race-reproduction.md` | Compile log dài thành scenario map; replay nhiều màn hình/tab/role; critical burst, cadence matrix, race/intermittent và observer effect |
 | `references/project-setup.md` | Cài đặt, `playwright.config.ts`, đa môi trường, cấu trúc thư mục, npm scripts |
 | `references/ui-e2e.md` | Locator, Page Object, assertion, upload/download, iframe, tab mới, dialog, table, date picker |
 | `references/api-testing.md` | `request` fixture, kiểm tra status/schema, chain token, tạo dữ liệu qua API |

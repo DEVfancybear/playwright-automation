@@ -12,11 +12,13 @@ npx playwright show-trace trace.zip     # 2. Mở trace: timeline + DOM từng b
 npx playwright test <file> --headed --debug   # 3. Chạy lại chậm, nhìn tận mắt
 ```
 
-Trace là công cụ mạnh nhất. Nó cho phép **tua lại** từng hành động và xem DOM tại đúng thời điểm đó — nhìn là biết nút có tồn tại không, có bị che không, dữ liệu đã load chưa. Bật trace cho mọi lần chạy khi đang điều tra:
+Trace là công cụ mạnh nhất. Nó cho phép **tua lại** từng hành động và xem DOM tại đúng thời điểm đó — nhìn là biết nút có tồn tại không, có bị che không, dữ liệu đã load chưa. Với lỗi thông thường, bật trace cho lượt điều tra:
 
 ```bash
 npx playwright test --trace on
 ```
+
+Với bug chỉ xuất hiện khi thao tác nhanh/race, trace/video có thể thêm overhead. Playwright xác nhận trace mọi test tốn tài nguyên, còn việc nó đổi tỷ lệ của bug cụ thể phải được đo. Chạy riêng profile low-overhead và evidence-rich theo `complex-flow-race-reproduction.md`; không bật instrumentation nặng cho mọi attempt rồi kết luận `Not reproduced`.
 
 ## Bug thật hay lỗi script
 
@@ -40,16 +42,15 @@ Cách kiểm chứng nhanh: **làm lại thao tác đó bằng tay trên đúng 
 
 Nguyên nhân theo thứ tự phổ biến:
 
-**1. Thiếu chờ / chờ sai thứ**
+**1. Phân biệt test thiếu chờ với product race/hydration**
 
 ```typescript
-// ❌ Bấm ngay khi nút vừa xuất hiện, nhưng handler chưa gắn xong
-await page.getByRole('button', { name: 'Lưu' }).click();
-
-// ✅ Chờ đúng điều kiện dùng được
-await expect(page.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+// Regression bình thường: chờ checkpoint readiness có nghĩa của app.
+await expect(page.getByTestId('editor-status')).toHaveText('Sẵn sàng');
 await page.getByRole('button', { name: 'Lưu' }).click();
 ```
+
+Visible/enabled chỉ chứng minh actionability tương ứng, không chứng minh framework đã hydrate hay listener nghiệp vụ đã gắn. Nếu tester báo click ngay khi nút xuất hiện bị mất, thêm `toBeEnabled()`/sleep có thể che đúng bug sản phẩm. Trước tiên replay thao tác user-like không `force`, giữ cadence và đo `x/y`; sau đó mới chạy ready-gated như controlled variation. Chỉ coi là lỗi script khi acceptance criterion thực sự yêu cầu chờ một tín hiệu mà người dùng cũng thấy/tuân theo.
 
 **2. Test phụ thuộc nhau**
 
@@ -82,13 +83,13 @@ Test tạo đơn lúc 23:59 rồi assert ngày hôm nay → chạy CI lúc nửa
 await page.clock.setFixedTime(new Date('2026-01-15T10:00:00'));
 ```
 
-Công cụ tìm test flaky — chạy lặp lại nhiều lần:
+Công cụ tìm test flaky — chạy lặp lại nhiều lần. Khi đang đo tỷ lệ race của một case stateful, ưu tiên `--workers=1 --retries=0`; chỉ thêm workers/load như biến đối chứng riêng:
 
 ```bash
-npx playwright test -g "TC-ORD-05" --repeat-each=10 --workers=4
+npx playwright test -g "TC-ORD-05" --repeat-each=10 --workers=1 --retries=0
 ```
 
-Nếu 10 lần đều pass mà trên CI vẫn flaky, khả năng cao là vấn đề hiệu năng/môi trường chứ không phải logic test.
+Nếu 10 lần đều pass mà trên CI vẫn flaky, chưa đủ để gán nguyên nhân. So fingerprint, load/worker, cache/session, network và instrumentation giữa hai nơi rồi thay đổi từng biến một.
 
 ## Timeout
 
