@@ -1,16 +1,16 @@
 # Hướng dẫn sử dụng
 
-Skill không có cú pháp phải học. Bạn mô tả việc cần làm bằng tiếng Việt như nói với đồng nghiệp, Claude tự chọn công cụ phù hợp.
+Skill không có cú pháp phải học. Bạn mô tả việc cần làm bằng tiếng Việt như nói với đồng nghiệp; Codex hoặc Claude tự chọn công cụ phù hợp. Trong Codex, có thể gọi thẳng `$playwright-automation` khi muốn bắt buộc dùng skill.
 
 Tài liệu này đi qua các kịch bản thật, kèm những gì bạn sẽ nhận được.
 
-Mục lục: [Nói sao cho Claude hiểu](#nói-sao-cho-claude-hiểu-đúng) · [KB1 Test nhanh](#kịch-bản-1--test-nhanh-một-chức-năng) · [KB2 Dựng suite](#kịch-bản-2--dựng-bộ-test-cho-dự-án) · [KB3 Từ Excel](#kịch-bản-3--từ-file-test-case-excel) · [KB4 API](#kịch-bản-4--test-api) · [KB5 Visual & responsive](#kịch-bản-5--visual-và-responsive) · [KB6 Accessibility](#kịch-bản-6--accessibility) · [KB7 Ca lỗi khó dựng](#kịch-bản-7--test-ca-lỗi-khó-dựng-bằng-tay) · [KB8 Test flaky](#kịch-bản-8--test-lúc-pass-lúc-fail) · [KB9 CI/CD](#kịch-bản-9--đưa-test-lên-cicd) · [Dùng script trực tiếp](#dùng-script-trực-tiếp) · [Bảo trì](#bảo-trì-suite-về-lâu-dài)
+Mục lục: [Nói sao cho agent hiểu](#nói-sao-cho-agent-hiểu-đúng) · [KB1 Test nhanh](#kịch-bản-1--test-nhanh-một-chức-năng) · [KB2 Dựng suite](#kịch-bản-2--dựng-bộ-test-cho-dự-án) · [KB3 Từ Excel](#kịch-bản-3--từ-file-test-case-excel) · [KB4 API](#kịch-bản-4--test-api) · [KB5 Visual & responsive](#kịch-bản-5--visual-và-responsive) · [KB6 Accessibility](#kịch-bản-6--accessibility) · [KB7 Ca lỗi khó dựng](#kịch-bản-7--test-ca-lỗi-khó-dựng-bằng-tay) · [KB8 Test flaky](#kịch-bản-8--test-lúc-pass-lúc-fail) · [KB9 CI/CD](#kịch-bản-9--đưa-test-lên-cicd) · [Dùng script trực tiếp](#dùng-script-trực-tiếp) · [Bảo trì](#bảo-trì-suite-về-lâu-dài)
 
 ---
 
-## Nói sao cho Claude hiểu đúng
+## Nói sao cho agent hiểu đúng
 
-Ba thứ nên có trong yêu cầu đầu tiên. Thiếu thì Claude sẽ hỏi, nhưng có sẵn thì nhanh hơn:
+Ba thứ nên có trong yêu cầu đầu tiên. Thiếu thì agent sẽ hỏi, nhưng có sẵn thì nhanh hơn:
 
 1. **URL** — staging, local hay production? Có cần đăng nhập không, tài khoản test là gì?
 2. **Phạm vi** — một chức năng, một luồng nghiệp vụ, hay cả bộ regression?
@@ -35,7 +35,7 @@ Khi bạn chỉ muốn biết chức năng chạy đúng chưa, chưa cần dự
 > Test giúp tôi chức năng tìm kiếm sản phẩm ở https://staging.congty.vn/products.
 > Gõ "áo sơ mi" rồi bấm Tìm, xem kết quả có ra đúng không.
 
-Claude sẽ:
+Agent sẽ:
 
 1. Chạy `explore.mjs` trinh sát trang → lấy locator thật của ô tìm kiếm và nút Tìm.
 2. Viết một spec ngắn dựa trên locator vừa lấy.
@@ -57,7 +57,7 @@ Kết quả trinh sát trông như thế này:
   [error] Failed to load resource: 500 /api/categories
 ```
 
-Dòng `⚠ KHỚP 12` là cảnh báo locator dính nhiều phần tử — Playwright sẽ báo lỗi strict mode nếu dùng thẳng. Claude sẽ tự thu hẹp bằng `.filter()`.
+Dòng `⚠ KHỚP 12` là cảnh báo locator dính nhiều phần tử — Playwright sẽ báo lỗi strict mode nếu dùng thẳng. Agent sẽ tự thu hẹp bằng `.filter()`.
 
 Lỗi console được nêu ra để bạn kiểm chứng, **không** để kết luận vội — có lỗi console không đồng nghĩa chức năng hỏng.
 
@@ -91,7 +91,7 @@ cp .env.example .env      # điền tài khoản test vào đây
 npx playwright test --ui  # chế độ giao diện — tester rất dễ theo dõi
 ```
 
-Bước tiếp theo nên làm ngay: nhờ Claude trinh sát trang login thật và sửa `pages/LoginPage.ts`, vì locator trong template chỉ là phỏng đoán cho form đăng nhập điển hình.
+Bước tiếp theo nên làm ngay: nhờ agent trinh sát trang login thật và sửa `pages/LoginPage.ts`, vì locator trong template chỉ là phỏng đoán cho form đăng nhập điển hình.
 
 > Trinh sát https://staging.congty.vn/login rồi sửa lại LoginPage.ts và auth.setup.ts cho khớp.
 
@@ -103,7 +103,7 @@ Nếu bạn đã có file KỊCH BẢN NGHIỆM THU / UAT, đừng viết lại 
 
 > Đây là file "KỊCH BẢN NGHIỆM THU.xlsx". Chuyển sheet "Đăng nhập" thành script Playwright.
 
-Claude chạy `excel_to_spec.py`, tự dò dòng tiêu đề và các cột (tiếng Việt có dấu, không dấu, hoặc tiếng Anh), xử lý được cả ô gộp và test case trải nhiều dòng:
+Agent chạy `excel_to_spec.py`, tự dò dòng tiêu đề và các cột (tiếng Việt có dấu, không dấu, hoặc tiếng Anh), xử lý được cả ô gộp và test case trải nhiều dòng:
 
 ```
 ▸ Đăng nhập
@@ -144,11 +144,11 @@ Kèm theo là `test-map.json` để trả lời câu hỏi "test case nào đã 
    "spec_file": "dang-nhap.spec.ts", "status": "generated" }]
 ```
 
-Sau đó nhờ Claude điền tiếp:
+Sau đó nhờ agent điền tiếp:
 
 > Trinh sát https://staging.congty.vn/login rồi điền hết TODO trong dang-nhap.spec.ts.
 
-**Lưu ý về phạm vi.** Không phải test case nào cũng đáng tự động hóa. Nên bỏ qua ca chỉ chạy một lần, ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày. Claude sẽ nêu ý kiến về những ca này thay vì sinh hết mọi dòng.
+**Lưu ý về phạm vi.** Không phải test case nào cũng đáng tự động hóa. Nên bỏ qua ca chỉ chạy một lần, ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày. Agent sẽ nêu ý kiến về những ca này thay vì sinh hết mọi dòng.
 
 ---
 
@@ -159,7 +159,7 @@ Sau đó nhờ Claude điền tiếp:
 
 Test API không cần trình duyệt nên nhanh hơn test UI hàng chục lần. Với tester mới làm automation, đây thường là nơi nên bắt đầu.
 
-Claude sẽ phủ theo checklist:
+Agent sẽ phủ theo checklist:
 
 - Happy path — đúng status và đúng body
 - Thiếu trường bắt buộc → 400, message chỉ rõ trường nào
@@ -201,7 +201,7 @@ test('không bị tràn ngang trên mobile', async ({ page }) => {
 Với visual regression (so sánh ảnh), cần biết trước hai điều:
 
 - **Lần chạy đầu luôn fail** và tự tạo ảnh gốc. Cố ý — bạn phải mở ảnh xem và xác nhận đúng trước khi commit.
-- **Ảnh gốc gắn với hệ điều hành.** Ảnh chụp trên Windows sẽ không khớp khi CI chạy Linux vì font render khác nhau. Sinh baseline trong Docker để đồng nhất — Claude sẽ hướng dẫn.
+- **Ảnh gốc gắn với hệ điều hành.** Ảnh chụp trên Windows sẽ không khớp khi CI chạy Linux vì font render khác nhau. Sinh baseline trong Docker để đồng nhất — agent sẽ hướng dẫn.
 
 Giao diện đổi có chủ đích thì cập nhật ảnh gốc:
 
@@ -217,7 +217,7 @@ Rồi **mở phần diff trong report xem từng ảnh** trước khi commit. Ch
 
 > Kiểm tra trang chủ và trang thanh toán có đạt WCAG 2.1 AA không.
 
-Claude dùng `@axe-core/playwright`, gắn kết quả vi phạm vào HTML report kèm link hướng dẫn sửa cho từng lỗi.
+Agent dùng `@axe-core/playwright`, gắn kết quả vi phạm vào HTML report kèm link hướng dẫn sửa cho từng lỗi.
 
 Khi báo cáo lại cho khách hàng, đừng viết "app đã đạt WCAG AA". Quét tự động chỉ bắt được khoảng 30–40% vấn đề — nó biết ảnh thiếu `alt`, nhưng không biết `alt="hình ảnh"` là vô nghĩa. Cách nói đúng: *"quét tự động không phát hiện vi phạm WCAG 2.1 AA; các hạng mục cần kiểm tra thủ công gồm trình đọc màn hình, thao tác chỉ bằng bàn phím, thứ tự đọc hợp lý"*.
 
@@ -251,7 +251,7 @@ Cân bằng khi dùng mock: mock bên thứ ba (thanh toán, SMS/OTP, bản đ�
 
 > Test TC-ORD-05 chạy trên Jenkins lúc pass lúc fail, mà chạy máy tôi thì luôn xanh.
 
-Claude sẽ chẩn đoán theo thứ tự nguyên nhân phổ biến: thiếu chờ, test phụ thuộc nhau, dữ liệu trùng khi chạy song song, animation chưa xong, hoặc vấn đề múi giờ.
+Agent sẽ chẩn đoán theo thứ tự nguyên nhân phổ biến: thiếu chờ, test phụ thuộc nhau, dữ liệu trùng khi chạy song song, animation chưa xong, hoặc vấn đề múi giờ.
 
 Công cụ hay dùng:
 
@@ -280,7 +280,7 @@ Cách kiểm chứng chắc chắn nhất vẫn là **làm lại thao tác đó 
 
 Nhận được workflow đầy đủ: cài trình duyệt, biến môi trường tách secrets/vars, lưu report kể cả khi fail, và tuỳ chọn bắn thông báo Slack.
 
-Suite lớn thì chia nhỏ chạy song song (sharding) rồi gộp report — Claude sẽ dựng cả job `merge-reports`, vì thiếu nó bạn nhận về 4 report rời rạc và không ai biết tổng thể pass bao nhiêu.
+Suite lớn thì chia nhỏ chạy song song (sharding) rồi gộp report — agent sẽ dựng cả job `merge-reports`, vì thiếu nó bạn nhận về 4 report rời rạc và không ai biết tổng thể pass bao nhiêu.
 
 Xuất kết quả về TestRail / Jira Xray: cả hai đều nhận file JUnit XML có sẵn trong cấu hình. Để map đúng, đặt mã TC ngay trong tên test.
 
@@ -290,7 +290,7 @@ Xuất kết quả về TestRail / Jira Xray: cả hai đều nhận file JUnit 
 
 ## Dùng script trực tiếp
 
-Ba script chạy được ngoài Claude. Mỗi script đều có `--help` đầy đủ.
+Ba script chạy được độc lập ngoài Codex/Claude. Mỗi script đều có `--help` đầy đủ.
 
 ### Trinh sát trang
 
@@ -357,7 +357,7 @@ Suite automation không phải làm xong là xong. Vài thói quen giữ nó s�
 
 **Tên test khớp mã test case của tester.** Người đọc report phải nhận ra ngay đây là ca nào trong file test case của họ.
 
-**Giao diện đổi thì nhờ Claude trinh sát lại:**
+**Giao diện đổi thì nhờ agent trinh sát lại:**
 
 > Trang đơn hàng vừa đổi giao diện, test TC-ORD-03 fail vì không tìm thấy nút.
 > Trinh sát lại rồi sửa Page Object.

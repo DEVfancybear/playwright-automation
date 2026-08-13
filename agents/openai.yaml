@@ -1,0 +1,4 @@
+interface:
+  display_name: "Playwright QA Automation"
+  short_description: "Tái hiện bug và tự động hóa kiểm thử Playwright"
+  default_prompt: "Use $playwright-automation to reproduce this bug, verify the fix, and create a maintainable Playwright regression test."

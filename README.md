@@ -4,9 +4,9 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
 
-> Skill cho Claude giúp tester biến yêu cầu kiểm thử thành test tự động **chạy được và bảo trì được**, bằng Playwright + TypeScript.
+> Skill cho Codex và Claude giúp tester tái hiện bug, verify fix và biến yêu cầu kiểm thử thành test tự động **chạy được và bảo trì được**, bằng Playwright + TypeScript.
 
-Đây là một [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) — một gói hướng dẫn + script mà Claude tự nạp khi bạn nhờ nó làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; Claude lo phần selector, cấu hình và code.
+Đây là một Agent Skill theo chuẩn mở, dùng được trong [Codex](https://learn.chatgpt.com/docs/build-skills) và Claude Code. Skill đóng gói hướng dẫn, reference và script để agent tự nạp khi bạn nhờ tái hiện bug hoặc làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; agent lo phần trinh sát, selector, cấu hình và code.
 
 Phát triển dựa trên ý tưởng của [`anthropics/skills/webapp-testing`](https://github.com/anthropics/skills/tree/main/skills/webapp-testing), viết lại cho stack TypeScript và cho quy trình làm việc thực tế của tester Việt Nam.
 
@@ -21,6 +21,7 @@ Tester chuyển sang automation thường vấp ba chỗ:
 | **Đoán selector** → test lúc chạy lúc không | Bắt buộc trinh sát app thật trước khi viết code (`scripts/explore.mjs` đọc DOM và sinh locator có thật, cảnh báo locator dính nhiều phần tử) |
 | **Script dùng một lần rồi bỏ** | Kết tinh thành dự án có cấu trúc: Page Object, fixture, config đa môi trường, CI — commit vào repo được |
 | **File test case Excel nằm một nơi, code nằm một nơi** | `scripts/excel_to_spec.py` đọc file UAT có sẵn, sinh khung spec + bảng truy vết `test-map.json` |
+| **Bug tester mô tả nhanh, DEV cần verify lại sau fix** | Chuẩn hóa full row + evidence → tái hiện baseline → verify đúng build fix → targeted regression |
 
 Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trước, rồi mới kết tinh thành suite.
 
@@ -45,10 +46,25 @@ Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trướ
 | **Report & CI/CD** | HTML report, Allure, JUnit cho TestRail/Xray, GitHub Actions, Jenkins, GitLab, sharding |
 | **Hiệu năng** | Core Web Vitals, Lighthouse, ranh giới khi nào phải dùng k6 |
 | **Chẩn đoán** | Test flaky, timeout, lỗi chỉ xảy ra trên CI, locator gãy |
+| **Bug reproduction & fix verification** | Đọc bug log nhiều tab/evidence, tái hiện baseline, phân loại nguyên nhân, verify fix và đề xuất Close/Reopen |
 
 ## Cài đặt nhanh
 
-**Trên Claude Code** — một lệnh, không cần clone:
+**Trên Codex** — cài cho tài khoản hiện tại:
+
+```bash
+npx @duong.dev/playwright-automation install --codex
+```
+
+Cài theo repo để team dùng chung; Codex tự quét `.agents/skills/` từ thư mục làm việc lên repo root:
+
+```bash
+npx @duong.dev/playwright-automation install --codex --project
+```
+
+Sau đó gõ `/skills` hoặc nhắc trực tiếp `$playwright-automation`.
+
+**Trên Claude Code** — giữ nguyên lệnh cũ:
 
 ```bash
 npx @duong.dev/playwright-automation install
@@ -63,6 +79,8 @@ npx @duong.dev/playwright-automation install --project
 Gỡ hoặc xem đang cài ở đâu:
 
 ```bash
+npx @duong.dev/playwright-automation where --codex
+npx @duong.dev/playwright-automation uninstall --codex
 npx @duong.dev/playwright-automation uninstall
 npx @duong.dev/playwright-automation where
 ```
@@ -101,7 +119,9 @@ Nhiều kịch bản hơn kèm output mẫu: [docs/USAGE.md](docs/USAGE.md)
 ```
 playwright-automation/
 ├── SKILL.md                    # Điểm vào — quy trình, định tuyến, nguyên tắc chống flaky
-├── references/                 # Tài liệu chuyên sâu, Claude chỉ đọc file cần dùng
+├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
+├── references/                 # Tài liệu chuyên sâu, agent chỉ đọc file cần dùng
+│   ├── bug-reproduction.md     # Tái hiện bug, verify fix, evidence và verdict
 │   ├── project-setup.md        # Cài đặt, playwright.config.ts, đa môi trường
 │   ├── ui-e2e.md               # Locator, Page Object, form, bảng, iframe
 │   ├── api-testing.md          # request fixture, schema, checklist test API
@@ -124,7 +144,7 @@ Skill dùng cơ chế **progressive disclosure**: `SKILL.md` luôn được nạ
 
 ## Script dùng độc lập
 
-Ba script chạy được ngoài Claude, hữu ích cho tester muốn tự thao tác:
+Ba script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự thao tác:
 
 ```bash
 # Trinh sát trang, lấy locator có thật thay vì đoán
@@ -147,7 +167,7 @@ Mỗi script đều có `--help` mô tả đầy đủ tham số.
 | Playwright | `npm i -D @playwright/test` | Chạy test và trinh sát |
 | Python | ≥ 3.9 + `openpyxl` | `excel_to_spec.py` (chỉ khi cần đọc Excel) |
 
-Không cài trước cũng được — Claude sẽ hướng dẫn cài đúng lúc cần.
+Không cài trước cũng được — Codex hoặc Claude sẽ hướng dẫn cài đúng lúc cần.
 
 ## Ghi chú thiết kế
 
@@ -156,7 +176,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 - **Khung spec sinh từ Excel cố tình FAIL** (`expect(true, ...).toBe(false)`). Một khung test luôn xanh nguy hiểm hơn không có test, vì nó tạo cảm giác đã kiểm tra trong khi chưa kiểm tra gì.
 - **`retries: 2` chỉ bật trên CI.** Retry ở local sẽ giấu lỗi thật của script.
 - **Locator trong `assets/template/pages/LoginPage.ts` là phỏng đoán.** Cố ý — quy trình bắt buộc chạy `explore.mjs` lấy locator thật rồi thay vào.
-- **Nội dung viết bằng tiếng Việt**, thuật ngữ kỹ thuật giữ tiếng Anh. Tester đọc được thì mới sửa được test khi Claude không có mặt.
+- **Nội dung viết bằng tiếng Việt**, thuật ngữ kỹ thuật giữ tiếng Anh. Tester đọc được thì vẫn sửa được test khi agent không có mặt.
 
 ## Đóng góp
 

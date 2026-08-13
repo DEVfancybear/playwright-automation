@@ -1,14 +1,16 @@
 # Hướng dẫn cài đặt
 
-Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhất--npm) · [claude.ai](#cách-1--claudeai-web--desktop) · [Claude Code cá nhân](#cách-2--claude-code-dùng-cho-mọi-dự-án) · [Theo dự án](#cách-3--theo-dự-án-chia-sẻ-cho-cả-team) · [Kiểm tra](#kiểm-tra-đã-cài-được-chưa) · [Công cụ đi kèm](#cài-công-cụ-để-chạy-test) · [Cập nhật & gỡ](#cập-nhật) · [Sự cố](#sự-cố-thường-gặp)
+Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhất--npm) · [Codex cá nhân](#cách-1--codex-dùng-cho-mọi-dự-án) · [Codex theo repo](#cách-2--codex-theo-dự-án-chia-sẻ-cho-cả-team) · [claude.ai](#cách-3--claudeai-web--desktop) · [Claude Code](#cách-4--claude-code) · [Kiểm tra](#kiểm-tra-đã-cài-được-chưa) · [Công cụ đi kèm](#cài-công-cụ-để-chạy-test) · [Cập nhật & gỡ](#cập-nhật) · [Sự cố](#sự-cố-thường-gặp)
 
 ## Chọn cách cài
 
-| Bạn dùng Claude ở đâu | Cách cài | Ai dùng được |
+| Bạn dùng agent ở đâu | Cách cài | Ai dùng được |
 |---|---|---|
+| Codex CLI / IDE / desktop | `npx @duong.dev/playwright-automation install --codex` | Chỉ mình bạn, ở mọi dự án trên máy |
+| Codex, muốn chia sẻ cho team | Thêm `--project` rồi commit `.agents/skills/` | Cả team, khi làm việc trong dự án đó |
 | Claude Code (terminal / IDE) | `npx @duong.dev/playwright-automation install` | Chỉ mình bạn, ở mọi dự án trên máy |
 | Claude Code, muốn chia sẻ cho team | Thêm `--project` rồi commit `.claude/skills/` | Cả team, khi làm việc trong dự án đó |
-| Claude Code, muốn sửa skill | Clone bằng git vào `~/.claude/skills/` | Chỉ mình bạn, sửa trực tiếp được |
+| Codex hoặc Claude Code, muốn sửa skill | Clone bằng git vào thư mục skill tương ứng | Chỉ mình bạn, sửa trực tiếp được |
 | claude.ai (web hoặc app desktop) | Upload file `.skill` vào profile | Chỉ mình bạn, ở mọi cuộc trò chuyện |
 
 Cài nhiều cách cùng lúc cũng được. Bản trong dự án sẽ được ưu tiên hơn bản cá nhân.
@@ -18,29 +20,75 @@ Cài nhiều cách cùng lúc cũng được. Bản trong dự án sẽ được
 ## Cách nhanh nhất — npm
 
 ```bash
-npx @duong.dev/playwright-automation install
+npx @duong.dev/playwright-automation install --codex    # Codex
+npx @duong.dev/playwright-automation install            # Claude Code (tương thích lệnh cũ)
 ```
 
-Skill được copy vào `~/.claude/skills/playwright-automation/`. Khởi động lại Claude Code là dùng được.
+Với Codex, skill được copy vào `~/.agents/skills/playwright-automation/`. Với Claude Code, skill được copy vào `~/.claude/skills/playwright-automation/`.
 
 Các lệnh khác:
 
 ```bash
-npx @duong.dev/playwright-automation install --project   # cài vào .claude/skills/ của dự án
-npx @duong.dev/playwright-automation install --force     # ghi đè bản đã cài
+npx @duong.dev/playwright-automation install --codex --project  # cài vào .agents/skills/ của dự án
+npx @duong.dev/playwright-automation install --codex --force    # ghi đè bản Codex đã cài
+npx @duong.dev/playwright-automation install --claude --project # cài vào .claude/skills/ của dự án
 npx @duong.dev/playwright-automation install --dir <đường dẫn>   # cài vào chỗ tự chọn
-npx @duong.dev/playwright-automation where               # xem đang cài ở đâu
-npx @duong.dev/playwright-automation uninstall           # gỡ
+npx @duong.dev/playwright-automation where --codex       # xem bản Codex ở đâu
+npx @duong.dev/playwright-automation uninstall --codex   # gỡ bản Codex
 npx @duong.dev/playwright-automation --help
 ```
 
 Cập nhật lên bản mới: chạy lại lệnh `install --force`. `npx` luôn lấy phiên bản mới nhất trên npm.
 
-Cách này không dựng liên kết tới repo, nên nếu bạn định **sửa nội dung skill** thì dùng [cách clone bằng git](#cách-2--claude-code-dùng-cho-mọi-dự-án) sẽ tiện hơn.
+Cách này không dựng liên kết tới repo, nên nếu bạn định **sửa nội dung skill** thì dùng cách clone bằng git bên dưới sẽ tiện hơn.
 
 ---
 
-## Cách 1 — claude.ai (web / desktop)
+## Cách 1 — Codex (dùng cho mọi dự án)
+
+```bash
+git clone https://github.com/DEVfancybear/playwright-automation.git ~/.agents/skills/playwright-automation
+```
+
+Trên Windows PowerShell:
+
+```powershell
+git clone https://github.com/DEVfancybear/playwright-automation.git "$env:USERPROFILE\.agents\skills\playwright-automation"
+```
+
+Cấu trúc sau khi cài:
+
+```
+~/.agents/skills/
+└── playwright-automation/
+    ├── SKILL.md
+    ├── agents/openai.yaml
+    ├── references/
+    ├── scripts/
+    └── assets/
+```
+
+Codex thường tự nhận thay đổi. Dùng `/skills` để xem danh sách hoặc gọi trực tiếp `$playwright-automation`. Nếu chưa thấy skill, khởi động lại Codex.
+
+---
+
+## Cách 2 — Codex theo dự án (chia sẻ cho cả team)
+
+Đặt skill tại `.agents/skills/playwright-automation` trong repo dự án:
+
+```bash
+cd <thư mục dự án>
+git clone --depth 1 https://github.com/DEVfancybear/playwright-automation.git .agents/skills/playwright-automation
+rm -rf .agents/skills/playwright-automation/.git
+git add .agents/skills/playwright-automation
+git commit -m "chore: thêm skill playwright-automation cho Codex"
+```
+
+Codex quét `.agents/skills` từ thư mục làm việc hiện tại lên tới gốc repository. `SKILL.md` phải nằm ngay trong thư mục skill.
+
+---
+
+## Cách 3 — claude.ai (web / desktop)
 
 ### Bước 1: Có file `.skill`
 
@@ -78,7 +126,7 @@ Nếu skill được nạp, Claude sẽ nhắc tới `scaffold.mjs` hoặc quy t
 
 ---
 
-## Cách 2 — Claude Code (dùng cho mọi dự án)
+## Cách 4 — Claude Code
 
 ```bash
 git clone https://github.com/DEVfancybear/playwright-automation.git ~/.claude/skills/playwright-automation
@@ -111,7 +159,7 @@ Khởi động lại Claude Code để nó quét lại danh sách skill.
 
 ---
 
-## Cách 3 — Theo dự án (chia sẻ cho cả team)
+### Theo dự án (chia sẻ cho cả team)
 
 Đặt skill trong chính repo dự án để ai clone về cũng có:
 
@@ -135,7 +183,13 @@ git submodule add https://github.com/DEVfancybear/playwright-automation.git .cla
 
 ## Kiểm tra đã cài được chưa
 
-Hỏi Claude:
+Với Codex, mở `/skills` hoặc gọi trực tiếp:
+
+```
+$playwright-automation Hãy tái hiện bug này và verify bản fix của dev.
+```
+
+Với Claude, hỏi:
 
 ```
 Bạn có skill nào về automation testing không?
@@ -147,19 +201,20 @@ Hoặc thử một yêu cầu thật:
 Tôi cần lấy locator của trang https://playwright.dev để viết test
 ```
 
-Skill hoạt động đúng khi Claude nhắc tới trinh sát (recon) hoặc `explore.mjs` thay vì tự bịa selector.
+Skill hoạt động đúng khi agent nhắc tới trinh sát (recon), tái hiện bug có kiểm chứng, hoặc `explore.mjs` thay vì tự bịa selector.
 
 Kiểm tra file trên đĩa:
 
 ```bash
-ls ~/.claude/skills/playwright-automation/SKILL.md
+ls ~/.agents/skills/playwright-automation/SKILL.md  # Codex
+ls ~/.claude/skills/playwright-automation/SKILL.md # Claude Code
 ```
 
 ---
 
 ## Cài công cụ để chạy test
 
-Skill là phần hướng dẫn; để **chạy** test thì cần các công cụ sau. Không cài trước cũng được — Claude sẽ hướng dẫn đúng lúc cần.
+Skill là phần hướng dẫn; để **chạy** test thì cần các công cụ sau. Không cài trước cũng được — agent sẽ hướng dẫn đúng lúc cần.
 
 ### Node.js (bắt buộc)
 
@@ -212,6 +267,10 @@ npm i -D allure-playwright        # report Allure (cần thêm Java)
 ## Cập nhật
 
 ```bash
+cd ~/.agents/skills/playwright-automation
+git pull
+
+# Hoặc Claude Code
 cd ~/.claude/skills/playwright-automation
 git pull
 ```
@@ -221,7 +280,8 @@ Trên claude.ai: xoá skill cũ trong Settings rồi upload file `.skill` mới.
 ## Gỡ cài
 
 ```bash
-rm -rf ~/.claude/skills/playwright-automation
+npx @duong.dev/playwright-automation uninstall --codex
+npx @duong.dev/playwright-automation uninstall --claude
 ```
 
 Trên claude.ai: **Settings → Capabilities → Skills** → xoá skill.
@@ -232,8 +292,9 @@ Trên claude.ai: **Settings → Capabilities → Skills** → xoá skill.
 
 | Hiện tượng | Nguyên nhân | Xử lý |
 |---|---|---|
+| Codex không thấy skill | Sai vị trí hoặc chưa quét lại | Kiểm tra `~/.agents/skills/playwright-automation/SKILL.md`, mở `/skills`, rồi khởi động lại nếu cần |
+| Agent không tự dùng skill | Yêu cầu quá chung chung | Gọi `$playwright-automation` trong Codex, hoặc nhắc rõ "Playwright", "reproduce bug", "verify bug fix" |
 | Claude không dùng skill dù đã cài | Chưa khởi động lại Claude Code, hoặc skill chưa được bật | Khởi động lại; kiểm tra công tắc trong Settings |
-| Claude không dùng skill dù đã bật | Yêu cầu quá chung chung nên Claude tự xử lý được | Nói rõ hơn: nhắc "Playwright", "automation test", hoặc đưa URL cụ thể |
 | Cấu trúc thư mục sai | Clone tạo thêm một tầng lồng nhau | `SKILL.md` phải nằm ngay trong `playwright-automation/`, không phải `playwright-automation/playwright-automation/` |
 | `Executable doesn't exist at ...` | Chưa tải trình duyệt | `npx playwright install --with-deps chromium` |
 | `Host system is missing dependencies` | Thiếu thư viện hệ thống (Linux) | `npx playwright install-deps`, hoặc dùng Docker image chính thức |

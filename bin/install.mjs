@@ -2,9 +2,9 @@
 /**
  * Trình cài đặt skill playwright-automation.
  *
- * Copy nội dung skill vào nơi Claude tìm skill:
- *   - mặc định: ~/.claude/skills/playwright-automation  (dùng cho mọi dự án)
- *   - --project: .claude/skills/playwright-automation   (chia sẻ cho cả team)
+ * Copy nội dung skill vào nơi agent host tìm skill:
+ *   - Claude: ~/.claude/skills hoặc .claude/skills
+ *   - Codex:  ~/.agents/skills hoặc .agents/skills
  */
 
 import { parseArgs } from 'node:util';
@@ -16,12 +16,25 @@ import { fileURLToPath } from 'node:url';
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SKILL_NAME = 'playwright-automation';
 
-// Chỉ những thứ Claude cần khi nạp skill. docs/ và README dành cho người đọc trên GitHub,
+// Chỉ những thứ agent cần khi nạp skill. docs/ và README dành cho người đọc trên GitHub,
 // đưa vào thư mục skill chỉ làm rác.
-const SKILL_CONTENT = ['SKILL.md', 'references', 'scripts', 'assets', 'LICENSE'];
+const SKILL_CONTENT = ['SKILL.md', 'agents', 'references', 'scripts', 'assets', 'LICENSE'];
+
+const HOSTS = {
+  claude: {
+    label: 'Claude Code',
+    userDir: ['.claude', 'skills'],
+    projectDir: ['.claude', 'skills'],
+  },
+  codex: {
+    label: 'Codex',
+    userDir: ['.agents', 'skills'],
+    projectDir: ['.agents', 'skills'],
+  },
+};
 
 const HELP = `
-playwright-automation — skill automation testing Playwright + TypeScript cho tester
+playwright-automation — skill Playwright QA cho Claude và Codex
 
 CÁCH DÙNG
   npx @duong.dev/playwright-automation install [tuỳ chọn]     Cài skill
@@ -29,20 +42,26 @@ CÁCH DÙNG
   npx @duong.dev/playwright-automation where                  In ra nơi skill đang được cài
 
 TUỲ CHỌN
-  --project        Cài vào .claude/skills/ của dự án hiện tại (commit được, cả team dùng chung)
-                   thay vì ~/.claude/skills/ (chỉ mình bạn, dùng ở mọi dự án)
+  --codex          Cài cho Codex: ~/.agents/skills/ hoặc .agents/skills/ với --project
+  --claude         Cài cho Claude Code (mặc định, giữ tương thích ngược)
+  --project        Cài vào thư mục skill của dự án hiện tại, commit được cho cả team
+                   thay vì thư mục skill cá nhân dùng ở mọi dự án
   --dir <đường dẫn>  Cài vào thư mục tự chọn
   --force          Ghi đè bản đã cài
   --help
 
 VÍ DỤ
   npx @duong.dev/playwright-automation install
+  npx @duong.dev/playwright-automation install --codex
+  npx @duong.dev/playwright-automation install --codex --project
   npx @duong.dev/playwright-automation install --project
   npx @duong.dev/playwright-automation install --force
   npx @duong.dev/playwright-automation uninstall
 
 SAU KHI CÀI
-  Khởi động lại Claude Code, rồi thử:
+  Codex: gõ /skills hoặc nhắc $playwright-automation.
+  Claude Code: khởi động lại nếu skill chưa xuất hiện.
+  Sau đó thử:
     "Dựng giúp tôi khung automation test Playwright cho https://example.com"
 `;
 
@@ -51,6 +70,8 @@ try {
   ({ values: args, positionals } = parseArgs({
     options: {
       project: { type: 'boolean', default: false },
+      codex: { type: 'boolean', default: false },
+      claude: { type: 'boolean', default: false },
       dir: { type: 'string' },
       force: { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
@@ -66,15 +87,25 @@ const command = positionals[0];
 
 if (args.help || !command) {
   console.log(HELP);
-  process.exit(command ? 0 : 1);
+  process.exit(args.help ? 0 : 1);
+}
+
+if (args.codex && args.claude) {
+  console.error(`Chỉ chọn một trong hai: --codex hoặc --claude.\n${HELP}`);
+  process.exit(1);
+}
+
+const hostKey = args.codex ? 'codex' : 'claude';
+const host = HOSTS[hostKey];
+
+function skillBase(projectScoped = args.project) {
+  const parts = projectScoped ? host.projectDir : host.userDir;
+  return path.join(projectScoped ? process.cwd() : homedir(), ...parts);
 }
 
 function targetDir() {
   if (args.dir) return path.resolve(args.dir);
-  const base = args.project
-    ? path.join(process.cwd(), '.claude', 'skills')
-    : path.join(homedir(), '.claude', 'skills');
-  return path.join(base, SKILL_NAME);
+  return path.join(skillBase(), SKILL_NAME);
 }
 
 function version() {
@@ -114,14 +145,17 @@ switch (command) {
     console.log(`
 ✓ Đã cài skill playwright-automation v${version()}
 
+  Host: ${host.label}
   Vị trí: ${dest}
   Nội dung: ${copied.join(', ')}
   Phạm vi: ${args.dir ? 'thư mục tự chọn'
-             : args.project ? 'dự án này (commit .claude/skills/ để cả team dùng)'
+             : args.project ? `dự án này (commit ${host.projectDir.join('/')}/ để cả team dùng)`
              : 'toàn máy, mọi dự án'}
 
 BƯỚC TIẾP THEO
-  1. Khởi động lại Claude Code để nó quét lại danh sách skill.
+  1. ${hostKey === 'codex'
+    ? 'Gõ /skills hoặc nhắc $playwright-automation; nếu chưa xuất hiện, khởi động lại Codex.'
+    : 'Khởi động lại Claude Code nếu skill chưa xuất hiện.'}
   2. Thử một yêu cầu thật, ví dụ:
        "Test giúp tôi chức năng đăng nhập ở https://staging.congty.vn"
 
@@ -142,9 +176,15 @@ BƯỚC TIẾP THEO
   }
 
   case 'where': {
-    const global = path.join(homedir(), '.claude', 'skills', SKILL_NAME);
-    const project = path.join(process.cwd(), '.claude', 'skills', SKILL_NAME);
+    if (args.dir) {
+      console.log(`${host.label} — thư mục tự chọn:\n  ${dest}\n  ${existsSync(dest) ? '✓ đã cài' : '✗ chưa cài'}`);
+      break;
+    }
+    const global = path.join(skillBase(false), SKILL_NAME);
+    const project = path.join(skillBase(true), SKILL_NAME);
     console.log(`
+${host.label}
+
 Toàn máy: ${global}
           ${existsSync(global) ? '✓ đã cài' : '✗ chưa cài'}
 
