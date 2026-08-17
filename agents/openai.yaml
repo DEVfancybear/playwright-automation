@@ -1,4 +1,4 @@
 interface:
   display_name: "Playwright QA Automation"
-  short_description: "Tái hiện bug phức tạp và kiểm thử Playwright"
-  default_prompt: "Use $playwright-automation to decode this bug log, preserve its cross-screen flow and timing, reproduce it with evidence, and create a maintainable regression test."
+  short_description: "Điều tra trực tiếp trên trình duyệt, tái hiện bug, kiểm thử Playwright khi cần chạy lại"
+  default_prompt: "Use $playwright-automation to decode this bug log, preserve its cross-screen flow and timing, and reproduce it with evidence by driving a real browser directly. Only write a Playwright regression test if I ask for one, or if the scenario cannot be done by hand."

@@ -1,5 +1,7 @@
 # Đo hiệu năng phía người dùng
 
+> **Đo một lần thì làm trực tiếp.** Chạy trong trang: `performance.getEntriesByType('navigation')[0]` cho thời gian tải, `performance.getEntriesByType('resource')` cho từng request — trả lời ngay, không cần dự án. Dùng file này khi cần **đo lặp và so sánh qua thời gian**, hoặc test tải.
+
 Playwright đo được **hiệu năng cảm nhận của một người dùng** (trang tải nhanh không, API phản hồi bao lâu). Nó **không** phải công cụ test tải — muốn biết hệ thống chịu được bao nhiêu người cùng lúc thì cần k6/JMeter, xem mục cuối.
 
 ## Đo thời gian tải trang
@@ -100,7 +102,8 @@ test('không có tài nguyên nào nặng quá 1MB', async ({ page }) => {
   });
 
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  // Chờ mốc cụ thể thay cho 'networkidle' (DISCOURAGED; app có polling sẽ không bao giờ idle).
+  await expect(page.getByRole('heading', { name: 'Trang chủ' })).toBeVisible();
 
   expect(heavy, `Tài nguyên nặng:\n${heavy.join('\n')}`).toEqual([]);
 });

@@ -1,5 +1,7 @@
 # Visual regression, responsive và cross-browser
 
+> **Kiểm nhanh một lần thì làm trực tiếp.** "Trang này trên mobile có vỡ không" → đổi kích thước cửa sổ + chụp màn hình + đọc cây accessibility, trả lời ngay, không cần file nào. Chỉ dùng file này khi cần **so pixel qua thời gian** (baseline snapshot lưu trong repo) hoặc chạy đa viewport/cross-browser lặp lại.
+
 Mục lục: [Visual regression](#visual-regression) · [Che vùng thay đổi](#che-vùng-luôn-thay-đổi) · [Quản lý ảnh gốc](#quản-lý-ảnh-gốc-baseline) · [Responsive](#test-responsive) · [Cross-browser](#cross-browser) · [Giả lập mobile](#giả-lập-thiết-bị-mobile) · [Kiểm tra layout không cần ảnh](#kiểm-tra-layout-không-cần-ảnh)
 
 ## Visual regression

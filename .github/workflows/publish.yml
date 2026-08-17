@@ -25,11 +25,29 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false
 
+      - name: Verify version matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          [ "$TAG" = "$PKG" ] || { echo "Tag $TAG != package.json $PKG"; exit 1; }
+
       - name: Check installer syntax
         run: node --check bin/install.mjs
 
       - name: Inspect package
-        run: npm pack --dry-run
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e "
+            const files = require('./pack.json')[0].files.map(f => f.path);
+            const need = ['SKILL.md', 'references/live-browser-investigation.md', 'bin/install.mjs', 'scripts/explore.mjs'];
+            const missing = need.filter(n => !files.includes(n));
+            if (missing.length) { console.error('Thiếu trong tarball:', missing); process.exit(1); }
+            const fm = require('fs').readFileSync('SKILL.md', 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/)[1];
+            const desc = fm.match(/^description:\s*(.+)\$/m)[1];
+            if (desc.normalize('NFC').length > 1024) { console.error('description quá 1024 ký tự:', desc.length); process.exit(1); }
+            console.log('Package OK — description', desc.length, 'ký tự');
+          "
 
       - name: Publish to npm
         run: npm publish

@@ -1,10 +1,29 @@
-# Chẩn đoán test hỏng
+# Chẩn đoán: app hỏng hay test hỏng
 
-Mục lục: [Quy trình chẩn đoán](#quy-trình-chẩn-đoán) · [Bug thật hay lỗi script](#bug-thật-hay-lỗi-script) · [Test flaky](#test-flaky-lúc-pass-lúc-fail) · [Timeout](#timeout) · [Locator không tìm thấy](#locator-không-tìm-thấy-phần-tử) · [Chỉ fail trên CI](#chỉ-fail-trên-ci) · [Lỗi thường gặp](#bảng-lỗi-thường-gặp)
+Mục lục: [Quan sát trực tiếp](#bước-0--quan-sát-trực-tiếp) · [Quy trình chẩn đoán](#quy-trình-chẩn-đoán) · [Bug thật hay lỗi script](#bug-thật-hay-lỗi-script) · [Test flaky](#test-flaky-lúc-pass-lúc-fail) · [Timeout](#timeout) · [Locator không tìm thấy](#locator-không-tìm-thấy-phần-tử) · [Chỉ fail trên CI](#chỉ-fail-trên-ci) · [Lỗi thường gặp](#bảng-lỗi-thường-gặp)
+
+Định tuyến trước khi đọc tiếp:
+
+- **Chưa có spec nào** — người dùng chỉ nói "trang này lỗi" → đi thẳng xuống Bước 0, dùng công cụ browser. Đừng viết test để chẩn đoán một lỗi có thể nhìn thấy trực tiếp.
+- **Đã có spec và nó fail** → dùng report/trace như phần còn lại của file này.
+
+## Bước 0 — Quan sát trực tiếp
+
+Rẻ nhất và nhanh nhất: mở app thật xem chuyện gì đang xảy ra, trước khi đụng tới trace hay `--debug`.
+
+| Câu hỏi | Làm gì |
+|---|---|
+| App có lỗi JS không | Đọc console |
+| Request nào fail, status bao nhiêu | Đọc network |
+| Phần tử có tồn tại thật không, text là gì | Đọc cây accessibility / trích text |
+| Cái gì đang che nút | `document.elementFromPoint(x, y)` |
+| Trang render xong chưa | Đọc lại cây accessibility 2–3 lần, so sánh |
+
+Nếu quan sát trực tiếp cho thấy app thật sự lỗi → đó là **bug của app**, không phải test hỏng, và thường không cần viết test nào để chứng minh. Xem `live-browser-investigation.md`.
 
 ## Quy trình chẩn đoán
 
-Đừng đoán. Playwright ghi lại đủ bằng chứng để biết chính xác chuyện gì đã xảy ra:
+Áp dụng khi **một spec đã viết** bị fail. Đừng đoán — Playwright ghi lại đủ bằng chứng để biết chính xác chuyện gì đã xảy ra:
 
 ```bash
 npx playwright show-report              # 1. Xem test nào fail, message gì
@@ -134,10 +153,10 @@ Nguyên nhân hay gặp:
 | Nguyên nhân | Cách kiểm chứng / xử lý |
 |---|---|
 | Máy CI chậm hơn máy local | Tăng `timeout`, giảm `workers`, dùng máy khỏe hơn |
-| Local có Chrome thật, CI dùng headless | Chạy local với `--headed=false` để tái hiện |
+| Local có Chrome thật, CI dùng headless | Chạy local **không** kèm `--headed` — headless đã là mặc định (`npx playwright test`). Nếu config để `headless: false` thì override bằng `use: { headless: true }` khi so với CI |
 | Font khác → visual test lệch | Sinh baseline trong Docker (xem `visual-responsive.md`) |
-| Múi giờ khác (CI dùng UTC) | Đặt `timezoneId: 'Asia/Ho_Chi_Minh'` trong config |
-| Ngôn ngữ khác | Đặt `locale: 'vi-VN'` |
+| Múi giờ khác (CI dùng UTC) | Đặt `timezoneId` khớp múi giờ tester dùng khi log bug (ví dụ `'Asia/Ho_Chi_Minh'`), đừng để CI tự dùng UTC |
+| Ngôn ngữ khác | Đặt `locale` khớp ngôn ngữ giao diện đang test (ví dụ `'vi-VN'`) |
 | Thiếu biến môi trường | Kiểm tra secrets/vars đã khai báo trong CI chưa |
 | CI không vào được staging (firewall/VPN) | Kiểm tra network policy; cần whitelist IP của runner |
 | Chromium crash trong Docker | Thêm `--ipc=host` khi chạy container |

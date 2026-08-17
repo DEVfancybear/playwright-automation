@@ -43,8 +43,9 @@ export default defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
-    locale: 'vi-VN',
-    timezoneId: 'Asia/Ho_Chi_Minh',
+    // Hai option này đổi format ngày/số của app — đặt theo môi trường tester dùng khi log bug.
+    locale: process.env.TEST_LOCALE || 'vi-VN',
+    timezoneId: process.env.TEST_TZ || 'Asia/Ho_Chi_Minh',
     // Bật khi môi trường staging dùng chứng chỉ tự ký
     ignoreHTTPSErrors: true,
   },

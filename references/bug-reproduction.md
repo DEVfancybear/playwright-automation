@@ -2,6 +2,9 @@
 
 Mục lục: [Nguyên tắc tổng quát](#nguyên-tắc-tổng-quát) · [Ngôn ngữ tester](#ngôn-ngữ-tester) · [Dạng bug log](#các-dạng-bug-log-phổ-biến) · [Chuẩn hóa một issue](#chuẩn-hóa-một-issue) · [Đọc evidence](#đọc-evidence) · [Quy trình tái hiện](#quy-trình-tái-hiện) · [Luồng dài/race](complex-flow-race-reproduction.md) · [Phân loại](#phân-loại-nguyên-nhân) · [Verify sau khi DEV fix](#verify-bug-sau-khi-dev-fix) · [Regression](#regression-sau-verify) · [Báo cáo](#mẫu-báo-cáo)
 
+> **Công cụ mặc định: thao tác trực tiếp trên trình duyệt.** Tái hiện bug là đi lại đúng các bước tester mô tả trên app thật — mở trang, bấm, đọc console + network — chứ không phải viết spec rồi chạy. Xem `live-browser-investigation.md`.
+> **Reproduction package = báo cáo + evidence.** File spec KHÔNG bắt buộc; chỉ codify khi bug đáng nằm trong suite regression hoặc người dùng yêu cầu. Với bug phụ thuộc nhịp bấm hoặc cần tỷ lệ `x/y`, thao tác tay không đủ — xem `complex-flow-race-reproduction.md`.
+
 ## Nguyên tắc tổng quát
 
 Bug log do người thật viết thường tối ưu cho giao tiếp nhanh trong team, không phải cho parser: tiêu đề có thể ngắn, precondition nằm giữa steps, Actual/Expected dùng viết tắt, evidence ở file khác, status cũ mâu thuẫn với comment mới. Đọc nó như một **tập bằng chứng có lịch sử**, không như một specification hoàn chỉnh.
@@ -196,7 +199,7 @@ Ghi stage, URL/build, platform/device/browser, locale/timezone, role, session st
 
 ### 4. Recon trước thao tác
 
-Mở app thật, chờ render, xác minh visible label/DOM và state đầu vào. Với UI, lấy locator từ DOM thật theo `references/ui-e2e.md`; không dịch shorthand tester thành selector phỏng đoán.
+Mở app thật, chờ render, xác minh visible label/DOM và state đầu vào. Với UI, đọc cây accessibility để lấy element có thật theo `live-browser-investigation.md`; không dịch shorthand tester thành selector phỏng đoán. Chỉ quy đổi `role + name` sang locator Playwright khi đã qua cổng CODIFY (`ui-e2e.md`).
 
 ### 5. Replay đúng state và observation point
 

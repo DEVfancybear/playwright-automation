@@ -1,6 +1,21 @@
 # Dựng và cấu hình dự án
 
-Mục lục: [Cài đặt](#cài-đặt) · [Cấu trúc thư mục](#cấu-trúc-thư-mục) · [playwright.config.ts](#playwrightconfigts) · [Đa môi trường](#đa-môi-trường-dev--staging--prod) · [webServer](#tự-động-khởi-động-server) · [npm scripts](#npm-scripts) · [tsconfig](#tsconfig) · [Thêm vào dự án có sẵn](#thêm-vào-dự-án-đã-có)
+Mục lục: [Khi nào mới scaffold](#khi-nào-mới-scaffold) · [Cài đặt](#cài-đặt) · [Cấu trúc thư mục](#cấu-trúc-thư-mục) · [playwright.config.ts](#playwrightconfigts) · [Đa môi trường](#đa-môi-trường-dev--staging--prod) · [webServer](#tự-động-khởi-động-server) · [npm scripts](#npm-scripts) · [tsconfig](#tsconfig) · [Thêm vào dự án có sẵn](#thêm-vào-dự-án-đã-có)
+
+## Khi nào mới scaffold
+
+**Đừng dựng khung cho một câu hỏi dùng một lần — kể cả khi repo đang trống.** Điều kiện là *nhu cầu của người dùng*, không phải *trạng thái repo*. Một dự án e2e đầy đủ kéo theo `node_modules` riêng, browser binary vài trăm MB và một cây thư mục phải bảo trì.
+
+Chỉ scaffold khi có ít nhất một trong bốn điều kiện:
+
+1. Người dùng nói rõ muốn có bộ test chạy lại được (regression, CI, gate release);
+2. Kịch bản vượt khả năng thao tác tay (cadence < 500 ms, tỷ lệ `x/y`, cookie HttpOnly, mock, hai context song song);
+3. Cần report máy đọc cho TestRail/Xray/Allure;
+4. Người dùng yêu cầu thẳng: "dựng khung", "chuyển Excel thành script", migration từ framework khác.
+
+Không điều kiện nào đúng → làm trực tiếp trên trình duyệt và bỏ qua file này (`live-browser-investigation.md`).
+
+`npx playwright install` chỉ cần khi sắp thật sự chạy `playwright test` — không cần cho điều tra trực tiếp.
 
 ## Cài đặt
 
@@ -86,8 +101,9 @@ export default defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
-    locale: 'vi-VN',
-    timezoneId: 'Asia/Ho_Chi_Minh',
+    // Hai option này đổi format ngày/số của app — đặt theo môi trường tester dùng khi log bug.
+    locale: process.env.TEST_LOCALE || 'vi-VN',
+    timezoneId: process.env.TEST_TZ || 'Asia/Ho_Chi_Minh',
     // Bật khi test môi trường staging dùng chứng chỉ tự ký
     ignoreHTTPSErrors: true,
   },
@@ -197,7 +213,6 @@ webServer: [
     "test:smoke": "playwright test --grep @smoke",
     "test:regression": "playwright test --grep @regression",
     "test:api": "playwright test --project=api",
-    "test:visual": "playwright test --project=visual",
     "test:update-snapshots": "playwright test --update-snapshots",
     "report": "playwright show-report",
     "codegen": "playwright codegen"

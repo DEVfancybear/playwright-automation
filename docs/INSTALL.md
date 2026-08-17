@@ -92,21 +92,24 @@ Codex quét `.agents/skills` từ thư mục làm việc hiện tại lên tới
 
 ### Bước 1: Có file `.skill`
 
-Tải từ [Releases](../../releases), hoặc tự đóng gói từ mã nguồn:
+Tự đóng gói từ mã nguồn:
 
 ```bash
 git clone https://github.com/DEVfancybear/playwright-automation.git
 cd playwright-automation
-zip -r ../playwright-automation.skill . -x ".git/*" -x "docs/*"
+zip -r ../playwright-automation.skill SKILL.md agents references scripts assets LICENSE
 ```
 
 Trên Windows PowerShell:
 
 ```powershell
 git clone https://github.com/DEVfancybear/playwright-automation.git
-Compress-Archive -Path playwright-automation\* -DestinationPath playwright-automation.zip
-Rename-Item playwright-automation.zip playwright-automation.skill
+cd playwright-automation
+Compress-Archive -Path SKILL.md,agents,references,scripts,assets,LICENSE -DestinationPath ..\playwright-automation.zip
+Rename-Item ..\playwright-automation.zip ..\playwright-automation.skill
 ```
+
+Danh sách file này phải khớp `SKILL_CONTENT` trong `bin/install.mjs` — sửa một chỗ thì sửa cả hai.
 
 > File `.skill` thực chất là file zip, bên trong có `SKILL.md` ở gốc. Đổi đuôi `.zip` thành `.skill` là xong.
 
@@ -122,7 +125,7 @@ Mở cuộc trò chuyện mới và gõ:
 Dựng giúp tôi khung automation test Playwright cho https://example.com
 ```
 
-Nếu skill được nạp, Claude sẽ nhắc tới `scaffold.mjs` hoặc quy trình Recon → Codify.
+Nếu skill được nạp, Claude sẽ nhắc tới quy trình LIVE → CODIFY, hoặc `scaffold.mjs` (vì đây là yêu cầu dựng khung rõ ràng). Với câu hỏi kiểu "xem hộ trang này lỗi gì", skill được nạp đúng sẽ **mở trình duyệt thao tác trực tiếp** thay vì viết file test.
 
 ---
 
@@ -201,7 +204,7 @@ Hoặc thử một yêu cầu thật:
 Tôi cần lấy locator của trang https://playwright.dev để viết test
 ```
 
-Skill hoạt động đúng khi agent nhắc tới trinh sát (recon), tái hiện bug có kiểm chứng, hoặc `explore.mjs` thay vì tự bịa selector.
+Skill hoạt động đúng khi agent **mở trình duyệt lấy element thật** (cây accessibility) rồi trả lời kèm bằng chứng — thay vì tự bịa selector hay viết sẵn một dự án test. Agent chỉ dùng `explore.mjs` khi môi trường không có công cụ browser, hoặc khi đang chuẩn bị codify.
 
 Kiểm tra file trên đĩa:
 

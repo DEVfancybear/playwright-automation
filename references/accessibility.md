@@ -1,5 +1,7 @@
 # Kiểm thử accessibility (WCAG)
 
+> **Soi nhanh thì làm trực tiếp.** Thiếu label, sai role, heading lộn xộn, nút không có tên — cây accessibility đọc từ trình duyệt cho thấy ngay (một node hiện là `button` trống tức là screen reader cũng đọc được đúng ngần đó). Dùng file này khi cần **quét full WCAG có thể lặp lại** bằng `@axe-core/playwright`.
+
 Accessibility testing kiểm tra xem người khiếm thị (dùng trình đọc màn hình), người không dùng được chuột, người mù màu... có dùng được app hay không. Ở Việt Nam đây thường là yêu cầu bắt buộc trong dự án cho ngân hàng, chính phủ, hoặc khách hàng nước ngoài.
 
 ## Cài đặt

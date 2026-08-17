@@ -48,6 +48,8 @@ TUỲ CHỌN
   --no-screenshot          Không chụp màn hình
   --timeout <ms>           Timeout điều hướng. Mặc định: 45000
   --ignore-https-errors    Bỏ qua lỗi chứng chỉ (staging dùng self-signed cert)
+  --locale <mã>            Ngôn ngữ trình duyệt. Mặc định: vi-VN
+  --timezone <id>          Múi giờ, ví dụ "UTC". Mặc định: Asia/Ho_Chi_Minh
   --help
 
 VÍ DỤ
@@ -89,6 +91,8 @@ try {
       'no-screenshot': { type: 'boolean', default: false },
       timeout: { type: 'string', default: '45000' },
       'ignore-https-errors': { type: 'boolean', default: false },
+      locale: { type: 'string' },
+      timezone: { type: 'string' },
       help: { type: 'boolean', default: false },
     },
     allowPositionals: false,
@@ -146,8 +150,9 @@ const navTimeout = Number(args.timeout);
 const contextOptions = {
   viewport: { width: vw || 1280, height: vh || 800 },
   ignoreHTTPSErrors: args['ignore-https-errors'],
-  locale: 'vi-VN',
-  timezoneId: 'Asia/Ho_Chi_Minh',
+  // Hai option này đổi format ngày/số mà app render — mặc định theo VN, đổi bằng --locale/--timezone.
+  locale: args.locale || 'vi-VN',
+  timezoneId: args.timezone || 'Asia/Ho_Chi_Minh',
 };
 if (args.device && pw.devices?.[args.device]) Object.assign(contextOptions, pw.devices[args.device]);
 if (args.auth) {

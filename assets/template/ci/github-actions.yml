@@ -5,7 +5,9 @@ on:
     branches: [main, develop]
   pull_request:
   schedule:
-    - cron: '0 22 * * 1-5'   # 5h sáng giờ VN (UTC+7), các ngày trong tuần
+    # Cron của GitHub Actions chạy theo UTC. 22:00 UTC = 05:00 UTC+7.
+    # Đổi giờ này cho khớp múi giờ team bạn trước khi dùng.
+    - cron: '0 22 * * 1-5'
   workflow_dispatch:
 
 jobs:

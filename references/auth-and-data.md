@@ -2,6 +2,10 @@
 
 Mục lục: [Vì sao cần storageState](#vì-sao-cần-storagestate) · [Setup project](#thiết-lập-setup-project) · [Nhiều role](#nhiều-role-user--admin) · [Đăng nhập qua API](#đăng-nhập-qua-api-nhanh-nhất) · [Per-worker auth](#per-worker-auth) · [Hai role trong một test](#hai-role-trong-cùng-một-test) · [OTP / 2FA](#otp-và-2fa) · [Sinh dữ liệu test](#sinh-dữ-liệu-test) · [Dọn dữ liệu](#dọn-dữ-liệu-sau-test) · [Data-driven](#chạy-một-test-với-nhiều-bộ-dữ-liệu)
 
+> **Cần một phiên đăng nhập cho một lần kiểm tra thôi?** Đăng nhập trực tiếp trên trình duyệt là đủ — không cần setup project, không cần `storageState`. Agent điền username/SĐT và dữ liệu test, nhưng **không tự điền mật khẩu**: dừng lại nhờ người dùng nhập rồi đi tiếp.
+>
+> **Ép hết phiên / xoá cookie đăng nhập thì bắt buộc dùng spec.** Cookie phiên thường là `HttpOnly`, `document.cookie` không thấy và JS trong trang không xoá được. Chỉ hai đường: `await context.clearCookies({ name: 'access_token' })` trong Playwright, hoặc chờ hết TTL thật (đọc `Max-Age` trên `Set-Cookie` lúc login để biết phải chờ bao lâu).
+
 ## Vì sao cần storageState
 
 Nếu mỗi test đều đăng nhập qua giao diện, một suite 100 test sẽ tốn thêm khoảng 100 × 5 giây = hơn 8 phút chỉ để gõ lại cùng một mật khẩu, và thêm 100 cơ hội để test fail vì lý do không liên quan đến thứ đang test.

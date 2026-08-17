@@ -1,5 +1,7 @@
 # Mock API và giả lập điều kiện mạng
 
+> **Vùng bắt buộc spec.** Công cụ browser chỉ **đọc** request đã xảy ra, không chặn/sửa được response và không giả lập được offline/throttle. Đừng mất thời gian thử làm bằng thao tác tay — vào thẳng Playwright.
+
 Mock cho phép tester kiểm tra những tình huống gần như không dựng được bằng tay: server trả 500, mạng rớt giữa chừng, API trả danh sách rỗng, thanh toán thất bại. Đây là cách bắt bug xử lý lỗi — mảng mà đội dev hay bỏ quên nhất.
 
 Mục lục: [Chặn và trả dữ liệu giả](#chặn-và-trả-dữ-liệu-giả) · [Giả lập lỗi](#giả-lập-lỗi-server) · [Mạng chậm & offline](#mạng-chậm-và-offline) · [Sửa response thật](#sửa-response-thật) · [Chặn tài nguyên rác](#chặn-tài-nguyên-không-cần-thiết) · [HAR](#ghi-và-phát-lại-har) · [Theo dõi request](#theo-dõi-request-mà-không-can-thiệp) · [Khi nào KHÔNG nên mock](#khi-nào-không-nên-mock)
@@ -198,7 +200,9 @@ test('trang chủ không có lỗi console', async ({ page }) => {
   page.on('requestfailed', r => errors.push(`${r.method()} ${r.url()} — ${r.failure()?.errorText}`));
 
   await page.goto('/');
-  await page.waitForLoadState('networkidle');
+  // Chờ một mốc cụ thể của trang, không chờ 'networkidle' (Playwright gắn nhãn DISCOURAGED,
+  // và app có polling/websocket sẽ không bao giờ idle).
+  await expect(page.getByRole('heading', { name: 'Trang chủ' })).toBeVisible();
 
   expect(errors, `Lỗi phát hiện:\n${errors.join('\n')}`).toEqual([]);
 });

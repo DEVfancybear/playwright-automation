@@ -4,6 +4,13 @@ Playwright test được API mà **không cần mở trình duyệt** — nhanh 
 
 Mục lục: [Cấu hình](#cấu-hình) · [Test cơ bản](#test-cơ-bản) · [Xác thực](#xác-thực-token) · [Kiểm tra schema](#kiểm-tra-cấu-trúc-response) · [CRUD](#luồng-crud-đầy-đủ) · [Dùng API trong UI test](#dùng-api-để-hỗ-trợ-ui-test) · [Upload/Download](#file-upload--download) · [Checklist](#checklist-test-api)
 
+> **Chỉ cần hỏi nhanh một endpoint?** Nếu đã mở app trên trình duyệt và đang đăng nhập, chạy `fetch` ngay trong trang — cookie, header và quyền của phiên hiện tại tự động đi kèm, không phải dựng dự án hay lo auth:
+> ```js
+> const r = await fetch('/api/orders?page=1', { credentials: 'include' });
+> ({ status: r.status, body: await r.json() })
+> ```
+> Dùng `request` fixture dưới đây khi cần bộ nhiều case, chạy lại được, hoặc chạy trên CI.
+
 ## Cấu hình
 
 Tách project riêng cho API trong `playwright.config.ts` để không kéo theo trình duyệt:

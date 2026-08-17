@@ -4,6 +4,14 @@ Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Biên dịch log](#1-biên-d�
 
 ## Khi nào dùng
 
+**Đi bộ một lượt bằng tay trước.** Mở app, đi đúng luồng ở nhịp thường bằng công cụ browser để chốt route, label, oracle và xem bug có tái hiện luôn không. Nếu tái hiện được ở nhịp thường → xong, báo cáo, không cần script hoá. Nếu không → escalate sang file này.
+
+Escalate khi cần một trong các thứ thao tác tay không làm nổi: gap giữa hai action dưới ~500 ms, chạy ≥10 lượt có reset state để lấy tỷ lệ `x/y`, hai actor/session chạy song song, hoặc chạy trên CI.
+
+> **Chặn cứng — hai luật không được vi phạm:**
+> 1. **Attempt chạy tay KHÔNG được tính vào attempt budget.** Thao tác qua công cụ browser là instrumentation chậm nhất có thể (mỗi lời gọi tốn hàng trăm ms), nên nó không đo được cadence và không đại diện cho một attempt hợp lệ.
+> 2. **Chỉ chạy tay mà không thấy bug → verdict là `Inconclusive`, KHÔNG BAO GIỜ `Not reproduced`.** Muốn kết luận `Not reproduced` thì phải chạy đủ ma trận cadence bằng script.
+
 Đọc file này cùng `bug-reproduction.md` khi issue có một trong các dấu hiệu:
 
 - mô tả dài, precondition chen giữa steps, nhiều dấu `>>`, `=>`, `->`, branch hoặc bước lặp;

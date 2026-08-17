@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
 
-> Skill cho Codex và Claude giúp tester tái hiện bug, verify fix và biến yêu cầu kiểm thử thành test tự động **chạy được và bảo trì được**, bằng Playwright + TypeScript — kể cả log dài, luồng nhiều màn hình/role và bug chỉ xuất hiện khi thao tác nhanh.
+> Skill cho Codex và Claude giúp tester trả lời câu hỏi kiểm thử bằng **bằng chứng thu trực tiếp trên trình duyệt** — tái hiện bug, verify fix, đọc console/network ngay tại chỗ — và chỉ kết tinh thành test Playwright + TypeScript khi thật sự cần chạy lại. Kể cả log dài, luồng nhiều màn hình/role và bug chỉ xuất hiện khi thao tác nhanh.
 
 Đây là một Agent Skill theo chuẩn mở, dùng được trong [Codex](https://learn.chatgpt.com/docs/build-skills) và Claude Code. Skill đóng gói hướng dẫn, reference và script để agent tự nạp khi bạn nhờ tái hiện bug hoặc làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; agent lo phần trinh sát, selector, cấu hình và code.
 
@@ -18,14 +18,25 @@ Tester chuyển sang automation thường vấp ba chỗ:
 
 | Vấn đề | Skill xử lý thế nào |
 |---|---|
-| **Đoán selector** → test lúc chạy lúc không | Bắt buộc trinh sát app thật trước khi viết code (`scripts/explore.mjs` đọc DOM và sinh locator có thật, cảnh báo locator dính nhiều phần tử) |
-| **Script dùng một lần rồi bỏ** | Kết tinh thành dự án có cấu trúc: Page Object, fixture, config đa môi trường, CI — commit vào repo được |
+| **Dựng cả dự án test chỉ để trả lời một câu hỏi** | Mặc định thao tác trực tiếp trên trình duyệt: mở app, bấm, đọc console + network → kết luận kèm bằng chứng. 0 file, 0 dependency |
+| **Đoán selector** → test lúc chạy lúc không | Bắt buộc trinh sát app thật trước khi viết code (cây accessibility cho element có thật; `scripts/explore.mjs` khi cần dump một lượt) |
+| **Script dùng một lần rồi bỏ** | Khi thật sự cần chạy lại: kết tinh thành dự án có cấu trúc — Page Object, fixture, config đa môi trường, CI |
 | **File test case Excel nằm một nơi, code nằm một nơi** | `scripts/excel_to_spec.py` đọc file UAT có sẵn, sinh khung spec + bảng truy vết `test-map.json` |
 | **Bug tester mô tả nhanh, DEV cần verify lại sau fix** | Chuẩn hóa full row + evidence → tái hiện baseline → verify đúng build fix → targeted regression |
 | **Log dài, đi qua nhiều màn hình rồi Agent bỏ sót state/bước** | Compile từng raw clause thành scenario map có actor, context/page, from/to state, timing, branch và observation point; báo coverage `x/y` |
 | **Phải bấm nhanh/liên tục mới ra bug** | Tách `setup → critical burst → oracle`, chạy cadence/attempt matrix, đo timing thực tế và không chèn wait làm trigger biến mất |
 
-Nguyên tắc xuyên suốt: **Recon → Codify**. Trinh sát app thật trước, rồi mới kết tinh thành suite.
+Nguyên tắc xuyên suốt: **LIVE trước, CODIFY sau — và chỉ codify khi cần.** Mặc định là mở trình duyệt làm thật để trả lời ngay; chỉ viết spec khi cần chạy lại lâu dài (regression/CI) hoặc khi kịch bản vượt khả năng thao tác tay (nhịp bấm dưới 500 ms, tỷ lệ `x/y`, cookie HttpOnly, mock, hai session song song). Không có file spec không có nghĩa là chưa xong việc.
+
+## Mới trong v1.3.0 — LIVE là mặc định
+
+Mặc định của skill không còn là viết file test, mà là **mở trình duyệt làm thật**:
+
+- **Pha 0 — FRAME**: chốt URL/build/môi trường, role/state và đích đến (một lần hay chạy lại lâu dài).
+- **Pha 1 — LIVE**: điều hướng, đọc cây accessibility, click/điền, chạy JS trong trang, đọc console + network. Phần lớn yêu cầu kết thúc ở đây.
+- **Pha 2 — CODIFY**: chỉ khi có ít nhất một dấu — **LẶP** (cần chạy lại lâu dài), **NHỊP** (gap < ~500 ms), **SỐ** (tỷ lệ `x/y` trên ≥10 lượt), **QUYỀN** (cookie HttpOnly, mock, hai context, baseline snapshot), **YÊU CẦU** (người dùng nói rõ muốn có file).
+
+**Không có file spec KHÔNG phải là chưa hoàn thành.** Chi tiết chế độ mặc định: [`references/live-browser-investigation.md`](references/live-browser-investigation.md).
 
 ## Mới trong v1.2.0 — xử lý case khó
 
@@ -50,6 +61,7 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 
 | Mảng | Nội dung |
 |---|---|
+| **Điều tra trực tiếp (mặc định)** | Mở app thật, đọc cây accessibility, click/điền, chạy JS trong trang, đọc console + network, chụp bằng chứng |
 | **Web UI E2E** | Locator theo vai trò, Page Object, form, bảng dữ liệu, upload/download, iframe, tab mới, dialog |
 | **API testing** | `request` fixture, kiểm tra status/schema, chain token, tạo dữ liệu qua API cho test UI |
 | **Visual regression** | `toHaveScreenshot`, che vùng động, quản lý ảnh baseline theo OS |
@@ -101,7 +113,7 @@ npx @duong.dev/playwright-automation uninstall
 npx @duong.dev/playwright-automation where
 ```
 
-**Trên claude.ai** — tải file `.skill` ở [Releases](https://github.com/DEVfancybear/playwright-automation/releases) (hoặc tự đóng gói, xem [docs/INSTALL.md](docs/INSTALL.md)), rồi vào **Settings → Capabilities → Skills → Upload skill**.
+**Trên claude.ai** — tự đóng gói file `.skill` từ mã nguồn (3 dòng lệnh, xem [docs/INSTALL.md](docs/INSTALL.md#cách-3--claudeai-web--desktop)), rồi vào **Settings → Capabilities → Skills → Upload skill**.
 
 Chi tiết đầy đủ (clone bằng git, cài theo dự án, cập nhật, gỡ, kiểm tra đã nhận skill chưa): [docs/INSTALL.md](docs/INSTALL.md)
 
@@ -110,13 +122,13 @@ Chi tiết đầy đủ (clone bằng git, cài theo dự án, cập nhật, g�
 Không có cú pháp gì phải nhớ. Cứ nói việc cần làm:
 
 ```
-Test giúp tôi chức năng đăng nhập ở https://staging.congty.vn, tài khoản test là
-tester@congty.vn / Abc@12345. Xem có bug gì không.
+Test giúp tôi chức năng đăng nhập ở https://staging.example.com, tài khoản test
+để trong .env (TEST_USER/TEST_PASS). Xem có bug gì không.
 ```
 
 ```
-Dựng khung automation cho dự án, staging ở https://staging.congty.vn,
-API ở https://api-staging.congty.vn. Cần cả test API và visual.
+Dựng khung automation cho dự án, staging ở https://staging.example.com,
+API ở https://api-staging.example.com. Cần cả test API và visual.
 ```
 
 ```
@@ -143,6 +155,7 @@ playwright-automation/
 ├── SKILL.md                    # Điểm vào — quy trình, định tuyến, nguyên tắc chống flaky
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
 ├── references/                 # Tài liệu chuyên sâu, agent chỉ đọc file cần dùng
+│   ├── live-browser-investigation.md # (mặc định) Điều tra trực tiếp: accessibility tree, console, network
 │   ├── bug-reproduction.md     # Tái hiện bug, verify fix, evidence và verdict
 │   ├── complex-flow-race-reproduction.md # Log dài, multi-flow, cadence/race
 │   ├── project-setup.md        # Cài đặt, playwright.config.ts, đa môi trường
@@ -171,10 +184,10 @@ Ba script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự
 
 ```bash
 # Trinh sát trang, lấy locator có thật thay vì đoán
-node scripts/explore.mjs --url https://staging.congty.vn/login --out ./recon
+node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
 
 # Dựng khung dự án đầy đủ
-node scripts/scaffold.mjs --dir ./e2e --base-url https://staging.congty.vn --features ui,api,visual
+node scripts/scaffold.mjs --dir ./e2e --base-url https://staging.example.com --features ui,api,visual
 
 # Đọc file test case Excel, sinh khung spec
 python scripts/excel_to_spec.py --file "KỊCH BẢN NGHIỆM THU.xlsx" --dry-run

@@ -20,9 +20,9 @@ So sánh:
 
 | Chưa đủ | Đủ để làm ngay |
 |---|---|
-| "Test giúp tôi trang web" | "Test luồng đặt hàng ở https://staging.congty.vn, tài khoản tester@congty.vn / Abc@12345, dựng thành suite chạy lại được" |
-| "Viết test đăng nhập" | "Viết test đăng nhập cho https://staging.congty.vn/login, cần cả ca thành công và 4 ca lỗi validate" |
-| "Test API" | "Test API `/api/orders` ở https://api-staging.congty.vn: GET danh sách, POST tạo đơn, và các ca lỗi 400/401/404" |
+| "Test giúp tôi trang web" | "Test luồng đặt hàng ở https://staging.example.com, tài khoản test lấy từ .env, dựng thành suite chạy lại được" |
+| "Viết test đăng nhập" | "Viết test đăng nhập cho https://staging.example.com/login, cần cả ca thành công và 4 ca lỗi validate" |
+| "Test API" | "Test API `/api/orders` ở https://api-staging.example.com: GET danh sách, POST tạo đơn, và các ca lỗi 400/401/404" |
 
 Đưa được file test case Excel hoặc tài liệu SRS thì càng tốt — trong đó thường đã có đủ tiền điều kiện, dữ liệu và kết quả mong đợi.
 
@@ -32,17 +32,19 @@ So sánh:
 
 Khi bạn chỉ muốn biết chức năng chạy đúng chưa, chưa cần dựng suite.
 
-> Test giúp tôi chức năng tìm kiếm sản phẩm ở https://staging.congty.vn/products.
+> Test giúp tôi chức năng tìm kiếm sản phẩm ở https://staging.example.com/products.
 > Gõ "áo sơ mi" rồi bấm Tìm, xem kết quả có ra đúng không.
 
 Agent sẽ:
 
-1. Chạy `explore.mjs` trinh sát trang → lấy locator thật của ô tìm kiếm và nút Tìm.
-2. Viết một spec ngắn dựa trên locator vừa lấy.
-3. Chạy test, chụp màn hình.
-4. Báo cáo: pass/fail, fail ở bước nào, và **đây là bug của app hay lỗi script**.
+1. Mở trang bằng công cụ browser, đọc cây accessibility để lấy element có thật (không đoán selector).
+2. Gõ "áo sơ mi" vào ô tìm kiếm → bấm Tìm.
+3. Sau mỗi bước: đọc network (endpoint + status), đọc console, chụp màn hình tại observation point.
+4. Trả lời thẳng câu hỏi kèm bằng chứng: kết quả đúng/sai, **bug của app hay lỗi thao tác**, phần nào chưa kiểm được và vì sao.
 
-Kết quả trinh sát trông như thế này:
+**Không tạo file nào** — 0 file, 0 dependency, 0 lệnh cài đặt. Cuối cùng agent hỏi: *"Có muốn chốt case này thành test chạy lại được không?"*; trả lời "có" thì mới sang bước viết spec.
+
+Cần **dump một lượt toàn bộ locator + ảnh full page** để chuẩn bị codify, hoặc môi trường không có công cụ browser? Lúc đó mới dùng `explore.mjs` — xem [Dùng script trực tiếp](#dùng-script-trực-tiếp). Kết quả trinh sát của nó trông như thế này:
 
 ```
 ▸ Ô NHẬP LIỆU
@@ -65,8 +67,8 @@ Lỗi console được nêu ra để bạn kiểm chứng, **không** để kế
 
 ## Kịch bản 2 — Dựng bộ test cho dự án
 
-> Dựng khung automation cho dự án. Staging ở https://staging.congty.vn,
-> API ở https://api-staging.congty.vn. Cần test UI, API và visual. Chạy trên Jenkins.
+> Dựng khung automation cho dự án. Staging ở https://staging.example.com,
+> API ở https://api-staging.example.com. Cần test UI, API và visual. Chạy trên Jenkins.
 
 Nhận được một dự án hoàn chỉnh:
 
@@ -93,7 +95,7 @@ npx playwright test --ui  # chế độ giao diện — tester rất dễ theo d
 
 Bước tiếp theo nên làm ngay: nhờ agent trinh sát trang login thật và sửa `pages/LoginPage.ts`, vì locator trong template chỉ là phỏng đoán cho form đăng nhập điển hình.
 
-> Trinh sát https://staging.congty.vn/login rồi sửa lại LoginPage.ts và auth.setup.ts cho khớp.
+> Trinh sát https://staging.example.com/login rồi sửa lại LoginPage.ts và auth.setup.ts cho khớp.
 
 ---
 
@@ -120,7 +122,7 @@ Khung sinh ra giữ nguyên cấu trúc test case gốc:
 ```typescript
 /**
  * Tiền điều kiện: Đã có tài khoản hợp lệ trên hệ thống
- * Dữ liệu: user01@example.com / Abc@12345
+ * Dữ liệu: user01@example.com / <mật khẩu lấy từ .env, không ghi vào file test case>
  * Dòng trong Excel: 6
  */
 test('TC-DN-01: Đăng nhập thành công với tài khoản hợp lệ', async ({ page }) => {
@@ -146,7 +148,7 @@ Kèm theo là `test-map.json` để trả lời câu hỏi "test case nào đã 
 
 Sau đó nhờ agent điền tiếp:
 
-> Trinh sát https://staging.congty.vn/login rồi điền hết TODO trong dang-nhap.spec.ts.
+> Trinh sát https://staging.example.com/login rồi điền hết TODO trong dang-nhap.spec.ts.
 
 **Lưu ý về phạm vi.** Không phải test case nào cũng đáng tự động hóa. Nên bỏ qua ca chỉ chạy một lần, ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày. Agent sẽ nêu ý kiến về những ca này thay vì sinh hết mọi dòng.
 
@@ -154,7 +156,7 @@ Sau đó nhờ agent điền tiếp:
 
 ## Kịch bản 4 — Test API
 
-> Test API `/api/orders` ở https://api-staging.congty.vn.
+> Test API `/api/orders` ở https://api-staging.example.com.
 > Cần: GET danh sách, POST tạo đơn, và các ca lỗi.
 
 Test API không cần trình duyệt nên nhanh hơn test UI hàng chục lần. Với tester mới làm automation, đây thường là nơi nên bắt đầu.
@@ -256,16 +258,20 @@ Agent sẽ chẩn đoán theo thứ tự nguyên nhân phổ biến: thiếu ch�
 Công cụ hay dùng:
 
 ```bash
-npx playwright test -g "TC-ORD-05" --repeat-each=10 --workers=4
+npx playwright test -g "TC-ORD-05" --repeat-each=10 --workers=1 --retries=0
 ```
+
+Chạy song song (`--workers=4`) chỉ dùng như biến đối chứng riêng SAU khi đã có tỷ lệ nền — không trộn vào cùng một denominator; `--retries=0` để `x/y` không bị sai.
 
 Pass khi chạy riêng nhưng fail khi chạy cả bộ ⇒ test đang ăn ké dữ liệu/trạng thái do test khác để lại.
 
 Câu hỏi quan trọng nhất khi một test fail — và cũng dễ nhầm nhất:
 
+> Không kết luận từ một dấu hiệu duy nhất — bảng này là hướng nghi ngờ, không phải phán quyết.
+
 | Dấu hiệu | Nhiều khả năng là |
 |---|---|
-| Ảnh chụp cho thấy app hiện lỗi / trang trắng / 500 | **Bug của app** |
+| Ảnh chụp cho thấy app hiện lỗi / trang trắng / 500 | Có lỗi quan sát được — có thể là code, config/data hoặc infra; cần đối chiếu build và dữ liệu |
 | Ảnh cho thấy app bình thường, nhưng locator không tìm thấy | **Lỗi script** |
 | Fail cùng một bước trên mọi trình duyệt, mọi lần chạy | **Bug của app** |
 | Chỉ fail khi chạy song song | **Lỗi script** — test đụng dữ liệu nhau |
@@ -296,22 +302,26 @@ Ba script chạy được độc lập ngoài Codex/Claude. Mỗi script đều 
 
 ```bash
 # Cơ bản
-node scripts/explore.mjs --url https://staging.congty.vn/login --out ./recon
+node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
 
 # Trang cần đăng nhập — tự đăng nhập rồi lưu phiên để lần sau dùng lại
-node scripts/explore.mjs --url https://staging.congty.vn/orders \
-  --login-url https://staging.congty.vn/login \
-  --username tester@congty.vn --password 'Abc@12345' \
+node scripts/explore.mjs --url https://staging.example.com/orders \
+  --login-url https://staging.example.com/login \
+  --username tester@example.com --password "$TEST_PASS" \
   --save-auth .auth/user.json
 
 # Lần sau dùng lại phiên đã lưu
-node scripts/explore.mjs --url https://staging.congty.vn/orders --auth .auth/user.json
+node scripts/explore.mjs --url https://staging.example.com/orders --auth .auth/user.json
 
 # Phần tử chỉ hiện sau khi bấm (modal, tab, menu)
-node scripts/explore.mjs --url https://staging.congty.vn --click "Đăng ký"
+node scripts/explore.mjs --url https://staging.example.com --click "Đăng ký"
+```
 
+Đặt `TEST_PASS` bằng biến môi trường, đừng gõ mật khẩu thẳng vào lệnh — nó nằm lại trong shell history. Khi agent thao tác trực tiếp (Pha 1), agent dừng ở ô mật khẩu và nhờ bạn tự nhập.
+
+```bash
 # Xem giao diện mobile
-node scripts/explore.mjs --url https://staging.congty.vn --device "iPhone 14"
+node scripts/explore.mjs --url https://staging.example.com --device "iPhone 14"
 ```
 
 Chạy script **từ trong thư mục dự án** có cài Playwright.
@@ -322,8 +332,8 @@ Chạy script **từ trong thư mục dự án** có cài Playwright.
 node scripts/scaffold.mjs --dir ./e2e --dry-run          # xem trước, chưa ghi file
 
 node scripts/scaffold.mjs --dir ./e2e \
-  --base-url https://staging.congty.vn \
-  --api-url https://api-staging.congty.vn \
+  --base-url https://staging.example.com \
+  --api-url https://api-staging.example.com \
   --features ui,api,visual,a11y \
   --ci jenkins
 ```

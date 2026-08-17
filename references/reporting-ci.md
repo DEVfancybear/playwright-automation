@@ -1,5 +1,7 @@
 # Report và tích hợp CI/CD
 
+> **Vùng bắt buộc spec.** Report máy đọc và CI theo định nghĩa cần file test commit được. Nếu người dùng chỉ cần một câu trả lời có bằng chứng cho lần này, họ không cần file này — ảnh chụp + console + network từ lượt điều tra trực tiếp đã là bằng chứng nộp được.
+
 Mục lục: [Reporter](#reporter) · [HTML report](#html-report) · [Allure](#allure) · [Xuất cho TestRail/Jira](#xuất-kết-quả-cho-testrail--jira-xray) · [GitHub Actions](#github-actions) · [Jenkins](#jenkins) · [GitLab CI](#gitlab-ci) · [Sharding](#chia-nhỏ-để-chạy-nhanh-sharding) · [Docker](#docker) · [Chạy theo lịch](#chạy-theo-lịch--gửi-thông-báo)
 
 ## Reporter
@@ -61,7 +63,7 @@ test('TC-PAY-01: thanh toán bằng thẻ nội địa', async ({ page }) => {
   await allure.epic('Thanh toán');
   await allure.feature('Thẻ ATM nội địa');
   await allure.severity('critical');
-  await allure.link('https://jira.company.vn/browse/PAY-123', 'PAY-123');
+  await allure.link(`${process.env.ISSUE_TRACKER_URL}/browse/PAY-123`, 'PAY-123');
   // ...
 });
 ```
@@ -96,7 +98,8 @@ on:
     branches: [main, develop]
   pull_request:
   schedule:
-    - cron: '0 22 * * *'      # 5h sáng giờ VN (UTC+7)
+    # Cron chạy theo UTC. 22:00 UTC = 05:00 UTC+7 — đổi cho khớp múi giờ team bạn.
+    - cron: '0 22 * * *'
   workflow_dispatch:
 
 jobs:

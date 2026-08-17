@@ -1,6 +1,15 @@
 # Test E2E giao diện web
 
-Mục lục: [Chọn locator](#chọn-locator) · [Assertion](#assertion) · [Page Object](#page-object-model) · [Form](#làm-việc-với-form) · [Bảng dữ liệu](#bảng-dữ-liệu) · [Upload/Download](#upload-và-download) · [iframe, tab mới, dialog](#iframe-tab-mới-dialog) · [Chờ đúng cách](#chờ-đúng-cách) · [Soft assertion](#soft-assertion) · [Ảnh chụp trong report](#gắn-bằng-chứng-vào-report)
+Mục lục: [Chọn chế độ](#chọn-chế-độ-trước-khi-làm) · [Chọn locator](#chọn-locator) · [Assertion](#assertion) · [Page Object](#page-object-model) · [Form](#làm-việc-với-form) · [Bảng dữ liệu](#bảng-dữ-liệu) · [Upload/Download](#upload-và-download) · [iframe, tab mới, dialog](#iframe-tab-mới-dialog) · [Chờ đúng cách](#chờ-đúng-cách) · [Soft assertion](#soft-assertion) · [Ảnh chụp trong report](#gắn-bằng-chứng-vào-report)
+
+## Chọn chế độ trước khi làm
+
+File này nói về **viết test file** (Pha 2). Trước khi mở nó, kiểm lại đã qua cổng CODIFY chưa — xem `SKILL.md`.
+
+- Câu hỏi một lần ("chức năng X chạy đúng chưa", "form này validate ổn không") → làm trực tiếp trên trình duyệt, đọc `live-browser-investigation.md`, **không cần file nào**. Không có spec KHÔNG phải là chưa hoàn thành.
+- Cần chạy lại lâu dài (regression, CI, gate release), hoặc cần thứ thao tác tay không làm được (cadence, `x/y`, cookie HttpOnly, mock, hai context) → dùng file này.
+
+Dù ở nhánh nào, locator phải lấy từ trang thật. Đi một lượt trực tiếp trước rồi mới viết spec — đừng viết theo phỏng đoán rồi chạy để "xem có đúng không".
 
 ## Chọn locator
 
@@ -213,7 +222,11 @@ await expect(row.getByRole('cell').nth(3)).toHaveText('Đã giao');
 await row.getByRole('button', { name: 'Chi tiết' }).click();
 
 // Lấy toàn bộ một cột để kiểm tra sắp xếp
-const names = await page.getByRole('row').getByRole('cell').nth(1).allTextContents();
+// `.nth()` áp lên tập kết quả CUỐI CÙNG của chuỗi locator, không phải theo từng row —
+// `getByRole('row').getByRole('cell').nth(1)` chỉ ra ĐÚNG MỘT ô, không phải cả cột,
+// nên assertion sắp xếp trên mảng 1 phần tử sẽ luôn pass (test xanh giả).
+const names = await page.getByRole('row').locator('td:nth-child(2)').allTextContents();
+expect(names.length).toBeGreaterThan(1);   // chốt số lượng để không xanh giả khi locator trượt
 expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'vi')));
 ```
 
@@ -280,10 +293,12 @@ const response = await responsePromise;
 expect((await response.json()).data).toHaveLength(10);
 
 await page.getByTestId('spinner').waitFor({ state: 'hidden' });
-await page.waitForLoadState('networkidle');   // hợp cho recon; app có polling/websocket sẽ không bao giờ idle
+// networkidle bị Playwright gắn nhãn DISCOURAGED — KHÔNG dùng trong spec.
+// Chỉ dùng cho recon một lượt, và luôn kèm timeout + .catch() để không treo tới hết giờ.
+await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
 ```
 
-Sắp xếp theo mức độ nên dùng: chờ assertion cụ thể > chờ URL/response > `networkidle` > `waitForTimeout` (gần như không bao giờ).
+Sắp xếp theo mức độ nên dùng: chờ assertion cụ thể > chờ URL/response > `waitForTimeout` (gần như không bao giờ). `networkidle` không nằm trong thang này — Playwright gắn nhãn DISCOURAGED, nó chỉ dành cho recon một lượt, không dùng trong spec.
 
 Với popup/download/request/response, luôn tạo waiter promise **trước** action, không `await` waiter trước trigger. Có thể dùng `Promise.all` để thu nhiều waiter đã arm; không dùng nó để chạy đồng thời các action người dùng vốn phải nối tiếp. Không dùng `waitForNavigation()`; dùng `waitForURL()` hoặc web-first assertion.
 

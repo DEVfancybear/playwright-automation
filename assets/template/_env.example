@@ -6,6 +6,11 @@ BASE_URL={{BASE_URL}}
 API_URL={{API_URL}}
 
 # Tài khoản test thường
+# Môi trường hiển thị khi chạy test (bỏ trống = vi-VN / Asia/Ho_Chi_Minh).
+# Hai giá trị này đổi format ngày/số của app, đặt khớp môi trường tester dùng khi log bug.
+TEST_LOCALE=
+TEST_TZ=
+
 TEST_USER=
 TEST_PASS=
 

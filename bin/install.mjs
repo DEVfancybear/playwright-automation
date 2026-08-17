@@ -128,6 +128,13 @@ switch (command) {
       process.exit(1);
     }
 
+    // Ghi đè sạch: cpSync chỉ merge, sẽ để lại file của bản cũ đã bị gỡ ở bản mới
+    // (ví dụ reference bị đổi tên) → thư mục lai, SKILL.md mới trỏ vào file cũ.
+    if (existsSync(dest)) {
+      rmSync(dest, { recursive: true, force: true });
+      console.log(`Đã xoá bản cũ tại: ${dest}`);
+    }
+
     mkdirSync(dest, { recursive: true });
     const copied = [];
     for (const item of SKILL_CONTENT) {
@@ -157,7 +164,7 @@ BƯỚC TIẾP THEO
     ? 'Gõ /skills hoặc nhắc $playwright-automation; nếu chưa xuất hiện, khởi động lại Codex.'
     : 'Khởi động lại Claude Code nếu skill chưa xuất hiện.'}
   2. Thử một yêu cầu thật, ví dụ:
-       "Test giúp tôi chức năng đăng nhập ở https://staging.congty.vn"
+       "Test giúp tôi chức năng đăng nhập ở https://staging.example.com"
 
   Để chạy được test, cần Node ≥ 18 và Playwright trong thư mục dự án:
        npm i -D @playwright/test && npx playwright install --with-deps chromium

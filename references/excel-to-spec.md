@@ -1,10 +1,12 @@
 # Chuyển file test case Excel thành script
 
+> **Vùng bắt buộc spec** — đây là yêu cầu rõ ràng muốn ra file, nên bỏ qua cổng CODIFY.
+
 > **Chỉ dùng cho test case/UAT có steps và expected rõ. Không dùng trực tiếp cho bug list/issue tracker** có các cột Actual/KQTT, Status, Evidence, Solution/Comment hoặc timeline. `scripts/excel_to_spec.py` hiện không bảo toàn đầy đủ các trường đó; chạy nó trên bug log sẽ làm mất ngữ cảnh tái hiện và triage. Với bug STG/UAT/production, đọc `bug-reproduction.md`, chuẩn hóa issue rồi chỉ codify regression sau khi đã tái hiện và chốt oracle.
 
 Tester thường đã có sẵn file test case (mẫu KỊCH BẢN NGHIỆM THU / UAT). Đó là tài sản quý: nó chứa nghiệp vụ, tiền điều kiện, dữ liệu và kết quả mong đợi — tức là gần như đủ mọi thứ để viết automation, trừ selector.
 
-Skill này đi theo hướng **giữ Excel làm nguồn sự thật về nghiệp vụ**, sinh ra khung code tương ứng, rồi bổ sung selector từ pha Recon.
+Skill này đi theo hướng **giữ Excel làm nguồn sự thật về nghiệp vụ**, sinh ra khung code tương ứng, rồi bổ sung selector lấy từ lượt LIVE (Pha 1) hoặc từ `scripts/explore.mjs`.
 
 ## Chạy script
 
@@ -43,7 +45,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Đăng nhập', () => {
   /**
    * Tiền điều kiện: Đã có tài khoản hợp lệ trên hệ thống
-   * Dữ liệu: user01@example.com / Abc@12345
+   * Dữ liệu: user01@example.com / <mật khẩu lấy từ .env, không ghi vào file test case>
    */
   test('TC-DN-01: Đăng nhập thành công với tài khoản hợp lệ', async ({ page }) => {
     await test.step('1. Mở trang đăng nhập', async () => {
@@ -123,7 +125,7 @@ Sau khi chạy, xuất kết quả về đúng định dạng khách hàng cần
 npx playwright test --reporter=json --output-file=results.json
 ```
 
-Rồi ghép `results.json` với `test-map.json` theo mã TC để điền cột "Kết quả thực tế" / "Đạt/Không đạt" vào chính file Excel gốc. Khi tester cần việc này, dùng skill `testcase-template` để ghi file Excel đúng mẫu — skill này lo phần chạy test, skill kia lo phần trình bày tài liệu.
+Rồi ghép `results.json` với `test-map.json` theo mã TC để điền cột "Kết quả thực tế" / "Đạt/Không đạt" vào chính file Excel gốc. Skill này chỉ lo phần chạy test và xuất `results.json`; phần ghi ngược vào file Excel đúng mẫu nghiệm thu nằm ngoài phạm vi — dùng công cụ xử lý Excel sẵn có trong môi trường của bạn (nếu không có, ghi bằng `openpyxl` theo đúng header của file gốc).
 
 ## Khi nào KHÔNG nên sinh từ Excel
 
