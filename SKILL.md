@@ -85,64 +85,25 @@ Nếu người dùng đưa file test case Excel/SRS, đọc file đó thay vì h
 
 Đây là chế độ mặc định. Công cụ browser điều khiển một trình duyệt thật và **giữ nguyên session giữa các bước**, nên đi được luồng nhiều màn hình mà không cần cài gì, không cần dự án Playwright, không sinh file.
 
-| Cần gì | Năng lực cần dùng |
-|---|---|
-| Mở trang, quay lại | điều hướng theo URL, hoặc `back`/`forward` |
-| Xem trang có gì, lấy element thật | đọc cây accessibility — mỗi element có một `ref` tham chiếu được; kèm công cụ tìm element theo mô tả |
-| Đọc nội dung chữ trên trang | trích text hiển thị |
-| Bấm, gõ, cuộn, chụp màn hình | điều khiển chuột/bàn phím và chụp ảnh |
-| Điền input / select / checkbox | nhập giá trị theo `ref` của element |
-| Soi state trong trang, gọi API bằng session hiện tại | chạy JavaScript trong trang |
-| Lỗi JS | đọc console |
-| Request nào chạy, status, body | đọc network |
-| Kiểm responsive nhanh | đổi kích thước cửa sổ (mobile / tablet / desktop) |
+Năng lực cần dùng: điều hướng · đọc cây accessibility (mỗi element có `ref` — **đã là element có thật, không cần đoán selector**) · click/gõ/cuộn/chụp ảnh · điền form · chạy JS trong trang · đọc console · đọc network · đổi kích thước cửa sổ · quản lý tab. **Tên công cụ khác nhau tuỳ môi trường** (Claude Code, Codex, claude.ai, IDE…) — tra danh sách công cụ đang có rồi ánh xạ theo năng lực, đừng tìm đúng chữ. Nếu phải nạp công cụ trước khi dùng, nạp **một lượt duy nhất** cho cả bộ.
 
-**Tên công cụ khác nhau tuỳ môi trường** (Claude Code, Codex, claude.ai, IDE…): có nơi gọi là `navigate`/`read_page`/`computer`/`form_input`/`javascript_tool`/`read_console_messages`/`read_network_requests`, nơi khác đặt tên khác. Tra danh sách công cụ đang có rồi ánh xạ theo cột "Năng lực". Nếu phải nạp công cụ trước khi dùng, nạp **một lượt duy nhất** cho cả bộ — đừng nạp lẻ từng cái.
+Vòng điều tra: mở đúng URL người dùng nói → đọc cây để biết đang ở state nào → thao tác **đúng các bước tester mô tả, không rút gọn** → sau mỗi bước quan trọng đọc network + console + chụp ảnh → cần state phía server thì gọi API bằng chính session đang mở → kết luận kèm bằng chứng, rồi hỏi có cần chốt thành regression không.
+
+**Đọc `references/live-browser-investigation.md`** cho chi tiết: bảng năng lực đầy đủ và cách ánh xạ tên công cụ, quy đổi `role + name` → `getByRole`, luật điều hướng SPA (gõ URL = mất state), bốn kiểu hỏng im lặng (overlay che, tab mới, element ngoài viewport, dialog gốc), `ref` hết hạn sau mỗi lần DOM đổi, cách biết trang đã render xong khi không có `networkidle`, giới hạn cookie HttpOnly, và mẫu báo cáo LIVE.
 
 **Nếu môi trường không có công cụ browser nào**, Pha 1 không khả dụng — nói rõ với người dùng trước khi làm gì tiếp, rồi chọn theo năng lực của host:
 
 - **Host chạy được lệnh** (Claude Code, Codex, IDE): dùng `scripts/explore.mjs` trinh sát một lượt rồi sang Pha 2.
 - **Host không chạy được lệnh** (ví dụ claude.ai): không trinh sát được. Báo `Blocked: không có công cụ browser và không chạy được script`, rồi (a) nhờ người dùng dán ảnh chụp / log console / log network / HTML của màn hình cần xem, hoặc (b) soạn sẵn các bước để người dùng tự thao tác và báo lại quan sát. Tuyệt đối không suy đoán hành vi app rồi báo như đã kiểm.
 
-`ref` trong cây accessibility **đã là element có thật** — không cần đoán selector. Ở chế độ này cũng không cần locator "bền": phiên chỉ sống vài phút. Chỉ khi sang Pha 2 mới quy đổi node `role + name` thành `getByRole(role, { name })`.
-
-### Vòng điều tra chuẩn
-
-1. Mở đúng URL / môi trường / build người dùng nói (không tự đổi sang môi trường khác cho tiện).
-2. Đọc cây accessibility để biết đang ở state nào, đúng màn hình chưa.
-3. Thao tác đúng các bước tester mô tả, **không rút gọn bước**.
-4. Sau mỗi bước quan trọng: đọc network (endpoint + status), đọc console (lỗi JS), chụp màn hình tại observation point.
-5. Cần xác minh state phía server thì gọi thẳng API bằng chính session đang mở:
-   ```js
-   await (await fetch('/api/auth/session', { credentials: 'include' })).json()
-   ```
-6. Kết luận + bằng chứng. Hỏi lại: có cần chốt thành regression không?
-
-### Ca thật: bug "app tự động logout"
-
-Tester báo app tự đăng xuất khi đi qua vài màn hình. Cách đã làm:
-
-- Mở app → đi đúng thứ tự màn hình tester mô tả;
-- Đọc network sau mỗi lần chuyển màn: **toàn bộ 200, không có 401/403** → không phải server đá phiên;
-- Chạy `fetch('/api/auth/session')` trong trang → **vẫn còn phiên hợp lệ** → phía FE cũng chưa mất token.
-
-Kết luận ngay trong một lượt: không tái hiện được bằng luồng điều hướng thường, hướng nghi ngờ chuyển sang token hết hạn theo thời gian. **Chi phí: 0 file, 0 dependency, 0 lệnh cài đặt.** Làm theo lối cũ thì phải scaffold dự án, tải browser binary và viết Page Object chỉ để biết một điều mà vài lời gọi công cụ đã trả lời.
-
-### Giới hạn đã đụng phải — phải nói ra, đừng lấp liếm
-
-**Cookie HttpOnly không đọc/xoá được bằng JS trong trang.** `document.cookie` không nhìn thấy nó, nên kịch bản "ép token hết hạn / ép mất phiên" **KHÔNG làm được ở Pha 1**. Hai đường hợp lệ:
-
-- Sang Pha 2 (dấu **QUYỀN**): `await context.clearCookies({ name: 'refresh_token' })` rồi thao tác tiếp;
-- Hoặc chờ hết TTL thật rồi thao tác lại, nếu TTL đủ ngắn. Đọc `Max-Age` trên `Set-Cookie` lúc đăng nhập để biết phải chờ bao lâu.
-
-Báo thẳng giới hạn này cho người dùng kèm hai lựa chọn. Tuyệt đối không kết luận "không có bug" chỉ vì phần không kiểm được nằm ngoài tầm thao tác tay.
-
 ### Luật an toàn khi thao tác trực tiếp
+
+Bốn luật này áp dụng cho mọi lượt LIVE, không có ngoại lệ:
 
 - **Không tự khởi động dev server khi cổng đã có tiến trình chạy.** Lấy cổng từ URL người dùng đưa (hoặc từ script `dev` trong `package.json`), rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có sẵn thì dùng tiến trình đang chạy và nói rõ điều đó. Start chồng vừa fail vừa có thể giết bản build người dùng đang xem.
 - **Không tự điền mật khẩu.** Số điện thoại/username và dữ liệu test thì điền; tới ô mật khẩu thì dừng, nhờ người dùng nhập, chờ họ báo đã đăng nhập xong rồi đi tiếp.
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật — đọc response header (`server`, `via`, gateway) hoặc kiểm tra kết nối ra ngoài. Kết luận "không tái hiện được" trên mock gần như vô giá trị, còn trên BE thật thì có giá trị nghiệm thu.
-- Trên production hoặc dữ liệu thật: chỉ thao tác đọc. Mọi hành động tạo/sửa/xoá phải được người dùng cho phép rõ ràng trước.
+- **Thao tác trên staging/UAT tạo ra dữ liệu thật; production thì chỉ đọc.** Ghi lại mọi bản ghi agent tạo ra và đưa vào bằng chứng. Mọi hành động tạo/sửa/xoá trên production, và mọi thao tác chạm ra ngoài hệ thống (OTP/SMS/email, cổng thanh toán), phải được người dùng cho phép rõ ràng trước.
 
 ### Thao tác tay KHÔNG làm được — bắt buộc codify
 
@@ -189,54 +150,27 @@ node scripts/scaffold.mjs --help
 node scripts/scaffold.mjs --dir ./e2e --base-url https://staging.example.com --features ui,api,visual --ci github
 ```
 
-Khung sinh ra:
-
-```
-e2e/
-├── playwright.config.ts       # projects, reporter, retry, trace, đa môi trường
-├── .env.example               # BASE_URL, API_URL, tài khoản test
-├── pages/                     # Page Object — nơi chứa locator
-│   └── BasePage.ts
-├── tests/
-│   ├── ui/                    # E2E giao diện
-│   ├── api/                   # test API
-│   └── visual/                # visual regression
-├── fixtures/                  # fixture dùng chung (test data, page đã login)
-├── utils/                     # helper: đọc dữ liệu, format, faker
-└── .auth/                     # storageState (đã .gitignore)
-```
+Khung sinh ra gồm `playwright.config.ts` (đa môi trường, reporter, retry, trace), `pages/`, `tests/{ui,api,visual}/`, `fixtures/`, `utils/`, `.auth/` và `.env.example`. Chi tiết cấu trúc, phân tầng POM và cấu hình: `references/project-setup.md`.
 
 Nếu dự án **đã có** sẵn khung: đọc `playwright.config.ts` và một spec có sẵn trước, rồi viết theo đúng phong cách đó. Đừng áp khung mới đè lên convention của họ. Và repo có sẵn suite không có nghĩa mọi yêu cầu đều phải thành spec — cổng CODIFY vẫn áp dụng.
 
 ### Viết spec
 
-Khung một spec dễ đọc cho tester — dùng `test.step` để report hiện đúng từng bước như trong test case thủ công:
+Dùng `test.step` để report hiện đúng từng bước như trong test case thủ công, và đặt tên test theo **mã test case + mô tả nghiệp vụ**, không phải theo kỹ thuật — tester đọc report phải nhận ra ngay đây là ca nào trong file test case của họ:
 
 ```typescript
-import { test, expect } from '@playwright/test';
-import { LoginPage } from '../../pages/LoginPage';
-
-test.describe('TC-LOGIN — Đăng nhập', () => {
-  test('TC-LOGIN-01: đăng nhập thành công với tài khoản hợp lệ', async ({ page }) => {
-    const login = new LoginPage(page);
-
-    await test.step('Mở trang đăng nhập', async () => {
-      await login.goto();
-    });
-
-    await test.step('Nhập tài khoản hợp lệ và bấm Đăng nhập', async () => {
-      await login.signIn(process.env.TEST_USER!, process.env.TEST_PASS!);
-    });
-
-    await test.step('Kết quả mong đợi: vào được trang chủ', async () => {
-      await expect(page.getByRole('heading', { name: 'Trang chủ' })).toBeVisible();
-      await expect(page).toHaveURL(/\/dashboard/);
-    });
+test('TC-LOGIN-01: đăng nhập thành công với tài khoản hợp lệ', async ({ page }) => {
+  const login = new LoginPage(page);
+  await test.step('Mở trang đăng nhập', async () => login.goto());
+  await test.step('Nhập tài khoản hợp lệ và bấm Đăng nhập', async () =>
+    login.signIn(process.env.TEST_USER!, process.env.TEST_PASS!));
+  await test.step('Kết quả mong đợi: vào được trang chủ', async () => {
+    await expect(page.getByRole('heading', { name: 'Trang chủ' })).toBeVisible();
   });
 });
 ```
 
-Đặt tên test theo **mã test case + mô tả nghiệp vụ**, không phải theo kỹ thuật. Tester đọc report phải nhận ra ngay đây là ca nào trong file test case của họ.
+Locator, Page Object, form, bảng, upload/download, iframe, dialog: `references/ui-e2e.md`.
 
 ## 7 nguyên tắc để test không flaky
 
@@ -269,15 +203,7 @@ Trong phạm vi spec, đây là phần quan trọng nhất của skill. Test ch�
 
 ## Chạy và debug
 
-**Ở Pha 1 (mặc định)** — không có lệnh nào để chạy, chỉ có quan sát:
-
-| Việc cần làm | Dùng gì |
-|---|---|
-| Xem trang lỗi gì | đọc console |
-| Xem API nào fail, status/body ra sao | đọc network |
-| Xem phần tử có tồn tại không, text thật là gì | đọc cây accessibility / trích text |
-| Xem cái gì đang che nút | chạy JS: `document.elementFromPoint(x, y)` |
-| Chụp bằng chứng trước/sau hành động | chụp màn hình |
+**Ở Pha 1 (mặc định)** không có lệnh nào để chạy, chỉ có quan sát: đọc console, đọc network, đọc cây accessibility, chạy JS trong trang, chụp màn hình. Bảng chẩn đoán đầy đủ ở `references/troubleshooting.md`, mục **Bước 0 — Quan sát trực tiếp**.
 
 **Ở Pha 2 (khi đã có spec):**
 
