@@ -1,6 +1,6 @@
 # Điều tra trực tiếp trên trình duyệt (chế độ mặc định)
 
-Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Chọn trình duyệt](#chọn-trình-duyệt-chrome-thật-trước) · [Năng lực cần có](#năng-lực-cần-có) · [Vòng điều tra](#vòng-điều-tra-chuẩn) · [Lấy element](#lấy-element-không-đoán-selector) · [Đọc bằng chứng](#đọc-bằng-chứng) · [Gọi API bằng session](#gọi-api-bằng-session-đang-mở) · [Giới hạn](#giới-hạn-phải-nói-ra) · [An toàn](#luật-an-toàn) · [Chuyển sang spec](#chuyển-sang-spec-khi-nào-và-chuyển-cái-gì) · [Mẫu báo cáo](#mẫu-báo-cáo-live)
+Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Chọn trình duyệt](#chọn-trình-duyệt-xác-minh-trước-đừng-tin-tên-công-cụ) · [Năng lực cần có](#năng-lực-cần-có) · [Vòng điều tra](#vòng-điều-tra-chuẩn) · [Lấy element](#lấy-element-không-đoán-selector) · [Đọc bằng chứng](#đọc-bằng-chứng) · [Gọi API bằng session](#gọi-api-bằng-session-đang-mở) · [Giới hạn](#giới-hạn-phải-nói-ra) · [An toàn](#luật-an-toàn) · [Chuyển sang spec](#chuyển-sang-spec-khi-nào-và-chuyển-cái-gì) · [Mẫu báo cáo](#mẫu-báo-cáo-live)
 
 ## Khi nào dùng
 
@@ -18,23 +18,57 @@ Không hợp — xem [Giới hạn](#giới-hạn-phải-nói-ra) và bảng "Th
 
 **Điểm mấu chốt**: kết thúc bằng một câu trả lời có bằng chứng là **đã hoàn thành**. Không có file spec không phải là làm dở.
 
-## Chọn trình duyệt: Chrome thật trước
+## Chọn trình duyệt: xác minh trước, đừng tin tên công cụ
 
-Nhiều host có **hai** bộ công cụ browser. Chúng khác nhau ở chỗ điều khiển cái gì, và chọn sai làm hỏng cả lượt điều tra:
+Nhiều host có **hai** bộ công cụ browser trở lên. Ưu tiên bộ nào mang **profile thật của người dùng** — nó có sẵn phiên đăng nhập, ngoại lệ cert, proxy/VPN và DNS nội bộ, nên vào được staging/UAT mà bộ cô lập bị chặn; và nó đúng là thứ tester nhìn thấy lúc báo bug.
 
-| | Chrome thật của người dùng | Trình duyệt sandbox trong app |
+**Nhưng tên công cụ KHÔNG cho biết nó điều khiển cái gì.** Một bộ công cụ tên có chữ "chrome" hoàn toàn có thể đang lái một Chromium tự động hoá chạy headless với profile tạm. Ca thật gặp phải:
+
+```
+C:\...\ms-playwright\chromium-1234\chrome-win64\chrome.exe
+  --user-data-dir=C:\...\Temp\playwright_chromiumdev_profile-JQYkv5
+  --ignore-certificate-errors
+```
+
+Tất cả tiến trình đều có `MainWindowHandle = 0` → không có cửa sổ nào. Người dùng hỏi "sao tôi không thấy trình duyệt hiển thị" mới lộ ra. Hệ quả: không có session nào của họ, và nó vào được site cert hỏng **nhờ cờ dòng lệnh** chứ không phải nhờ ngoại lệ đã lưu.
+
+### Xác minh trước khi kết luận đang lái cái gì
+
+```bash
+# Windows
+powershell -c "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Select-Object ProcessId, CommandLine | Format-List"
+powershell -c "Get-Process chrome | Select-Object Id, MainWindowHandle, MainWindowTitle"
+
+# macOS / Linux
+ps -eo pid,command | grep -i 'chrome\|chromium' | grep -v grep
+```
+
+Ba thứ cần đọc trong dòng lệnh:
+
+| Dấu hiệu | Nghĩa là |
+|---|---|
+| Đường dẫn binary có `ms-playwright`, `puppeteer`, `.cache/chromium` | Chromium tự động hoá, **không** phải Chrome của người dùng |
+| `--user-data-dir` trỏ vào `Temp`/`tmp` | Profile tạm — trắng session, mọi đăng nhập phải làm lại |
+| `--ignore-certificate-errors`, `--headless`, `MainWindowHandle = 0` | Bỏ qua cert / không có cửa sổ để người dùng nhìn |
+
+### Chọn cái nào
+
+| | Trình duyệt profile thật | Trình duyệt tự động hoá / sandbox |
 |---|---|---|
-| Phiên đăng nhập | Có sẵn — vào thẳng màn hình cần xem | Trắng, phải đăng nhập lại từ đầu |
-| Cert lỗi/hết hạn | Hiện trang cảnh báo, bấm "Nâng cao → Tiếp tục" là qua | Từ chối điều hướng, trả `navigation denied`, không có gì để bấm |
-| Proxy/VPN, DNS nội bộ, host nội bộ | Theo cấu hình máy người dùng | Thường không có |
-| Extension, cấu hình thật | Giữ nguyên | Không |
-| Rủi ro | Thao tác trên phiên và dữ liệu thật của người dùng | Cô lập, an toàn |
+| Phiên đăng nhập | Có sẵn | Trắng |
+| Cert lỗi/hết hạn | Hiện cảnh báo, người dùng bấm "Nâng cao → Tiếp tục" | Hoặc chặn thẳng (`navigation denied`), hoặc **âm thầm bỏ qua** nếu bật `--ignore-certificate-errors` |
+| Proxy/VPN, DNS nội bộ | Theo cấu hình máy | Thường không có |
+| Người dùng nhìn thấy | Có | Không, nếu headless |
+| Rủi ro | Chạm vào phiên và dữ liệu thật | Cô lập, an toàn |
 
-**Mặc định chọn Chrome thật.** Nó khớp với môi trường tester đang dùng lúc phát hiện bug, nên bằng chứng thu được mới đúng thứ họ nhìn thấy.
+Chọn profile thật khi: cần đúng session/quyền của người dùng, cần mạng nội bộ, hoặc **người dùng muốn tự nhìn màn hình**. Chọn bộ tự động hoá khi: cần profile sạch không session (luồng người dùng mới, ép state chưa đăng nhập), chạy song song không đụng cửa sổ người dùng, hoặc không có trình duyệt thật kết nối được.
 
-Chỉ chọn sandbox khi: cần đúng một profile sạch không session (kiểm luồng người dùng mới, ép state chưa đăng nhập), cần chạy song song mà không đụng vào cửa sổ người dùng đang mở, hoặc máy không có Chrome kết nối được.
+**Luôn nói rõ trong báo cáo mình đã chạy trên cái nào.** "Đăng nhập được" trên profile tạm và trên profile thật là hai kết luận khác nhau.
 
-**Cạm bẫy hay gặp — cert lỗi bị đọc nhầm thành site chết.** Sandbox trả `navigation denied` cho cả ba trường hợp: server chết, DNS sai, và cert không hợp lệ. Đừng báo "site không truy cập được" khi chưa phân biệt:
+### Cạm bẫy cert — hai chiều, đều dẫn tới kết luận sai
+
+- **Chiều chặn**: công cụ trả `navigation denied` cho cả server chết, DNS sai lẫn cert không hợp lệ. Đừng báo "site không truy cập được" khi chưa phân biệt.
+- **Chiều bỏ qua**: bộ chạy `--ignore-certificate-errors` vào tuốt. Đừng báo "cert bình thường" — nó chỉ chứng minh cờ đang bật, không chứng minh gì về cert.
 
 ```bash
 # -k bỏ qua verify cert. Ra 200 = server sống, vấn đề nằm ở cert chứ không phải site chết.
@@ -45,9 +79,9 @@ echo | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null | ope
 date -u
 ```
 
-`curl -sk` ra 200 mà không có `-k` thì fail → server sống, lỗi nằm ở cert. Lúc đó chuyển sang Chrome thật để bấm qua cảnh báo, hoặc chạy Playwright với `ignoreHTTPSErrors: true`; đồng thời báo người dùng cert hết hạn kèm ngày `notAfter` đọc được. Đừng đổ cho đồng hồ máy khi chưa đối chiếu `date -u` — và nhớ timezone lệch **không** ảnh hưởng validate TLS, vì cert so theo UTC tuyệt đối.
+`curl -sk` ra 200 mà bỏ `-k` thì fail → server sống, lỗi nằm ở cert. Lúc đó dùng trình duyệt profile thật để bấm qua cảnh báo, hoặc chạy Playwright với `ignoreHTTPSErrors: true`; đồng thời báo người dùng cert hết hạn kèm ngày `notAfter` đọc được. Đừng đổ cho đồng hồ máy khi chưa đối chiếu `date -u` — timezone lệch **không** ảnh hưởng validate TLS, vì cert so theo UTC tuyệt đối.
 
-**Thao tác trên Chrome thật là chạm vào phiên thật của người dùng.** Áp dụng đầy đủ [Luật an toàn](#luật-an-toàn) bên dưới, và thêm: không đăng xuất hộ, không đóng tab người dùng đang mở dở, không xoá cookie/lịch sử của profile đó, mở tab mới thay vì chiếm tab đang có. Cần state sạch thì nói rõ và chuyển sang sandbox, đừng dọn profile thật.
+**Thao tác trên profile thật là chạm vào phiên thật của người dùng.** Áp dụng đầy đủ [Luật an toàn](#luật-an-toàn) bên dưới, và thêm: không đăng xuất hộ, không đóng tab người dùng đang mở dở, không xoá cookie/lịch sử của profile đó, mở tab mới thay vì chiếm tab đang có. Cần state sạch thì nói rõ và chuyển sang bộ tự động hoá, đừng dọn profile thật.
 
 ## Năng lực cần có
 

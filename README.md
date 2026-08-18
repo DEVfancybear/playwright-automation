@@ -220,7 +220,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 ## Lịch sử thay đổi
 
-Phiên bản hiện tại: **1.4.0** — Chrome thật của người dùng là trình duyệt ưu tiên ở Pha 1.
+Phiên bản hiện tại: **1.4.1** — ưu tiên trình duyệt mang profile thật của người dùng ở Pha 1, kèm bước xác minh xem công cụ đang lái binary/profile nào.
 Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp

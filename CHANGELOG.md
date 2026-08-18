@@ -4,6 +4,18 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [1.4.1] — 2026-08-18
+
+### Fixed
+
+- Sửa nhận định sai ở 1.4.0: mục "Chọn trình duyệt" coi bộ công cụ tên có chữ "chrome" là đang lái Chrome thật của người dùng. Thực tế còn tuỳ cấu hình host — gặp ca một bộ như vậy đang lái Chromium của Playwright, chạy headless, `--user-data-dir` trỏ vào `Temp`, kèm `--ignore-certificate-errors`: không có cửa sổ để người dùng nhìn, không có session nào của họ, và qua được site cert hỏng nhờ cờ dòng lệnh chứ không nhờ ngoại lệ đã lưu.
+
+### Changed
+
+- Đổi mục thành **"Chọn trình duyệt: xác minh trước, đừng tin tên công cụ"**, thêm bước kiểm dòng lệnh tiến trình (Windows + macOS/Linux) và bảng ba dấu hiệu nhận biết: đường dẫn binary (`ms-playwright`, `puppeteer`, `.cache/chromium`), `--user-data-dir` trỏ `Temp`/`tmp`, và `--headless` / `MainWindowHandle = 0`.
+- Bắt buộc nói rõ trong báo cáo đã chạy trên profile thật hay profile tạm — "đăng nhập được" trên hai loại là hai kết luận khác nhau.
+- Cạm bẫy cert giờ nêu **cả hai chiều**: chặn thẳng (`navigation denied` cho cả server chết, DNS sai lẫn cert hỏng) và âm thầm bỏ qua (`--ignore-certificate-errors` vào tuốt → không được kết luận "cert bình thường").
+
 ## [1.4.0] — 2026-08-18
 
 ### Changed
@@ -61,6 +73,7 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 - `scripts/explore.mjs`, `scripts/scaffold.mjs`, `scripts/excel_to_spec.py` và bộ khung dự án ở `assets/template/`.
 - Đóng gói npm kèm trình cài đặt `npx`, giấy phép Apache-2.0.
 
+[1.4.1]: https://github.com/DEVfancybear/playwright-automation/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/DEVfancybear/playwright-automation/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/DEVfancybear/playwright-automation/compare/v1.1.0...v1.3.0
 [1.2.0]: https://github.com/DEVfancybear/playwright-automation/compare/v1.1.0...v1.2.0
