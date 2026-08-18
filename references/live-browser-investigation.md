@@ -1,6 +1,6 @@
 # Điều tra trực tiếp trên trình duyệt (chế độ mặc định)
 
-Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Năng lực cần có](#năng-lực-cần-có) · [Vòng điều tra](#vòng-điều-tra-chuẩn) · [Lấy element](#lấy-element-không-đoán-selector) · [Đọc bằng chứng](#đọc-bằng-chứng) · [Gọi API bằng session](#gọi-api-bằng-session-đang-mở) · [Giới hạn](#giới-hạn-phải-nói-ra) · [An toàn](#luật-an-toàn) · [Chuyển sang spec](#chuyển-sang-spec-khi-nào-và-chuyển-cái-gì) · [Mẫu báo cáo](#mẫu-báo-cáo-live)
+Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Chọn trình duyệt](#chọn-trình-duyệt-chrome-thật-trước) · [Năng lực cần có](#năng-lực-cần-có) · [Vòng điều tra](#vòng-điều-tra-chuẩn) · [Lấy element](#lấy-element-không-đoán-selector) · [Đọc bằng chứng](#đọc-bằng-chứng) · [Gọi API bằng session](#gọi-api-bằng-session-đang-mở) · [Giới hạn](#giới-hạn-phải-nói-ra) · [An toàn](#luật-an-toàn) · [Chuyển sang spec](#chuyển-sang-spec-khi-nào-và-chuyển-cái-gì) · [Mẫu báo cáo](#mẫu-báo-cáo-live)
 
 ## Khi nào dùng
 
@@ -17,6 +17,37 @@ Hợp:
 Không hợp — xem [Giới hạn](#giới-hạn-phải-nói-ra) và bảng "Thao tác tay KHÔNG làm được" trong `SKILL.md`.
 
 **Điểm mấu chốt**: kết thúc bằng một câu trả lời có bằng chứng là **đã hoàn thành**. Không có file spec không phải là làm dở.
+
+## Chọn trình duyệt: Chrome thật trước
+
+Nhiều host có **hai** bộ công cụ browser. Chúng khác nhau ở chỗ điều khiển cái gì, và chọn sai làm hỏng cả lượt điều tra:
+
+| | Chrome thật của người dùng | Trình duyệt sandbox trong app |
+|---|---|---|
+| Phiên đăng nhập | Có sẵn — vào thẳng màn hình cần xem | Trắng, phải đăng nhập lại từ đầu |
+| Cert lỗi/hết hạn | Hiện trang cảnh báo, bấm "Nâng cao → Tiếp tục" là qua | Từ chối điều hướng, trả `navigation denied`, không có gì để bấm |
+| Proxy/VPN, DNS nội bộ, host nội bộ | Theo cấu hình máy người dùng | Thường không có |
+| Extension, cấu hình thật | Giữ nguyên | Không |
+| Rủi ro | Thao tác trên phiên và dữ liệu thật của người dùng | Cô lập, an toàn |
+
+**Mặc định chọn Chrome thật.** Nó khớp với môi trường tester đang dùng lúc phát hiện bug, nên bằng chứng thu được mới đúng thứ họ nhìn thấy.
+
+Chỉ chọn sandbox khi: cần đúng một profile sạch không session (kiểm luồng người dùng mới, ép state chưa đăng nhập), cần chạy song song mà không đụng vào cửa sổ người dùng đang mở, hoặc máy không có Chrome kết nối được.
+
+**Cạm bẫy hay gặp — cert lỗi bị đọc nhầm thành site chết.** Sandbox trả `navigation denied` cho cả ba trường hợp: server chết, DNS sai, và cert không hợp lệ. Đừng báo "site không truy cập được" khi chưa phân biệt:
+
+```bash
+# -k bỏ qua verify cert. Ra 200 = server sống, vấn đề nằm ở cert chứ không phải site chết.
+curl -sk -o /dev/null -w "%{http_code}" https://<host>/<path>; echo
+
+# Đọc hạn thật của cert, rồi so notAfter với giờ UTC thật của máy
+echo | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null | openssl x509 -noout -dates
+date -u
+```
+
+`curl -sk` ra 200 mà không có `-k` thì fail → server sống, lỗi nằm ở cert. Lúc đó chuyển sang Chrome thật để bấm qua cảnh báo, hoặc chạy Playwright với `ignoreHTTPSErrors: true`; đồng thời báo người dùng cert hết hạn kèm ngày `notAfter` đọc được. Đừng đổ cho đồng hồ máy khi chưa đối chiếu `date -u` — và nhớ timezone lệch **không** ảnh hưởng validate TLS, vì cert so theo UTC tuyệt đối.
+
+**Thao tác trên Chrome thật là chạm vào phiên thật của người dùng.** Áp dụng đầy đủ [Luật an toàn](#luật-an-toàn) bên dưới, và thêm: không đăng xuất hộ, không đóng tab người dùng đang mở dở, không xoá cookie/lịch sử của profile đó, mở tab mới thay vì chiếm tab đang có. Cần state sạch thì nói rõ và chuyển sang sandbox, đừng dọn profile thật.
 
 ## Năng lực cần có
 
