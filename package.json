@@ -1,6 +1,6 @@
 {
   "name": "@duong.dev/playwright-automation",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Agent Skill cho Codex và Claude: điều tra trực tiếp trên trình duyệt để tái hiện bug và verify fix kèm bằng chứng; chỉ viết test Playwright + TypeScript khi cần chạy lại.",
   "keywords": [
     "codex",
@@ -38,6 +38,7 @@
   },
   "files": [
     "SKILL.md",
+    "CHANGELOG.md",
     "agents/",
     "bin/",
     "references/",

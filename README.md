@@ -28,9 +28,9 @@ Tester chuyển sang automation thường vấp ba chỗ:
 
 Nguyên tắc xuyên suốt: **LIVE trước, CODIFY sau — và chỉ codify khi cần.** Mặc định là mở trình duyệt làm thật để trả lời ngay; chỉ viết spec khi cần chạy lại lâu dài (regression/CI) hoặc khi kịch bản vượt khả năng thao tác tay (nhịp bấm dưới 500 ms, tỷ lệ `x/y`, cookie HttpOnly, mock, hai session song song). Không có file spec không có nghĩa là chưa xong việc.
 
-## Mới trong v1.3.0 — LIVE là mặc định
+## Ba pha: FRAME → LIVE → CODIFY
 
-Mặc định của skill không còn là viết file test, mà là **mở trình duyệt làm thật**:
+Mặc định của skill không phải là viết file test, mà là **mở trình duyệt làm thật**:
 
 - **Pha 0 — FRAME**: chốt URL/build/môi trường, role/state và đích đến (một lần hay chạy lại lâu dài).
 - **Pha 1 — LIVE**: điều hướng, đọc cây accessibility, click/điền, chạy JS trong trang, đọc console + network. Phần lớn yêu cầu kết thúc ở đây.
@@ -38,9 +38,9 @@ Mặc định của skill không còn là viết file test, mà là **mở trìn
 
 **Không có file spec KHÔNG phải là chưa hoàn thành.** Chi tiết chế độ mặc định: [`references/live-browser-investigation.md`](references/live-browser-investigation.md).
 
-## Mới trong v1.2.0 — xử lý case khó
+## Case khó: log dài, luồng stateful, race
 
-Phiên bản `1.2.0` thêm một protocol riêng cho bug phức tạp, nằm ở [`references/complex-flow-race-reproduction.md`](references/complex-flow-race-reproduction.md):
+Bug phức tạp có protocol riêng, nằm ở [`references/complex-flow-race-reproduction.md`](references/complex-flow-race-reproduction.md):
 
 - **Log văn bản dài → scenario map:** giữ raw anchor của từng clause, actor/session/tab, state trước–sau, bước lặp/nhánh và từ khóa timing như “ngay”, “liên tục”, “lần thứ hai”. Agent phải báo `raw_clause_coverage: x/y`, không được tóm tắt mất bước.
 - **Luồng stateful xuyên màn hình:** giữ toàn bộ causal chain trong một test/attempt, nhưng chia code sạch bằng `test.step`, Page Object và flow helper. Tab/popup cùng session dùng chung `BrowserContext`; hai role độc lập dùng hai context.
@@ -153,6 +153,7 @@ Nhiều kịch bản hơn kèm output mẫu: [docs/USAGE.md](docs/USAGE.md)
 ```
 playwright-automation/
 ├── SKILL.md                    # Điểm vào — quy trình, định tuyến, nguyên tắc chống flaky
+├── CHANGELOG.md                # Lịch sử phiên bản
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
 ├── references/                 # Tài liệu chuyên sâu, agent chỉ đọc file cần dùng
 │   ├── live-browser-investigation.md # (mặc định) Điều tra trực tiếp: accessibility tree, console, network
@@ -216,6 +217,11 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 - **`force`/`dispatchEvent` là nhánh chẩn đoán.** Bằng chứng chính vẫn phải dùng action user-like với actionability mặc định.
 - **Locator trong `assets/template/pages/LoginPage.ts` là phỏng đoán.** Cố ý — quy trình bắt buộc chạy `explore.mjs` lấy locator thật rồi thay vào.
 - **Nội dung viết bằng tiếng Việt**, thuật ngữ kỹ thuật giữ tiếng Anh. Tester đọc được thì vẫn sửa được test khi agent không có mặt.
+
+## Lịch sử thay đổi
+
+Phiên bản hiện tại: **1.4.0** — Chrome thật của người dùng là trình duyệt ưu tiên ở Pha 1.
+Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp
 
