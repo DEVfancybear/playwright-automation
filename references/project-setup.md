@@ -1,21 +1,21 @@
 # Dựng và cấu hình dự án
 
-Mục lục: [Khi nào mới scaffold](#khi-nào-mới-scaffold) · [Cài đặt](#cài-đặt) · [Cấu trúc thư mục](#cấu-trúc-thư-mục) · [playwright.config.ts](#playwrightconfigts) · [Đa môi trường](#đa-môi-trường-dev--staging--prod) · [webServer](#tự-động-khởi-động-server) · [npm scripts](#npm-scripts) · [tsconfig](#tsconfig) · [Thêm vào dự án có sẵn](#thêm-vào-dự-án-đã-có)
+Mục lục: [Scaffold hay dùng khung có sẵn](#scaffold-hay-dùng-khung-có-sẵn) · [Cài đặt](#cài-đặt) · [Cấu trúc thư mục](#cấu-trúc-thư-mục) · [playwright.config.ts](#playwrightconfigts) · [Đa môi trường](#đa-môi-trường-dev--staging--prod) · [webServer](#tự-động-khởi-động-server) · [npm scripts](#npm-scripts) · [tsconfig](#tsconfig) · [Thêm vào dự án có sẵn](#thêm-vào-dự-án-đã-có)
 
-## Khi nào mới scaffold
+## Scaffold hay dùng khung có sẵn
 
-**Đừng dựng khung cho một câu hỏi dùng một lần — kể cả khi repo đang trống.** Điều kiện là *nhu cầu của người dùng*, không phải *trạng thái repo*. Một dự án e2e đầy đủ kéo theo `node_modules` riêng, browser binary vài trăm MB và một cây thư mục phải bảo trì.
+Bước **GENERATE** luôn cần một nơi để đặt spec. Câu hỏi không còn là *có nên dựng khung không*, mà là *dựng mới hay viết vào khung có sẵn*:
 
-Chỉ scaffold khi có ít nhất một trong bốn điều kiện:
+| Trạng thái repo | Làm gì |
+|---|---|
+| Đã có `playwright.config.ts` | **Không scaffold.** Đọc config + một spec có sẵn, viết theo đúng convention của họ. Xem [Thêm vào dự án đã có](#thêm-vào-dự-án-đã-có) |
+| Có framework khác (Cypress, Selenium, Robot) | Hỏi người dùng: viết Playwright song song hay migrate. Đừng tự ý gỡ khung cũ |
+| Repo trống, hoặc chỉ có source app | Scaffold bằng `scripts/scaffold.mjs` |
+| Spec phải nằm ở repo test riêng | Hỏi đường dẫn đích trước ở bước FRAME, rồi scaffold/ghi vào đó |
 
-1. Người dùng nói rõ muốn có bộ test chạy lại được (regression, CI, gate release);
-2. Kịch bản vượt khả năng thao tác tay (cadence < 500 ms, tỷ lệ `x/y`, cookie HttpOnly, mock, hai context song song);
-3. Cần report máy đọc cho TestRail/Xray/Allure;
-4. Người dùng yêu cầu thẳng: "dựng khung", "chuyển Excel thành script", migration từ framework khác.
+Scaffold kéo theo `node_modules` riêng và browser binary vài trăm MB, nên nói trước cho người dùng biết dung lượng và hỏi vị trí thư mục thay vì tự chọn.
 
-Không điều kiện nào đúng → làm trực tiếp trên trình duyệt và bỏ qua file này (`live-browser-investigation.md`).
-
-`npx playwright install` chỉ cần khi sắp thật sự chạy `playwright test` — không cần cho điều tra trực tiếp.
+`npx playwright install` cần chạy trước bước EXECUTE. Nó không cần cho bước EXPLORE nếu môi trường đã có sẵn công cụ browser.
 
 ## Cài đặt
 

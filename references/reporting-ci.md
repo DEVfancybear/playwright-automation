@@ -1,6 +1,6 @@
 # Report và tích hợp CI/CD
 
-> **Vùng bắt buộc spec.** Report máy đọc và CI theo định nghĩa cần file test commit được. Nếu người dùng chỉ cần một câu trả lời có bằng chứng cho lần này, họ không cần file này — ảnh chụp + console + network từ lượt điều tra trực tiếp đã là bằng chứng nộp được.
+> **Sau bước VERDICT.** Bộ test đã qua cổng ổn định thì bước tiếp theo là cắm nó vào CI làm gate. Nhớ để gate chạy trên suite xanh, không tính ca `@quarantine`: `npx playwright test --grep-invert @quarantine`.
 
 Mục lục: [Reporter](#reporter) · [HTML report](#html-report) · [Allure](#allure) · [Xuất cho TestRail/Jira](#xuất-kết-quả-cho-testrail--jira-xray) · [GitHub Actions](#github-actions) · [Jenkins](#jenkins) · [GitLab CI](#gitlab-ci) · [Sharding](#chia-nhỏ-để-chạy-nhanh-sharding) · [Docker](#docker) · [Chạy theo lịch](#chạy-theo-lịch--gửi-thông-báo)
 

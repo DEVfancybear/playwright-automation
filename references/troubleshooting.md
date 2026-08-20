@@ -4,8 +4,8 @@ Mục lục: [Quan sát trực tiếp](#bước-0--quan-sát-trực-tiếp) · [
 
 Định tuyến trước khi đọc tiếp:
 
-- **Chưa có spec nào** — người dùng chỉ nói "trang này lỗi" → đi thẳng xuống Bước 0, dùng công cụ browser. Đừng viết test để chẩn đoán một lỗi có thể nhìn thấy trực tiếp.
-- **Đã có spec và nó fail** → dùng report/trace như phần còn lại của file này.
+- **Đang ở bước EXPLORE** — chưa có spec, người dùng mới nói "trang này lỗi" → đi thẳng xuống Bước 0, dùng công cụ browser. Đừng viết test để chẩn đoán một lỗi nhìn thấy trực tiếp được; quan sát trước, spec chốt lại sau.
+- **Đang ở bước HEAL** — spec đã có và nó fail → dùng report/trace như phần còn lại của file này, rồi quay lại trình duyệt thật để xác nhận app đổi hay app hỏng.
 
 ## Bước 0 — Quan sát trực tiếp
 
@@ -19,7 +19,7 @@ Rẻ nhất và nhanh nhất: mở app thật xem chuyện gì đang xảy ra, t
 | Cái gì đang che nút | `document.elementFromPoint(x, y)` |
 | Trang render xong chưa | Đọc lại cây accessibility 2–3 lần, so sánh |
 
-Nếu quan sát trực tiếp cho thấy app thật sự lỗi → đó là **bug của app**, không phải test hỏng, và thường không cần viết test nào để chứng minh. Xem `live-browser-investigation.md`.
+Nếu quan sát trực tiếp cho thấy app thật sự lỗi → đó là **bug của app**, không phải test hỏng. Báo kết luận sơ bộ ngay, rồi vẫn chốt nó thành một scenario trong PLAN: test bắt được lỗi này chính là thứ chứng minh nó đã được sửa về sau. Xem `live-browser-investigation.md`.
 
 ## Quy trình chẩn đoán
 
@@ -109,6 +109,50 @@ npx playwright test -g "TC-ORD-05" --repeat-each=10 --workers=1 --retries=0
 ```
 
 Nếu 10 lần đều pass mà trên CI vẫn flaky, chưa đủ để gán nguyên nhân. So fingerprint, load/worker, cache/session, network và instrumentation giữa hai nơi rồi thay đổi từng biến một.
+
+### Cổng ổn định cho test mới
+
+Test vừa viết, pass một lần, chưa được nhận vào suite. Chạy ba lượt liên tiếp, chỉ nhận khi **cả ba đều pass**:
+
+```bash
+npx playwright test tests/ui/checkout.spec.ts --repeat-each=3 --workers=1 --retries=0
+```
+
+Kết quả lẫn lộn nghĩa là test flaky ngay từ ngày đầu — nó sẽ không tự tốt lên.
+
+### Đã xác định là flaky thì tách ra, đừng giấu
+
+```typescript
+// Tách khỏi suite xanh cho tới khi tìm được nguyên nhân.
+test('@quarantine TC-ORD-03: badge giỏ hàng đếm đúng số món', async ({ page }) => {
+  // Flaky 7/10 lượt (2026-08-20): badge cập nhật chậm sau khi thêm món,
+  // nghi race giữa optimistic update và response /api/cart.
+});
+```
+
+```bash
+npx playwright test --grep-invert @quarantine    # suite xanh dùng cho gate
+npx playwright test --grep @quarantine           # chạy riêng khi điều tra
+```
+
+**Đừng thêm `retries` để nó xanh.** `retries` không sửa flaky, nó chỉ giấu flaky — và một suite xanh giả còn nguy hiểm hơn suite đỏ thật, vì nó khiến cả team tin là đã có lưới an toàn. `retries` trên CI chỉ hợp lý như biện pháp chống nhiễu hạ tầng tạm thời, và mỗi ca phải retry đều phải bị coi là nợ cần trả.
+
+Lưu ý phạm vi: cổng ổn định áp cho **regression deterministic**. Baseline của bug race/intermittent thì mục tiêu ngược lại — đo tỷ lệ `x/y`, "ba lần đều pass" chính là bằng chứng chưa tái hiện được; xem `references/complex-flow-race-reproduction.md`.
+
+### Sửa test đã gãy: quay lại trang thật, đừng đoán
+
+Test đang xanh bỗng đỏ → mở lại app, đi đúng bước đang fail, đọc DOM hiện tại, rồi mới sửa. Thử mù hết selector này tới selector khác là cách nhanh nhất để có một test xanh nhưng không còn kiểm gì.
+
+Trả lời câu hỏi này **trước** khi động vào code:
+
+| Quan sát trên trang thật | Kết luận | Hành động |
+|---|---|---|
+| Phần tử còn đó, chỉ đổi label/role/vị trí | App đổi hợp lệ | Sửa locator theo DOM vừa đọc |
+| Phần tử biến mất hẳn, luồng cụt | **Bug của app** | Báo bug, giữ test đỏ — đừng sửa test cho khớp |
+| Giá trị hiển thị khác expected | Kiểm requirement trước | Requirement đổi → đổi expected và nói rõ; requirement không đổi → bug |
+| Chỉ đỏ khi chạy cả bộ | Test phụ thuộc nhau | Cho test tự tạo dữ liệu của nó |
+
+Một luật cứng: **không hạ chuẩn assertion để test xanh.** Đổi `toHaveText('1.250.000 ₫')` thành `toBeVisible()`, bỏ bớt `expect`, nới `timeout` lên 120s cho khỏi fail — đó không phải sửa test, đó là xoá phần kiểm. Nếu buộc phải đổi expected, đổi theo nguồn hạng cao (SRS/test case) và ghi rõ đã đổi cái gì vì sao — xem `references/test-plan-and-traceability.md`.
 
 ## Timeout
 

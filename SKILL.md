@@ -1,164 +1,267 @@
 ---
 name: playwright-automation
-description: Kiểm thử, tái hiện bug và verify fix cho tester/QA — mặc định thao tác trực tiếp trên trình duyệt để trả lời ngay kèm bằng chứng; chỉ viết test Playwright + TypeScript khi cần chạy lại. Dùng khi người dùng muốn xem/kiểm tra trang đang chạy, hỏi trang lỗi gì, console/network báo gì, nhờ bấm thử một luồng, đọc bug log/issue sheet, hiểu KQMM/KQTT/EVD, xử lý log dài, luồng stateful nhiều màn hình/tab/role, bug chỉ ra khi thao tác nhanh/liên tục hoặc có race, tái hiện bug trước khi DEV sửa, verify/retest sau fix trên STG/UAT/prod, phân biệt lỗi code với config/data/infra, dựng framework, test E2E/API/visual/responsive/accessibility, mock API, chuyển Excel thành script, xử lý flaky, tích hợp CI/CD. Cũng kích hoạt khi nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, "reproduce bug", "verify/retest fix", "dev đã fix", "thao tác nhanh/liên tục", "race/flaky/intermittent", "chạy thử app xem đúng chưa", "test tự động", hoặc đưa link/localhost kèm yêu cầu kiểm tra, bằng tiếng Việt hoặc tiếng Anh.
+description: Test agent cho tester/QA — chạy một pipeline bắt buộc FRAME → EXPLORE → PLAN → CONFIRM → GENERATE → EXECUTE → HEAL → VERDICT, mọi lượt kết thúc bằng bộ test Playwright + TypeScript commit được vào repo kèm verdict có số. Dùng khi người dùng muốn kiểm tra trang đang chạy, hỏi trang lỗi gì, console/network báo gì, nhờ bấm thử một luồng, đọc bug log/issue sheet, hiểu KQMM/KQTT/EVD, xử lý log dài, luồng stateful nhiều màn hình/tab/role, bug chỉ ra khi thao tác nhanh/liên tục hoặc có race, tái hiện bug trước khi DEV sửa, verify/retest sau fix trên STG/UAT/prod, phân biệt lỗi code với config/data/infra, dựng framework, lập kế hoạch test từ SRS/test case và chứng minh độ phủ, test E2E/API/visual/responsive/accessibility, mock API, chuyển Excel thành script, xử lý flaky, tích hợp CI/CD. Cũng kích hoạt khi nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, "reproduce bug", "verify/retest fix", "dev đã fix", "thao tác nhanh/liên tục", "race/flaky/intermittent", "chạy thử app xem đúng chưa", "test tự động", "kế hoạch test/test plan", "độ phủ/traceability", hoặc đưa link/localhost kèm yêu cầu kiểm tra, bằng tiếng Việt hoặc tiếng Anh.
 ---
 
-# Playwright Automation cho Tester
+# Playwright Test Agent cho Tester
 
-Skill này biến yêu cầu kiểm thử hoặc bug log của tester thành **kết luận có bằng chứng thu trực tiếp trên trình duyệt** — và, *khi người dùng cần chạy lại lâu dài*, thành **test Playwright + TypeScript bảo trì được** (`@playwright/test`).
+Skill này không trả lời bằng cảm nhận và không dừng lại ở một ảnh chụp màn hình. **Mọi yêu cầu kiểm thử** — từ "xem hộ trang này lỗi gì" tới cả một workbook bug log — đều chạy qua **cùng một pipeline tám bước**, và kết thúc bằng hai thứ:
 
-Đối tượng dùng skill này thường là tester thủ công đang chuyển sang automation. Họ biết rất rõ *nghiệp vụ cần test gì*, nhưng chưa chắc rành *selector, async, CI*. Vì vậy: giải thích ngắn gọn bằng tiếng Việt, và **trả lời câu hỏi của họ trước** bằng bằng chứng thật (ảnh chụp, console, network, cây accessibility). Chỉ để lại file test khi họ cần chạy lại — lúc đó thì viết code sạch và nói rõ cách chạy lại.
+1. **Một bộ test `@playwright/test` + TypeScript commit được vào repo.**
+2. **Một verdict có số** — không phải "hầu hết đều ổn".
 
-## Nguyên tắc cốt lõi
+Đối tượng dùng skill này thường là tester thủ công đang chuyển sang automation. Họ biết rất rõ *nghiệp vụ cần test gì*, nhưng chưa chắc rành *selector, async, CI*. Vì vậy: giải thích ngắn gọn bằng tiếng Việt, trình bảng kế hoạch cho họ duyệt trước khi sinh code, và nói rõ cách chạy lại bộ test bàn giao.
 
-Mặc định là **mở trình duyệt làm thật**, không phải viết file. Automation hỏng chủ yếu vì đoán selector; không bao giờ viết `page.click('.btn-primary')` dựa trên tưởng tượng — và cũng đừng viết cả một dự án test cho câu hỏi chỉ cần bấm ba lần là biết.
+Mục lục: [Pipeline](#pipeline-bắt-buộc) · [Một lượt chạy trông thế nào](#một-lượt-chạy-trông-thế-nào) · [Định tuyến](#bước-1--định-tuyến) · [0 FRAME](#0--frame) · [1 EXPLORE](#1--explore) · [2 PLAN](#2--plan) · [3 CONFIRM](#3--confirm) · [4 GENERATE](#4--generate) · [5 EXECUTE](#5--execute) · [6 HEAL](#6--heal) · [7 VERDICT](#7--verdict) · [An toàn](#luật-an-toàn) · [Chống flaky](#7-nguyên-tắc-để-test-không-flaky) · [Chạy & debug](#chạy-và-debug) · [Checklist](#checklist-trước-khi-coi-là-xong) · [Bản đồ tài liệu](#bản-đồ-tài-liệu)
+
+## Pipeline bắt buộc
 
 ```
-Pha 0 — FRAME : chốt URL/build/môi trường, role/state, và đích đến (một lần hay chạy lại lâu dài)
-Pha 1 — LIVE  : mở app thật bằng công cụ browser — điều hướng, đọc cây accessibility, click/điền,
-                chạy JS trong trang, đọc console + network. PHẦN LỚN YÊU CẦU KẾT THÚC Ở ĐÂY.
-Pha 2 — CODIFY: biến kịch bản đã xác minh ở Pha 1 thành spec + Page Object commit được vào repo.
-                CHỈ làm khi qua cổng dưới đây.
+0. FRAME    → chốt target, build/môi trường, role/state, nguồn grounding
+1. EXPLORE  → mở app THẬT bằng công cụ browser, quan sát. Không đoán, không nhớ.
+2. PLAN     → bảng scenario có tầng + truy vết + phần ngoài phạm vi
+3. CONFIRM  → trình bảng cho người dùng duyệt
+4. GENERATE → spec + Page Object commit được, một scenario một file
+5. EXECUTE  → chạy qua cổng ổn định (N lượt, flaky bị quarantine)
+6. HEAL     → fail thì quay lại trình duyệt thật, re-observe, sửa, chạy lại
+7. VERDICT  → PASS/FAIL kèm số ca — hoặc Reproduced / Verified fixed với bug log
 ```
 
-**Cổng CODIFY — có ít nhất một dấu mới được viết file:**
+**Bốn luật của pipeline:**
 
-| Dấu | Khi nào |
+| Luật | Nghĩa là |
 |---|---|
-| **LẶP** | Cần chạy lại lâu dài: regression, CI, gate release |
-| **NHỊP** | Gap giữa hai action < ~500 ms, hoặc cadence phải đo và tái lập được |
-| **SỐ** | Cần tỷ lệ `x/y` trên ≥10 lượt có reset state |
-| **QUYỀN** | Cần thứ JS trong trang không làm được: xoá cookie HttpOnly, `storageState`, hai context song song, `page.route`, offline/throttle, listener download/dialog, baseline snapshot |
-| **YÊU CẦU** | Người dùng nói rõ muốn có file (dựng khung, Excel → spec, migration) |
+| **Không bước nào tuỳ chọn** | Kể cả câu hỏi nhỏ nhất cũng đi đủ tám bước. "Câu này đơn giản, khỏi lập plan" không phải lý do hợp lệ |
+| **Không đảo thứ tự** | Không sinh code trước khi EXPLORE. Không chạy trước khi CONFIRM. Không kết luận trước khi EXECUTE |
+| **Bỏ bước phải khai báo** | Bị chặn thật (thiếu build, thiếu tài khoản, guardrail production) thì ghi vào VERDICT là `Blocked` kèm lý do và điều kiện mở khoá — không im lặng bỏ qua |
+| **Chưa có test chạy được = chưa xong** | Ảnh chụp và log console là *bằng chứng*, không phải *sản phẩm bàn giao* |
 
-Không dấu nào → dừng ở Pha 1, báo cáo, rồi hỏi một câu: "Có muốn chốt case này thành test chạy lại được không?".
+**Ngoại lệ duy nhất**: người dùng **nói rõ** không muốn file. Khi đó dừng sau EXECUTE-bằng-thao-tác-tay, và ghi trong verdict `Codify skipped — theo yêu cầu người dùng`. Ngoại lệ này do người dùng nói ra, agent không bao giờ tự quyết.
 
-**Không có file spec KHÔNG phải là chưa hoàn thành.** Viết spec cho một câu hỏi dùng một lần là lãng phí thời gian tester; ngược lại, bỏ Pha 1 rồi viết spec theo phỏng đoán là nguyên nhân số 1 của test flaky. Pha 2 không bao giờ bắt đầu từ số 0 — route, label, locator, oracle đều lấy từ lượt LIVE.
+**Trả lời sớm, chốt muộn.** EXPLORE thường đã đủ để biết app đúng hay sai. Báo kết luận sơ bộ đó ngay khi có, đừng bắt tester chờ hết pipeline — nhưng gọi nó đúng tên là *kết luận sơ bộ*. Verdict chính thức chỉ có ở bước 7, sau khi đã có test chạy qua cổng ổn định.
 
-Với bug log thực tế, dùng **Decode → Reproduce baseline → Classify → Verify fix → *[tùy chọn]* Codify regression**. Không nhảy thẳng từ một dòng issue sang code: phải đọc cả row, evidence, phản hồi DEV và timeline; tách fact khỏi suy luận; chính agent phải tái hiện đúng bug tester mô tả trên môi trường/build gốc — **tái hiện bằng thao tác trực tiếp trên trình duyệt** — và lưu baseline trước khi bàn giao DEV. Sau khi DEV sửa mới chạy fix verification trên build đích. Bước Codify regression chỉ làm khi bug đủ nghiêm trọng hoặc dễ tái phát để đáng nằm trong suite, hoặc khi người dùng yêu cầu. Nếu không tái hiện được vì thiếu build/data/quyền hoặc guardrail production, báo `Not reproduced`, `Blocked` hoặc `Inconclusive`; không được bỏ qua baseline rồi tuyên bố "đã fix".
+## Một lượt chạy trông thế nào
+
+Người dùng nói: *"Test giúp tôi luồng đặt hàng ở https://staging.example.com, tài khoản qa_user01."*
+
+```
+0 FRAME     Đọc .testagent.yaml → có target "checkout-staging" rồi. Xác nhận một dòng.
+            Grounding: docs/requirements/checkout.md + test-cases/checkout.xlsx.
+
+1 EXPLORE   Mở Chrome, đăng nhập (dừng ở ô mật khẩu, nhờ người dùng nhập),
+            đi hết luồng: trang chủ → thêm giỏ → thanh toán → xác nhận.
+            Ghi journey.md: URL, role+name từng element, endpoint + status.
+            ⚠ Badge giỏ hàng chậm ~1,2 s. POST /api/auth/login trả 204 chứ không phải 200.
+
+            → Báo ngay: "Luồng đặt hàng chạy được. Có một điểm nghi ngờ ở badge giỏ hàng
+               (chậm ~1,2 s). Đây là kết luận sơ bộ, tôi chốt lại bằng test."
+
+2 PLAN      5 scenario: auth-login(setup) · cart-badge(smoke) · checkout-happy(core)
+            checkout-total(core) · checkout-no-postal(edge).
+            Ngoài phạm vi: thanh toán thật (mock) · OTP SMS (không tự động được).
+
+3 CONFIRM   Trình bảng. Người dùng cắt checkout-no-postal, thêm "giỏ hàng trống".
+
+4 GENERATE  5 file spec + CheckoutPage.ts, locator lấy từ journey.md, không đoán.
+
+5 EXECUTE   --repeat-each=3 --workers=1 --retries=0
+            4 pass · cart-badge 7/10 → @quarantine.
+
+6 HEAL      checkout-total đỏ: mở lại trang, đọc DOM → tổng lệch 1đ thật.
+            Requirement nói tổng = tiền hàng + thuế ⇒ đây là BUG, giữ test đỏ.
+            Không hạ assertion.
+
+7 VERDICT   FAIL — 4 nhận, 1 fail (checkout-total, truy vết SRS §4.4, p0),
+            1 tách vì flaky. Bàn giao e2e/tests/*.spec.ts. Lệnh chạy lại + report.
+```
+
+Điểm cần thấy: câu trả lời tới ở bước 1, sản phẩm tới ở bước 7, và **test đỏ là kết quả đúng** khi app sai.
 
 ## Bước 1 — Định tuyến
 
-Đọc bảng này, xác định người dùng đang cần gì, rồi mở đúng file `references/`. **Chỉ đọc file thật sự cần** — đọc hết sẽ làm loãng context.
+Pipeline không đổi; chỉ **nội dung từng bước** đổi theo loại yêu cầu. Đọc bảng này để biết mình đang chạy biến thể nào và mở đúng file `references/`. **Chỉ đọc file thật sự cần** — đọc hết sẽ làm loãng context.
 
-**Mặc định của mọi dòng là thao tác trực tiếp trên trình duyệt.** Chỉ viết file khi cột "Làm gì" nói rõ, hoặc khi qua cổng CODIFY.
-
-| Người dùng nói gì | Làm gì | Đọc thêm |
+| Người dùng nói gì | Biến thể | Đọc thêm |
 |---|---|---|
-| "Xem hộ trang này", "đang lỗi gì", "console/network báo gì", "bấm thử giúp", đưa link/localhost kèm câu hỏi | **Thao tác trực tiếp**: mở trang → đọc cây accessibility → click/điền → đọc console + network → trả lời kèm bằng chứng. **KHÔNG tạo file** | `references/live-browser-investigation.md` |
-| "Test giúp chức năng X xem chạy đúng không" | **Thao tác trực tiếp** đi hết luồng, đọc console + network, kết luận kèm bằng chứng. Chỉ viết spec nếu người dùng nói cần chạy lại | `references/live-browser-investigation.md`; `references/ui-e2e.md` chỉ khi codify |
-| "Đọc bug log", "reproduce/retest bug", KQMM/KQTT/EVD, issue STG/UAT/prod | Decode full row + evidence → **tái hiện trực tiếp trên trình duyệt** đúng bước tester mô tả → phân loại → báo cáo | `references/bug-reproduction.md`; `references/ui-e2e.md` chỉ khi đã quyết định codify regression |
-| "Verify bug", "verify fix", "xác nhận DEV đã fix", "retest để Close/Reopen" | Kiểm baseline agent đã tái hiện → **chạy lại đúng fingerprint trực tiếp** trên build đã fix → kiểm KQMM + persistence/side effect → regression gần vùng sửa → verdict | `references/bug-reproduction.md`, mục **Verify bug sau khi DEV fix** |
-| "Đọc kỹ" workbook bug có nhiều tab, học cách tester log lỗi | Inventory cả visible/hidden tab + filtered/hidden row → phân loại bug/evidence/metadata → đọc mọi bug list + xem ảnh evidence → nêu coverage | `references/bug-reproduction.md` |
-| Log dài; nhiều màn hình/tab/role; back/reopen/relogin; "ngay", "nhanh", "liên tục", double-click; race/intermittent | Đi bộ một lượt trực tiếp để chốt route/label/oracle. **Tái hiện được ở nhịp thường → báo cáo, dừng.** Không tái hiện được, hoặc cần cadence < ~500 ms / tỷ lệ `x/y` / hai actor → script hoá: setup/critical burst/oracle + cadence matrix + attempts `x/y` | `references/bug-reproduction.md`, rồi `references/complex-flow-race-reproduction.md` |
-| "Ép token hết hạn / mất phiên / xoá cookie đăng nhập" | Cookie HttpOnly không xoá được bằng JS trong trang → **bắt buộc** `context.clearCookies()` trong spec, hoặc chờ hết TTL thật | `references/auth-and-data.md` |
-| "Dựng khung automation cho dự án" | `scripts/scaffold.mjs` (đây là yêu cầu rõ ràng muốn ra file) | `references/project-setup.md` |
-| "Viết script đăng nhập / form / luồng nghiệp vụ" | LIVE để lấy route + locator thật → POM + spec | `references/ui-e2e.md` |
-| "Test API", "kiểm tra endpoint" | Hỏi nhanh một endpoint khi đã có session: chạy `fetch` trong trang. Bộ nhiều case/chạy lại: `request` fixture | `references/api-testing.md` |
-| "So sánh giao diện", "UI có bị lệch không", "responsive" | Lệch rõ mắt thường: đổi kích thước cửa sổ + chụp màn hình, trả lời ngay. Cần so pixel qua thời gian: `toHaveScreenshot` + projects đa viewport | `references/visual-responsive.md` |
-| "Test accessibility", "WCAG", "chuẩn tiếp cận" | Thiếu label/role/heading: soi ngay bằng cây accessibility. Quét full WCAG: `@axe-core/playwright` | `references/accessibility.md` |
-| "Giả lập API lỗi / mạng chậm / offline" | `page.route`, HAR — **bắt buộc spec** | `references/network-mocking.md` |
-| "Đăng nhập sẵn cho mọi test", "test nhiều role" | `storageState` + setup project — **bắt buộc spec** | `references/auth-and-data.md` |
-| "Chuyển file test case Excel thành script" | `scripts/excel_to_spec.py` | `references/excel-to-spec.md` |
-| "Chạy trên Jenkins/GitHub", "xuất report" | reporter + CI config — **bắt buộc spec** | `references/reporting-ci.md` |
-| "Test bị lúc pass lúc fail", "chạy local ok mà CI fail" | Chẩn đoán flaky: chạy lặp + so trace — **bắt buộc spec** | `references/troubleshooting.md` |
-| "Đo tốc độ trang", "test hiệu năng / tải" | Đo một lần: `performance.getEntriesByType('navigation')` trong trang. Đo lặp/so sánh/tải: Lighthouse, k6 | `references/performance.md` |
+| "Xem hộ trang này", "đang lỗi gì", "console/network báo gì", "bấm thử giúp", đưa link/localhost kèm câu hỏi | EXPLORE trả lời câu hỏi ngay; PLAN tối thiểu một scenario chốt đúng điều vừa quan sát để nó không tái phát | `references/live-browser-investigation.md` |
+| "Test giúp chức năng X xem chạy đúng không" | Biến thể chuẩn, đủ tám bước | `references/live-browser-investigation.md`, `references/test-plan-and-traceability.md`, `references/ui-e2e.md` |
+| "Đọc bug log", "reproduce bug", KQMM/KQTT/EVD, issue STG/UAT/prod | **Biến thể bug**: EXPLORE = decode row + evidence + recon · PLAN = fingerprint + kịch bản tái hiện · VERDICT = reproduction outcome. GENERATE sinh regression spec cho bug đó | `references/bug-reproduction.md` |
+| "Verify fix", "xác nhận DEV đã fix", "retest để Close/Reopen" | Biến thể bug, target là build đã fix. Bắt buộc có baseline do chính agent tái hiện trước đó | `references/bug-reproduction.md`, mục **Verify bug sau khi DEV fix** |
+| "Đọc kỹ" workbook bug nhiều tab | FRAME mở rộng: inventory cả visible/hidden tab + filtered row trước khi vào EXPLORE | `references/bug-reproduction.md` |
+| Log dài; nhiều màn hình/tab/role; "ngay", "nhanh", "liên tục", double-click; race/intermittent | Biến thể race: PLAN có cadence matrix + attempt budget · EXECUTE đo `x/y` thay vì cổng ổn định | `references/bug-reproduction.md`, rồi `references/complex-flow-race-reproduction.md` |
+| Đưa SRS/test case rồi hỏi phạm vi, "cần test những gì", "bộ test đã phủ đủ chưa" | Trọng tâm dồn vào PLAN: nạp nguồn theo thứ tự tin cậy, dựng ma trận truy vết | `references/test-plan-and-traceability.md` |
+| "Dựng khung automation cho dự án" | GENERATE bắt đầu bằng `scripts/scaffold.mjs` | `references/project-setup.md` |
+| "Ép token hết hạn / mất phiên / xoá cookie đăng nhập" | Cookie HttpOnly không xoá được bằng JS trong trang → oracle nằm ở spec: `context.clearCookies()` | `references/auth-and-data.md` |
+| "Test API", "kiểm tra endpoint" | EXPLORE gọi `fetch` bằng session đang mở; GENERATE dùng `request` fixture | `references/api-testing.md` |
+| "So sánh giao diện", "responsive" | EXPLORE đổi kích thước cửa sổ; GENERATE dùng `toHaveScreenshot` + projects đa viewport | `references/visual-responsive.md` |
+| "Test accessibility", "WCAG" | EXPLORE soi cây accessibility; GENERATE dùng `@axe-core/playwright` | `references/accessibility.md` |
+| "Giả lập API lỗi / mạng chậm / offline" | `page.route`, HAR | `references/network-mocking.md` |
+| "Đăng nhập sẵn cho mọi test", "test nhiều role" | `storageState` + setup project | `references/auth-and-data.md` |
+| "Ghi lại luồng này", "viết hộ test case cho chức năng này", team chưa có tài liệu test case | EXPLORE ghi use case → sinh tài liệu `Pre` / bước / `KQMM` / tiêu chí pass, rồi tiếp tục pipeline như thường | `references/explore-artifacts.md` |
+| "Chỉ test phần vừa sửa", đưa commit/branch | PLAN thu hẹp theo `git diff`, khai rõ đây là ước lượng best-effort | `references/test-plan-and-traceability.md` |
+| "Chuyển file test case Excel thành script" | PLAN lấy thẳng từ Excel qua `scripts/excel_to_spec.py` | `references/excel-to-spec.md` |
+| "Chạy trên Jenkins/GitHub", "xuất report" | Sau VERDICT: cắm bộ test vào CI làm gate | `references/reporting-ci.md` |
+| "Test bị lúc pass lúc fail", "local ok mà CI fail" | Trọng tâm dồn vào EXECUTE + HEAL | `references/troubleshooting.md` |
+| "Đo tốc độ trang", "test hiệu năng / tải" | EXPLORE đo `performance.getEntriesByType('navigation')`; GENERATE dùng Lighthouse/k6 | `references/performance.md` |
 
-Nếu yêu cầu chạm nhiều mảng (ví dụ "test luồng đặt hàng, có cả API và ảnh chụp"), đi hết luồng bằng thao tác trực tiếp trước để biết luồng có chạy được không — rồi mới bổ sung dần. Đừng cố dựng mọi thứ trong một lượt.
+Yêu cầu chạm nhiều mảng ("test luồng đặt hàng, có cả API và ảnh chụp") vẫn chỉ một pipeline: gom hết vào một PLAN, phân tầng và ưu tiên trong đó, đừng chạy ba pipeline song song.
 
-## Pha 0 — FRAME: thu đủ điều kiện trước khi thao tác
+---
 
-Nếu đầu vào là bug log/issue sheet, **không hỏi lại những gì row đã nói**. Đọc full row và evidence trước, chuẩn hóa thành environment/platform, precondition, test data/state, actions, actual, expected và unknown. Chỉ hỏi phần thật sự chặn tái hiện như URL/build đích, tài khoản hoặc seed data an toàn, evidence nằm ngoài sheet, hay acceptance criterion còn mâu thuẫn. Xem `references/bug-reproduction.md`.
+## 0 — FRAME
 
-Nếu đầu vào là yêu cầu kiểm thử mới, chỉ hỏi những mục chưa có; đừng phỏng vấn dài dòng:
+Thu đủ điều kiện trước khi chạm vào app. Đầu ra của bước này là: **target + build/môi trường + role/state + nguồn grounding**.
 
-1. **URL** app cần test (staging/local/prod?) và app có cần đăng nhập không → nếu có, xin tài khoản test.
-2. **Phạm vi**: một chức năng cụ thể, hay cả luồng nghiệp vụ, hay cả bộ regression?
-3. **Đích đến**: chạy một lần cho biết kết quả, hay dựng suite để chạy lại lâu dài?
-   - "Chạy một lần cho biết kết quả" → làm trực tiếp trên trình duyệt (Pha 1), **KHÔNG tạo file**, bỏ qua Pha 2.
-   - "Dựng suite chạy lại lâu dài" → làm Pha 1 trước để lấy route/locator/oracle thật, rồi mới sang Pha 2.
-   - Người dùng chưa nói rõ → **mặc định là chạy một lần**, và hỏi lại ở cuối báo cáo. Đừng tự quyết thay họ bằng cách viết sẵn cả bộ test.
+**Đọc `.testagent.yaml` ở gốc repo trước khi hỏi bất cứ điều gì.** Nếu file đó đã có target khớp yêu cầu, bước FRAME rút xuống một câu xác nhận: *"Chạy trên target `checkout-staging` (staging.example.com, scope checkout) như config, đúng chứ?"*. Chưa có file thì hỏi như dưới, rồi **ghi lại thành config ở bước VERDICT** để lần sau khỏi hỏi lại. Cấu trúc file: `references/explore-artifacts.md`.
 
-Nếu người dùng đưa file test case Excel/SRS, đọc file đó thay vì hỏi — trong đó thường đã có đủ tiền điều kiện, dữ liệu và kết quả mong đợi.
+Nếu đầu vào là bug log/issue sheet, **không hỏi lại những gì row đã nói**. Đọc full row và evidence trước, chuẩn hóa thành environment/platform, precondition, test data/state, actions, actual, expected và unknown. Chỉ hỏi phần thật sự chặn: URL/build đích, tài khoản hoặc seed data an toàn, evidence nằm ngoài sheet, acceptance criterion còn mâu thuẫn. Xem `references/bug-reproduction.md`.
 
-## Pha 1 — LIVE: thao tác trực tiếp trên trình duyệt
+Nếu đầu vào là yêu cầu kiểm thử mới, chỉ hỏi những mục chưa có — đừng phỏng vấn dài dòng:
 
-Đây là chế độ mặc định. Công cụ browser điều khiển một trình duyệt thật và **giữ nguyên session giữa các bước**, nên đi được luồng nhiều màn hình mà không cần cài gì, không cần dự án Playwright, không sinh file.
+1. **URL** app cần test (staging/local/prod?) và có cần đăng nhập không → nếu có, xin tài khoản test.
+2. **Phạm vi**: một chức năng, cả luồng nghiệp vụ, hay cả bộ regression?
+3. **Nơi đặt test**: repo đã có khung Playwright chưa, hay cần dựng mới; spec nên nằm ở thư mục nào.
+
+Câu hỏi "chạy một lần hay chạy lại lâu dài" **không còn được hỏi nữa** — đầu ra luôn là bộ test chạy lại được.
+
+### Thứ tự tin cậy của nguồn
+
+Khi nhiều nguồn cùng nói về một hành vi, chúng không ngang nhau. Xếp hạng: **SRS/acceptance criteria → test case thủ công (Excel, KQMM) → quy tắc nghiệp vụ → source code → quan sát app đang chạy**. Bốn hạng đầu nói *điều gì phải đúng*; hạng cuối chỉ nói *cách thao tác và định vị*.
+
+Hai luật, áp dụng xuyên suốt pipeline:
+
+- **App đang chạy không phải là oracle.** "Bấm ra như vậy" không chứng minh "như vậy là đúng". Không có nguồn hạng cao nào nói tới hành vi đang xét thì ghi `Unknown — chưa có acceptance criterion` rồi hỏi, đừng lấy hành vi hiện tại làm chuẩn rồi đóng băng nó thành `expect`.
+- **Ý định lệch hiện thực thì báo, đừng lặng lẽ theo code.** Requirement nói tổng = tiền hàng + thuế mà màn hình trả lệch 1 đồng: đó là một finding, không phải con số để chép vào assertion. Viết assertion theo requirement, để test đỏ, rồi báo.
+
+Nếu người dùng đưa file test case Excel/SRS, đọc file đó thay vì hỏi. Chi tiết: `references/test-plan-and-traceability.md`.
+
+---
+
+## 1 — EXPLORE
+
+**Bắt buộc mở app thật.** Cấm lập plan từ trí nhớ, từ tài liệu, hoặc từ source code mà chưa nhìn màn hình. Đây là lý do số một khiến test tự sinh bị flaky: selector đoán ra từ tưởng tượng.
+
+Công cụ browser điều khiển một trình duyệt thật và **giữ nguyên session giữa các bước**, nên đi được luồng nhiều màn hình mà không cần cài gì trước.
 
 Năng lực cần dùng: điều hướng · đọc cây accessibility (mỗi element có `ref` — **đã là element có thật, không cần đoán selector**) · click/gõ/cuộn/chụp ảnh · điền form · chạy JS trong trang · đọc console · đọc network · đổi kích thước cửa sổ · quản lý tab. **Tên công cụ khác nhau tuỳ môi trường** (Claude Code, Codex, claude.ai, IDE…) — tra danh sách công cụ đang có rồi ánh xạ theo năng lực, đừng tìm đúng chữ. Nếu phải nạp công cụ trước khi dùng, nạp **một lượt duy nhất** cho cả bộ.
 
-**Có nhiều bộ công cụ browser thì ưu tiên bộ mang profile thật của người dùng** — có sẵn phiên đăng nhập, ngoại lệ cert, proxy/DNS nội bộ, và người dùng nhìn thấy được màn hình. **Nhưng tên công cụ không cho biết nó lái cái gì**: một bộ tên có chữ "chrome" vẫn có thể là Chromium tự động hoá chạy headless với profile tạm và `--ignore-certificate-errors`. Xác minh bằng dòng lệnh tiến trình trước khi kết luận, và nói rõ trong báo cáo mình đã chạy trên cái nào. Xem mục **Chọn trình duyệt** trong `references/live-browser-investigation.md`.
+**Có nhiều bộ công cụ browser thì ưu tiên bộ mang profile thật của người dùng** — có sẵn phiên đăng nhập, ngoại lệ cert, proxy/DNS nội bộ. **Nhưng tên công cụ không cho biết nó lái cái gì**: một bộ tên có chữ "chrome" vẫn có thể là Chromium tự động hoá chạy headless với profile tạm và `--ignore-certificate-errors`. Xác minh bằng dòng lệnh tiến trình trước khi kết luận, và nói rõ trong báo cáo mình đã chạy trên cái nào.
 
-Vòng điều tra: mở đúng URL người dùng nói → đọc cây để biết đang ở state nào → thao tác **đúng các bước tester mô tả, không rút gọn** → sau mỗi bước quan trọng đọc network + console + chụp ảnh → cần state phía server thì gọi API bằng chính session đang mở → kết luận kèm bằng chứng, rồi hỏi có cần chốt thành regression không.
+Vòng quan sát: mở đúng URL người dùng nói → đọc cây để biết đang ở state nào → thao tác **đúng các bước tester mô tả, không rút gọn** → sau mỗi bước quan trọng đọc network + console + chụp ảnh → cần state phía server thì gọi API bằng chính session đang mở.
 
-**Đọc `references/live-browser-investigation.md`** cho chi tiết: bảng năng lực đầy đủ và cách ánh xạ tên công cụ, quy đổi `role + name` → `getByRole`, luật điều hướng SPA (gõ URL = mất state), bốn kiểu hỏng im lặng (overlay che, tab mới, element ngoài viewport, dialog gốc), `ref` hết hạn sau mỗi lần DOM đổi, cách biết trang đã render xong khi không có `networkidle`, giới hạn cookie HttpOnly, và mẫu báo cáo LIVE.
+**Đọc `references/live-browser-investigation.md`** cho chi tiết: bảng năng lực đầy đủ, cách xác minh đang lái trình duyệt nào, quy đổi `role + name` → `getByRole`, luật điều hướng SPA, bốn kiểu hỏng im lặng (overlay che, tab mới, element ngoài viewport, dialog gốc), `ref` hết hạn sau mỗi lần DOM đổi, cách biết trang đã render xong khi không có `networkidle`, và giới hạn cookie HttpOnly.
 
-**Nếu môi trường không có công cụ browser nào**, Pha 1 không khả dụng — nói rõ với người dùng trước khi làm gì tiếp, rồi chọn theo năng lực của host:
+### Đầu ra bắt buộc của EXPLORE
 
-- **Host chạy được lệnh** (Claude Code, Codex, IDE): dùng `scripts/explore.mjs` trinh sát một lượt rồi sang Pha 2.
-- **Host không chạy được lệnh** (ví dụ claude.ai): không trinh sát được. Báo `Blocked: không có công cụ browser và không chạy được script`, rồi (a) nhờ người dùng dán ảnh chụp / log console / log network / HTML của màn hình cần xem, hoặc (b) soạn sẵn các bước để người dùng tự thao tác và báo lại quan sát. Tuyệt đối không suy đoán hành vi app rồi báo như đã kiểm.
+EXPLORE là bước đắt nhất của pipeline — phải đăng nhập, đi wizard, chờ dữ liệu. Ghi lại để không phải trả cái giá đó mỗi lần:
 
-### Luật an toàn khi thao tác trực tiếp
-
-Bốn luật này áp dụng cho mọi lượt LIVE, không có ngoại lệ:
-
-- **Không tự khởi động dev server khi cổng đã có tiến trình chạy.** Lấy cổng từ URL người dùng đưa (hoặc từ script `dev` trong `package.json`), rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có sẵn thì dùng tiến trình đang chạy và nói rõ điều đó. Start chồng vừa fail vừa có thể giết bản build người dùng đang xem.
-- **Không tự điền mật khẩu.** Số điện thoại/username và dữ liệu test thì điền; tới ô mật khẩu thì dừng, nhờ người dùng nhập, chờ họ báo đã đăng nhập xong rồi đi tiếp.
-- **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật — đọc response header (`server`, `via`, gateway) hoặc kiểm tra kết nối ra ngoài. Kết luận "không tái hiện được" trên mock gần như vô giá trị, còn trên BE thật thì có giá trị nghiệm thu.
-- **Thao tác trên staging/UAT tạo ra dữ liệu thật; production thì chỉ đọc.** Ghi lại mọi bản ghi agent tạo ra và đưa vào bằng chứng. Mọi hành động tạo/sửa/xoá trên production, và mọi thao tác chạm ra ngoài hệ thống (OTP/SMS/email, cổng thanh toán), phải được người dùng cho phép rõ ràng trước.
-
-### Thao tác tay KHÔNG làm được — bắt buộc codify
-
-| Tình huống | Vì sao tay không làm được | Dùng gì |
+| Giữ lại | Ghi vào | Dùng ở bước nào |
 |---|---|---|
-| Bug phụ thuộc cadence: double-click, spam nút, hai request đua nhau | Mỗi lời gọi công cụ browser tốn hàng trăm ms và không lặp lại được cùng một gap | `waitForTimeout(cadenceMs)` như test input + cadence matrix |
-| Cần tỷ lệ `x/y` cho bug intermittent | Cần ≥10–20 lượt có reset state sạch và cùng đồng hồ đo | `--repeat-each=N --workers=1 --retries=0` |
-| Ép hết phiên / xoá cookie HttpOnly / bơm sẵn storageState | `document.cookie` không thấy cookie HttpOnly, JS trong trang không xoá được | `context.clearCookies({ name })`, `storageState` |
-| Hai actor/role độc lập chạy đồng thời (maker–checker) | Một phiên trình duyệt thủ công chỉ có một session | hai `browserContext` |
-| Chặn/sửa response, mạng chậm, offline, HAR | Công cụ browser chỉ **đọc** request đã xảy ra, không sửa được | `page.route`, `routeFromHAR`, `context.setOffline` |
-| Download, `alert`/`confirm`, filechooser | Phải arm listener **trước** cú bấm; thao tác tay chỉ quan sát được sau khi việc đã rồi | `page.waitForEvent('download')`, `page.once('dialog', …)` |
-| Visual regression so pixel | Cần baseline snapshot lưu trong repo để đối chiếu qua thời gian | `toHaveScreenshot` |
-| CI, report máy đọc (JUnit/Allure/TestRail/Xray), gate release | Theo định nghĩa cần file spec commit được | reporter + CI config |
-| Chẩn đoán flaky, "local ok mà CI fail" | Cần chạy lặp hàng chục lượt, so trace giữa các lần, tái hiện container CI | runner + Docker image CI |
-| Người dùng yêu cầu rõ ra file | — | scaffold / Excel → spec / migration |
+| **Nhật ký hành trình** — mỗi màn hình: URL, `role + name` element đã chạm, endpoint + status | `.testagent/<target>/journey.md` | PLAN (dựng scenario), GENERATE (biên `test.step`) |
+| **Điểm chốt** — trạng thái nhiều scenario dùng chung ("đã đăng nhập", "đã có đơn nháp") | `.testagent/<target>/checkpoints/` | PLAN (`Phụ thuộc:`), GENERATE (`storageState`/`beforeEach`) |
+| **Use case đã ghi** — một luồng nghiệp vụ trọn vẹn → tài liệu test case thủ công | `.testagent/<target>/use-cases/` | PLAN, GENERATE, **và bàn giao cho tester** |
+| **Phiên đăng nhập** (`storageState`) | `.auth/<target>.json` (gitignored) | GENERATE — khỏi login lại qua UI |
+| **HAR** khi có API liên quan | `.testagent/<target>/network/` | Bằng chứng nộp DEV, input cho `routeFromHAR` |
 
-Ngược lại, những thứ **vẫn làm trực tiếp được** thì đừng viện cớ để viết spec: kiểm tra validate form, đếm/đọc bảng dữ liệu, xác minh nội dung một màn hình, đọc lỗi console, xem endpoint nào trả 4xx/5xx, gọi API bằng session hiện tại, iframe same-origin, upload qua `<input type=file>` lộ ra, kiểm responsive bằng đổi kích thước cửa sổ.
+Ba lưu ý hay bị bỏ: endpoint login chỉ set cookie thường trả **204** chứ không phải 200 (chốt cứng `toBe(200)` là fail giả); `ref` chết theo phiên nên phải ghi `role + name`, không ghi `ref`; cây accessibility tại điểm chốt quy thẳng thành `toMatchAriaSnapshot`.
 
-### Khi nào dùng `scripts/explore.mjs`
+**Ghi use case là sản phẩm phụ đáng giá nhất.** Người dùng đi một luồng nghiệp vụ trọn vẹn → agent viết ra tài liệu test case thủ công của luồng đó theo đúng format `Pre` / bước / `KQMM` / tiêu chí pass. Tester nhận được thứ họ vẫn phải ngồi gõ tay. Chủ động đề nghị khi thấy một chuỗi bước tạo thành nghiệp vụ hoàn chỉnh.
 
-Chỉ dùng khi cần **dump một lượt toàn bộ locator + ảnh full page để chuẩn bị codify**, hoặc khi công cụ browser không dùng được. Nó chạy headless một phát rồi thoát: không giữ session, không click nối tiếp nhiều bước, không đọc network theo thời gian thực — tức là không thay được Pha 1. **Chạy `--help` trước, không đọc source code của script** (chúng dài và làm nặng context; chúng được thiết kế để gọi như hộp đen):
+**Dùng lại artefact cũ thay vì explore mới** khi cùng build, cùng role, chỉ bổ sung scenario cho vùng đã quan sát. **Bắt buộc explore lại** khi: đổi build, đang verify fix, spec fail ở bước HEAL, đổi role/môi trường/data class, hoặc journey đã quá 7 ngày. Mỗi lần dùng lại phải nói rõ trong VERDICT.
 
-```bash
-node scripts/explore.mjs --help
-node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
+Mẫu đầy đủ của từng artefact, cách sinh tài liệu use case, và cấu trúc `.testagent.yaml`: **`references/explore-artifacts.md`**.
+
+**Kết luận sơ bộ báo ngay tại đây.** Nếu EXPLORE đã cho thấy app hỏng ở đâu, nói luôn — đừng bắt tester chờ tới bước 7. Nhưng ghi rõ đó là kết luận sơ bộ.
+
+### Nếu môi trường không có công cụ browser nào
+
+- **Host chạy được lệnh** (Claude Code, Codex, IDE): khôi phục EXPLORE bằng cách cắm Playwright MCP rồi nạp lại danh sách công cụ:
+  ```bash
+  claude mcp add playwright npx @playwright/mcp@latest
+  ```
+  Không cắm được — chặn mạng, không chạy được `npx`, người dùng từ chối — thì dùng `scripts/explore.mjs` trinh sát một lượt. Nó chạy headless một phát rồi thoát: không giữ session, không click nối tiếp, không đọc network theo thời gian thực. **Chạy `--help` trước, không đọc source code của script.**
+  ```bash
+  node scripts/explore.mjs --help
+  node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
+  ```
+- **Host không chạy được lệnh** (ví dụ claude.ai): EXPLORE bị chặn. Báo `Blocked: không có công cụ browser và không chạy được script`, rồi (a) nhờ người dùng dán ảnh chụp / log console / log network / HTML, hoặc (b) soạn sẵn các bước để người dùng tự thao tác và báo lại quan sát. Tuyệt đối không suy đoán hành vi app rồi báo như đã kiểm, và không sinh spec từ phỏng đoán.
+
+---
+
+## 2 — PLAN
+
+Đầu ra là **một bảng scenario**, không phải một đoạn văn. Kể cả yêu cầu nhỏ nhất cũng phải có ít nhất một scenario — chính là scenario chốt lại điều vừa quan sát ở EXPLORE.
+
+```
+TẦNG     ID                  LAYER  ƯU TIÊN  TRUY VẾT             TIÊU ĐỀ
+setup    auth-login          ui     p0       TC-LOGIN-01          Đăng nhập tài khoản hợp lệ
+smoke    cart-badge          ui     p0       TC-ORD-03            Badge giỏ hàng đếm đúng số món
+core     checkout-happy      ui     p0       SRS §4.2, TC-ORD-01  Đặt hàng thành công
+core     checkout-total      ui     p0       SRS §4.4             Tổng = tiền hàng + thuế
+edge     checkout-no-postal  ui     p1       TC-ORD-07            Thiếu mã bưu chính bị chặn
+teardown cleanup-orders      api    p2       —                    Xoá đơn agent tạo ra
+
+Ngoài phạm vi: thanh toán thật (sẽ mock) · OTP qua SMS (không tự động được) · hoàn tiền (chưa có AC)
 ```
 
-- **App cần đăng nhập trước**: `--auth storageState.json`, hoặc `--login-url ... --username ...` (mật khẩu: nhờ người dùng cung cấp, không tự bịa và không hard-code).
-- **Phần tử chỉ hiện sau tương tác** (menu, modal, tab): `--click "Đăng ký"`.
-- **Server chưa chạy**: bảo người dùng chạy server, hoặc dùng `webServer` trong `playwright.config.ts` — đừng tự ý start server nền của họ.
+Ba luật:
 
-`npx playwright codegen <url>` chỉ dùng khi cần chuyển một luồng **đã chốt** thành spec, không dùng để khảo sát (nó hay đẻ locator CSS rác).
+- Xếp scenario theo tầng **setup → smoke → core → edge → teardown**.
+- Mỗi scenario **truy vết được** về một requirement hoặc mã test case. Không truy vết được thì ghi `exploration` và nói rõ đây là ca dựng từ quan sát, chưa có yêu cầu chống lưng.
+- Phần **ngoài phạm vi phải viết ra** — im lặng bỏ qua sẽ bị đọc thành "đã kiểm và ổn".
 
-## Pha 2 — CODIFY
+### Thu hẹp phạm vi khi target quá lớn
 
-Chỉ vào pha này khi đã qua cổng CODIFY. Mọi route, label, locator và oracle dùng ở đây phải lấy từ lượt LIVE trên trang thật — không tự bịa.
+App lớn thì "cover tất cả" vừa tốn vừa vô dụng. Ba cách thu hẹp, chọn theo cái người dùng đưa:
 
-### Dựng khung dự án (chỉ khi cần suite chạy lại lâu dài, và repo chưa có khung)
+| Người dùng đưa | Thu hẹp bằng | PLAN chỉ chứa |
+|---|---|---|
+| Một file requirement / một mục SRS | Nội dung file đó là oracle authoritative cho lượt này | Scenario truy vết về đúng requirement đó |
+| Tên một chức năng ("checkout", "duyệt hồ sơ") | `scope.feature` trong `.testagent.yaml` | Luồng thuộc chức năng đó |
+| Một commit/branch vừa sửa | `git diff --name-only <base>` → map file sang màn hình/route | Luồng đi qua vùng vừa đổi + smoke quanh nó |
 
-**Đừng scaffold cho một câu hỏi dùng một lần — kể cả khi repo đang trống.** Điều kiện là *nhu cầu của người dùng*, không phải *trạng thái repo*.
+Dù thu hẹp cách nào, phần **ngoài phạm vi vẫn phải liệt kê** những gì bị cắt — người đọc cần biết bộ test này *không* nói gì về phần còn lại của app.
+
+Cách thứ ba (theo diff) là ước lượng, không phải phân tích tĩnh chính xác: nói rõ đây là best-effort và liệt kê file nào không map được sang màn hình nào.
+
+**Biến thể bug**: PLAN là fingerprint môi trường + kịch bản tái hiện đúng bước tester mô tả + oracle (KQMM) + attempt budget. Với bug race/intermittent, PLAN phải chốt cadence matrix và instrumentation profile *trước* khi chạy — xem `references/complex-flow-race-reproduction.md`.
+
+Chi tiết, ma trận truy vết hai chiều và cách chấm độ phủ: `references/test-plan-and-traceability.md`.
+
+---
+
+## 3 — CONFIRM
+
+Trình bảng PLAN cho người dùng duyệt **trước khi sinh code và trước khi chạm dữ liệu**. Tester biết nghiệp vụ hơn agent; sửa một dòng bảng rẻ hơn sửa mười file spec.
+
+- **Có người trả lời**: chờ duyệt. Họ sửa/cắt/thêm dòng thì cập nhật bảng rồi mới đi tiếp.
+- **Không ai trả lời** (chạy tự động, CI, non-interactive): tự duyệt để pipeline không treo, **nhưng phải in bảng ra** để lại vết trong log.
+- **Bộ test đủ lớn để tester muốn sửa tay**: ghi bảng ra `test-plan.md` rồi đọc lại file đó khi họ trả về.
+
+Cổng này cũng là chỗ xin phép cho **thao tác phá huỷ** và **thao tác trên production** — xem [Luật an toàn](#luật-an-toàn).
+
+---
+
+## 4 — GENERATE
+
+Sinh spec + Page Object **commit được vào repo**. Mọi route, label, locator và oracle phải lấy từ EXPLORE — không tự bịa.
+
+**Repo chưa có khung Playwright** → dựng trước:
 
 ```bash
 node scripts/scaffold.mjs --help
 node scripts/scaffold.mjs --dir ./e2e --base-url https://staging.example.com --features ui,api,visual --ci github
 ```
 
-Khung sinh ra gồm `playwright.config.ts` (đa môi trường, reporter, retry, trace), `pages/`, `tests/{ui,api,visual}/`, `fixtures/`, `utils/`, `.auth/` và `.env.example`. Chi tiết cấu trúc, phân tầng POM và cấu hình: `references/project-setup.md`.
+Khung sinh ra gồm `playwright.config.ts` (đa môi trường, reporter, retry, trace), `pages/`, `tests/{ui,api,visual}/`, `fixtures/`, `utils/`, `.auth/` và `.env.example`. Chi tiết: `references/project-setup.md`.
 
-Nếu dự án **đã có** sẵn khung: đọc `playwright.config.ts` và một spec có sẵn trước, rồi viết theo đúng phong cách đó. Đừng áp khung mới đè lên convention của họ. Và repo có sẵn suite không có nghĩa mọi yêu cầu đều phải thành spec — cổng CODIFY vẫn áp dụng.
+**Repo đã có khung** → đọc `playwright.config.ts` và một spec có sẵn trước, rồi viết theo đúng phong cách đó. Đừng áp khung mới đè lên convention của họ.
 
-### Viết spec
+Luật viết spec:
 
-Dùng `test.step` để report hiện đúng từng bước như trong test case thủ công, và đặt tên test theo **mã test case + mô tả nghiệp vụ**, không phải theo kỹ thuật — tester đọc report phải nhận ra ngay đây là ca nào trong file test case của họ:
+- **Một scenario một file.** Dồn cả bộ vào một file thì fail một ca phải chạy lại cả cụm, và không quarantine riêng được.
+- **Dùng `test.step`** để report hiện đúng từng bước như trong test case thủ công.
+- **Tên test theo mã test case + mô tả nghiệp vụ**, không theo kỹ thuật — tester đọc report phải nhận ra ngay đây là ca nào trong file test case của họ.
 
 ```typescript
 test('TC-LOGIN-01: đăng nhập thành công với tài khoản hợp lệ', async ({ page }) => {
@@ -174,127 +277,219 @@ test('TC-LOGIN-01: đăng nhập thành công với tài khoản hợp lệ', as
 
 Locator, Page Object, form, bảng, upload/download, iframe, dialog: `references/ui-e2e.md`.
 
+### Kịch bản cần năng lực chỉ spec mới có
+
+Những scenario dưới đây không thể kiểm bằng thao tác tay — đây chính là phần spec trả lại giá trị lớn nhất, nên đừng cắt chúng khỏi PLAN:
+
+| Kịch bản | Vì sao tay không làm được | Dùng gì |
+|---|---|---|
+| Bug phụ thuộc cadence: double-click, spam nút, hai request đua nhau | Mỗi lời gọi công cụ browser tốn hàng trăm ms và không lặp lại cùng một gap | `waitForTimeout(cadenceMs)` như test input + cadence matrix |
+| Tỷ lệ `x/y` cho bug intermittent | Cần ≥10–20 lượt có reset state sạch, cùng đồng hồ đo | `--repeat-each=N --workers=1 --retries=0` |
+| Ép hết phiên / xoá cookie HttpOnly / bơm sẵn state | `document.cookie` không thấy cookie HttpOnly | `context.clearCookies({ name })`, `storageState` |
+| Hai actor/role chạy đồng thời (maker–checker) | Một phiên trình duyệt thủ công chỉ có một session | hai `browserContext` |
+| Chặn/sửa response, mạng chậm, offline | Công cụ browser chỉ **đọc** request đã xảy ra | `page.route`, `routeFromHAR`, `context.setOffline` |
+| Download, `alert`/`confirm`, filechooser | Phải arm listener **trước** cú bấm | `page.waitForEvent('download')`, `page.once('dialog', …)` |
+| Visual regression so pixel | Cần baseline snapshot lưu trong repo | `toHaveScreenshot` |
+
+---
+
+## 5 — EXECUTE
+
+Chạy bộ vừa sinh qua **cổng ổn định**: mỗi test mới chạy N lượt liên tiếp (N = 3 đủ cho hầu hết case), chỉ nhận vào suite khi **cả N lượt đều pass**.
+
+```bash
+npx playwright test tests/ui/checkout.spec.ts --repeat-each=3 --workers=1 --retries=0
+```
+
+Kết quả lẫn lộn (vài lần pass, vài lần fail) là **flaky, và flaky bị tách riêng chứ không nhập vào suite xanh** — gắn `@quarantine` kèm một dòng ghi rõ tỷ lệ quan sát được, rồi báo cho người dùng. **Đừng thêm `retries` để nó xanh**: `retries` giấu flaky chứ không sửa flaky, và một suite xanh giả còn tệ hơn suite đỏ thật.
+
+**Biến thể race/intermittent thì ngược lại.** Mục tiêu là *đo tỷ lệ*, không phải đạt "N lượt đều pass" — "ba lần đều pass" ở đây chính là bằng chứng chưa tái hiện được. Dùng attempt budget đã chốt ở PLAN, `--workers=1 --retries=0` để denominator không bị trộn, và báo requested/observed timing. Xem `references/complex-flow-race-reproduction.md`.
+
+**Nếu EXPLORE bị chặn nên chưa có spec** (host không chạy được lệnh, người dùng từ chối file): EXECUTE nghĩa là đi lại kịch bản PLAN bằng thao tác tay, ghi bằng chứng từng bước. Verdict phải nói rõ đây là kết quả chạy tay, chưa có test tự động chốt lại.
+
+---
+
+## 6 — HEAL
+
+Test fail thì **quay lại trình duyệt thật**: mở app, đi đúng bước đang fail, đọc DOM hiện tại, rồi mới sửa. Thử mù hết selector này tới selector khác là cách nhanh nhất để có một test xanh nhưng không còn kiểm cái gì.
+
+Trả lời câu hỏi này **trước** khi động vào code:
+
+| Quan sát trên trang thật | Kết luận | Hành động |
+|---|---|---|
+| Phần tử còn đó, chỉ đổi label/role/vị trí | App đổi hợp lệ | Sửa locator theo DOM vừa đọc |
+| Phần tử biến mất hẳn, luồng cụt | **Bug của app** | Báo bug, giữ test đỏ — đừng sửa test cho khớp |
+| Giá trị hiển thị khác expected | Kiểm requirement trước | Requirement đổi → đổi expected và nói rõ; requirement không đổi → bug |
+| Chỉ đỏ khi chạy cả bộ | Test phụ thuộc nhau | Cho test tự tạo dữ liệu của nó |
+
+Hai luật cứng:
+
+- **Không hạ chuẩn assertion để test xanh.** Đổi `toHaveText('1.250.000 ₫')` thành `toBeVisible()`, bỏ bớt `expect`, nới `timeout` lên 120s cho khỏi fail — đó không phải sửa test, đó là xoá phần kiểm.
+- **Giới hạn số lần sửa** (mặc định 2). Hết lượt mà vẫn đỏ thì dừng, đưa ca đó vào verdict là `fail` kèm chẩn đoán — đừng sửa vô hạn tới khi nó xanh bằng mọi giá.
+
+**Biến thể bug**: không tái hiện được thì **đổi giả thuyết, không đổi kết luận**. Thử lại với state/role/data class/cadence/build khác, mỗi lần ghi lại đã đổi biến nào. Hết attempt budget thì verdict là `Not reproduced` hoặc `Inconclusive` kèm danh sách biến đã thử — không được im lặng chuyển thành "không có bug".
+
+Bảng chẩn đoán đầy đủ: `references/troubleshooting.md`.
+
+---
+
+## 7 — VERDICT
+
+Không phải chỗ dán log thô. Verdict là con số, và phải tách khỏi status của ticket nguồn.
+
+**Bộ test:**
+
+```
+Verdict: FAIL
+
+  Scenario lập kế hoạch : 6
+  Nhận vào suite        : 4
+  Fail                  : 1  (checkout-total — tổng lệch 1đ, nghi bug làm tròn phía BE)
+  Tách vì flaky         : 1  (cart-badge — 7/10 lượt pass, badge cập nhật chậm)
+  Đã sửa test           : 2  (đổi locator sau khi app đổi label; không đổi assertion nào)
+
+  EXPLORE  : quan sát mới trên build 2.4.1 lúc 14:32 (+07), Chrome profile thật
+  Bàn giao : e2e/tests/ui/*.spec.ts (4 file) + e2e/pages/CheckoutPage.ts
+  Chạy lại : npx playwright test --config e2e/playwright.config.ts
+  Suite gate: npx playwright test --grep-invert @quarantine
+  Report   : npx playwright show-report
+  Artefact : .testagent/checkout-staging/ (journey, test-plan, use-cases, HAR)
+
+  Lý do FAIL : còn 1 ca fail, truy vết về SRS §4.4 (p0).
+  Ngoài phạm vi : thanh toán thật · OTP SMS · hoàn tiền (chưa có AC).
+```
+
+Dòng `EXPLORE` bắt buộc nói rõ **quan sát mới hay dùng lại artefact cũ** — kết luận dựa trên journey ghi tuần trước và kết luận dựa trên quan sát vừa xong là hai mức tin cậy khác nhau.
+
+**Chốt lại để lần sau rẻ hơn.** Trước khi kết thúc, hỏi người dùng hai việc: (1) ghi `.testagent.yaml` cho target này chưa — có rồi thì lần sau bước FRAME chỉ còn một câu xác nhận; (2) tài liệu use case vừa sinh có muốn chuyển vào `docs/test-cases/` để commit không — nó là tài liệu nghiệp vụ, không phải rác tạm. Đừng tự chuyển file ra khỏi `.testagent/`.
+
+**Bug log:** giữ đúng giọng tester — tách rõ `Pre`, bước, `KQTT`, `KQMM`, evidence và tần suất tái hiện. Báo riêng ba dòng: `Reproduction outcome`, `Fix-verification verdict` (`Verified fixed`/`Failed`/`Partial`/`Regression`/`Not reproduced`/`Blocked`/`Inconclusive`) và `Status recommendation`. `Closed`, `Resolved` hay `Notbug` chỉ là trạng thái nguồn, không thay cho kết quả độc lập; không sửa status nguồn nếu người dùng chưa yêu cầu rõ. Giữ nguyên exact UI copy/test value cần đối chiếu, nhưng che PII, account ID, business/transaction ID. Mẫu đầy đủ: `references/bug-reproduction.md`.
+
+Với mỗi ca fail, trả lời câu hỏi tester cần nhất: đây là **bug của app** hay **lỗi của script**? Chưa chắc thì nói rõ là chưa chắc và nêu bằng chứng, đừng kết luận bừa.
+
+**Tuyệt đối không kết luận "không có bug" khi phần chưa kiểm được nằm ngoài tầm.** Đúng verdict cho phần đó là `Inconclusive`, kèm cách kiểm tiếp.
+
+---
+
+## Luật an toàn
+
+Áp dụng cho EXPLORE và EXECUTE, không có ngoại lệ:
+
+- **Không tự khởi động dev server khi cổng đã có tiến trình chạy.** Lấy cổng từ URL người dùng đưa (hoặc từ script `dev` trong `package.json`), rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có sẵn thì dùng tiến trình đang chạy và nói rõ điều đó.
+- **Không tự điền mật khẩu.** Số điện thoại/username và dữ liệu test thì điền; tới ô mật khẩu thì dừng, nhờ người dùng nhập, chờ họ báo đã đăng nhập xong rồi đi tiếp. Trong spec thì đọc từ `.env`, không hard-code.
+- **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật — đọc response header (`server`, `via`, gateway). Kết luận "không tái hiện được" trên mock gần như vô giá trị.
+- **Thao tác trên staging/UAT tạo ra dữ liệu thật; production thì chỉ đọc.** Ghi lại mọi bản ghi agent tạo ra và đưa vào bằng chứng; scenario `teardown` phải dọn chúng. Không suy ra "đây là staging" từ cảm giác: host chỉ coi là an toàn khi là `localhost`/IP nội bộ, tên có `staging`/`stg`/`test`/`qa`/`dev`/`uat`, hoặc chính người dùng nói rõ. Còn lại mặc định coi như production.
+- **Dừng lại trước động từ phá huỷ, kể cả trên staging.** Xoá · thanh toán/chuyển tiền · gửi đi (SMS, email, thông báo, duyệt hồ sơ) · huỷ đăng ký · vô hiệu hoá tài khoản · ghi đè dữ liệu người khác. Nêu rõ ở bước CONFIRM sắp làm gì lên bản ghi nào và chờ người dùng đồng ý. Ưu tiên **tự tạo dữ liệu nháp rồi phá dữ liệu đó**, đừng đụng bản ghi có sẵn.
+
 ## 7 nguyên tắc để test không flaky
 
-**Phần này áp dụng khi đã quyết định viết test file (Pha 2).** Với điều tra trực tiếp ở Pha 1 thì không cần: cây accessibility đã cho element có thật, và mỗi lần đọc là state hiện tại — chỉ cần đọc lại 2–3 lần khi màn hình còn đang đổi, thay vì kết luận từ lần đọc đầu.
+Test chạy lúc được lúc không sẽ bị cả team mất niềm tin và bỏ xó. Đây là phần quan trọng nhất của bước GENERATE.
 
-Trong phạm vi spec, đây là phần quan trọng nhất của skill. Test chạy lúc được lúc không sẽ bị cả team mất niềm tin và bỏ xó.
-
-1. **Locator theo cách người dùng nhìn thấy, không theo cách dev viết code.** Thứ tự ưu tiên:
-   `getByRole` → `getByLabel` → `getByPlaceholder` → `getByText` → `getByTestId` → CSS/XPath (cuối cùng, hạn chế).
-   Lý do: class và cấu trúc DOM đổi liên tục theo mỗi lần refactor; nhãn và vai trò thì gắn với nghiệp vụ nên bền hơn. Node `role + name` đọc được ở Pha 1 quy đổi thẳng thành `getByRole(role, { name })`.
+1. **Locator theo cách người dùng nhìn thấy, không theo cách dev viết code.** Thứ tự ưu tiên: `getByRole` → `getByLabel` → `getByPlaceholder` → `getByText` → `getByTestId` → CSS/XPath (cuối cùng, hạn chế). Class và cấu trúc DOM đổi liên tục theo mỗi lần refactor; nhãn và vai trò gắn với nghiệp vụ nên bền hơn. Node `role + name` đọc được ở EXPLORE quy đổi thẳng thành `getByRole(role, { name })`.
    ```typescript
    await page.getByRole('button', { name: 'Thanh toán' }).click();   // ✅
    await page.locator('.btn.btn-primary.mt-3').click();               // ❌
    ```
-   Locator dính nhiều phần tử thì thu hẹp bằng `filter()` hoặc bằng vùng cha, đừng dùng `.nth(3)` — thứ tự sẽ đổi. Tên khớp lỏng cũng dính nhầm: `{ name: 'Đăng nhập' }` sẽ trúng cả "Lưu thông tin đăng nhập"; dùng `exact: true` khi cần.
+   Locator dính nhiều phần tử thì thu hẹp bằng `filter()` hoặc vùng cha, đừng dùng `.nth(3)`. Tên khớp lỏng cũng dính nhầm: `{ name: 'Đăng nhập' }` trúng cả "Lưu thông tin đăng nhập"; dùng `exact: true` khi cần.
 
-2. **Dùng assertion tự chờ (web-first).** `await expect(locator).toBeVisible()` tự retry tới khi hết timeout; `expect(await locator.isVisible()).toBe(true)` thì kiểm tra đúng một khoảnh khắc và sẽ fail ngẫu nhiên.
+2. **Dùng assertion tự chờ (web-first).** `await expect(locator).toBeVisible()` tự retry tới khi hết timeout; `expect(await locator.isVisible()).toBe(true)` chỉ kiểm đúng một khoảnh khắc và sẽ fail ngẫu nhiên.
 
-3. **Không `waitForTimeout` để đồng bộ readiness.** Sleep 3 giây vừa chậm vừa không chắc. Chờ đúng thứ cần: `await expect(...).toBeVisible()`, `page.waitForURL()`, `page.waitForResponse()`.
-   Ngoại lệ riêng của bug timing-sensitive: delay có tham số được dùng như **test input cadence**, phải ghi requested/actual timing và nằm trong ma trận; xem `references/complex-flow-race-reproduction.md`. Animation không có tín hiệu để bám là ngoại lệ hiếm khác và phải có comment.
-   Cũng đừng dùng `networkidle` với app có websocket/HMR — mạng không bao giờ "rảnh", test sẽ treo tới timeout.
+3. **Không `waitForTimeout` để đồng bộ readiness.** Chờ đúng thứ cần: `await expect(...).toBeVisible()`, `page.waitForURL()`, `page.waitForResponse()`. Ngoại lệ riêng của bug timing-sensitive: delay có tham số được dùng như **test input cadence**, phải ghi requested/actual timing và nằm trong ma trận. Cũng đừng dùng `networkidle` với app có websocket/HMR.
 
 4. **Mỗi test tự đứng được.** Không phụ thuộc test trước để lại dữ liệu hay trạng thái. Một causal flow nhiều màn hình vẫn phải nằm trọn trong **một test/attempt**, chia bằng `test.step`/Page Object chứ không thành chuỗi test phụ thuộc nhau.
 
 5. **Dữ liệu test tự sinh, không hard-code.** `user_${Date.now()}@test.com` thay vì `test01@test.com` bị trùng khi chạy song song. Test nào tạo dữ liệu thì tự dọn ở `afterEach` (nhanh nhất là gọi API xóa).
 
-6. **Đăng nhập một lần rồi tái sử dụng.** Login qua UI ở mỗi test làm suite chậm gấp nhiều lần và thêm một điểm gãy. Dùng `storageState` — xem `references/auth-and-data.md`. Ngoại lệ: test về chính vòng đời phiên đăng nhập thì phải tự login từ đầu.
+6. **Đăng nhập một lần rồi tái sử dụng.** Dùng `storageState` — xem `references/auth-and-data.md`. Ngoại lệ: test về chính vòng đời phiên đăng nhập thì phải tự login từ đầu.
 
-7. **Mock những gì mình không kiểm soát.** Cổng thanh toán, SMS OTP, API bên thứ ba: chặn bằng `page.route` và trả response cố định. Test của bạn là để kiểm tra *app của bạn*, không phải kiểm tra uptime của nhà cung cấp — xem `references/network-mocking.md`.
+7. **Mock những gì mình không kiểm soát.** Cổng thanh toán, SMS OTP, API bên thứ ba: chặn bằng `page.route` và trả response cố định — xem `references/network-mocking.md`.
 
 ## Chạy và debug
-
-**Ở Pha 1 (mặc định)** không có lệnh nào để chạy, chỉ có quan sát: đọc console, đọc network, đọc cây accessibility, chạy JS trong trang, chụp màn hình. Bảng chẩn đoán đầy đủ ở `references/troubleshooting.md`, mục **Bước 0 — Quan sát trực tiếp**.
-
-**Ở Pha 2 (khi đã có spec):**
 
 | Việc cần làm | Lệnh |
 |---|---|
 | Chạy toàn bộ | `npx playwright test` |
 | Chạy 1 file / 1 test | `npx playwright test tests/ui/login.spec.ts -g "TC-LOGIN-01"` |
+| Cổng ổn định cho test mới | `npx playwright test <file> --repeat-each=3 --workers=1 --retries=0` |
+| Suite xanh dùng làm gate | `npx playwright test --grep-invert @quarantine` |
 | Xem trình duyệt khi chạy | `npx playwright test --headed` |
 | Chế độ UI (tester rất thích cái này) | `npx playwright test --ui` |
 | Debug từng bước | `npx playwright test --debug` |
 | Xem report sau khi chạy | `npx playwright show-report` |
 | Mổ xẻ test fail trên CI | `npx playwright show-trace trace.zip` |
-| Ghi lại thao tác thành code | `npx playwright codegen <url>` |
 
-Khi đang thao tác trực tiếp: đọc console + network ngay tại chỗ, chụp state trước/sau hành động — rẻ hơn và tức thời. Khi **một test đã viết** bị fail: **mở trace trước khi đoán nguyên nhân.** Trace có timeline, DOM snapshot từng bước, network và console — nhìn là biết fail ở đâu, khỏi suy diễn.
+Khi một test fail: **mở trace trước khi đoán nguyên nhân.** Trace có timeline, DOM snapshot từng bước, network và console — nhìn là biết fail ở đâu, khỏi suy diễn. Rồi mới sang bước HEAL.
 
-## Báo cáo lại cho tester
-
-Sau khi làm xong, đừng chỉ dán log thô. Tổng kết theo cách tester đọc được.
-
-Nếu kết thúc ở Pha 1, bằng chứng hợp lệ là: ảnh chụp tại observation point, dòng console liên quan, request/response (URL + status + body rút gọn), state đọc từ trang. **Đó đã là bằng chứng nghiệm thu nộp được**, không cần HTML report của Playwright. Kèm theo: các bước đã bấm để người dùng tự lặp lại, và phần chưa kiểm được kèm lý do (ví dụ: *không ép được token hết hạn vì cookie HttpOnly không xoá được bằng JS trong trang*).
-
-- Bao nhiêu ca pass / fail, ca nào fail và **fail ở bước nào**.
-- Với mỗi ca fail: đây là **bug của app** hay **lỗi của script/thao tác**? Đây là câu hỏi họ cần trả lời nhất, và cũng là chỗ dễ nhầm nhất — nếu chưa chắc chắn, nói rõ là chưa chắc và nêu bằng chứng thay vì kết luận bừa.
-- *Nếu có chạy spec*: đường dẫn tới HTML report và ảnh/trace của ca fail.
-- Cái gì chưa cover được và tại sao (ví dụ: OTP qua SMS thật, cần mock).
-
-Với bug log, dùng đúng giọng tester nhưng tách rõ `Pre`, bước, `KQTT`, `KQMM`, evidence và tần suất tái hiện. Giữ nguyên exact UI copy/test value cần đối chiếu, nhưng che PII, account ID, business/transaction ID và không tái sử dụng dữ liệu production. `Closed`, `Resolved` hoặc `Notbug` chỉ là trạng thái nguồn, không thay cho kết quả tái hiện/verify độc lập. Báo riêng `Reproduction outcome`, `Fix-verification verdict` và `Status recommendation`; không sửa status nguồn nếu người dùng chưa yêu cầu rõ. Mẫu đầy đủ nằm trong `references/bug-reproduction.md`.
+`npx playwright codegen <url>` chỉ dùng khi cần chuyển một luồng **đã chốt** ở EXPLORE thành spec, không dùng để khảo sát (nó hay đẻ locator CSS rác).
 
 ## Checklist trước khi coi là xong
 
-### A. Nếu kết thúc bằng điều tra trực tiếp (mặc định)
+### A. Pipeline
 
-- [ ] Đã thao tác trên đúng URL/build/môi trường, đúng role, đúng state và data class mà yêu cầu nói tới
-- [ ] Đã xác minh backend phía sau là thật hay mock trước khi kết luận
-- [ ] Kết luận kèm bằng chứng thật: ảnh chụp tại observation point, console, network (endpoint + status), hoặc state đọc từ trang
-- [ ] Đọc lại state 2–3 lần khi màn hình còn đang đổi, không kết luận từ một snapshot duy nhất
-- [ ] Tách rõ fact / inference / unknown
-- [ ] Đã nêu điều gì **chưa** kiểm được và vì sao (ví dụ: cookie HttpOnly không xoá được bằng JS → không ép được token hết hạn)
-- [ ] Đã liệt kê các bước đã bấm để người dùng tự lặp lại bằng tay
-- [ ] Đã liệt kê bản ghi/dữ liệu do chính agent tạo ra trên môi trường test (mã đơn, ID hồ sơ, thời điểm) và nói rõ đã dọn hay cần ai dọn giúp
-- [ ] Không tạo file thừa; đã hỏi người dùng có muốn chốt thành regression không
-- [ ] Không tự điền mật khẩu; không tự start server khi cổng đã có tiến trình chạy; không side effect trên production khi chưa được cho phép
+- [ ] Đã đi đủ tám bước; bước nào bị chặn đã ghi `Blocked` kèm lý do và điều kiện mở khoá
+- [ ] EXPLORE chạy trên đúng URL/build/môi trường, đúng role, đúng state và data class mà yêu cầu nói tới
+- [ ] Đã xác minh backend phía sau là thật hay mock, và đã nói rõ chạy trên trình duyệt profile thật hay profile tạm
+- [ ] Đã đọc lại state 2–3 lần khi màn hình còn đang đổi, không kết luận từ một snapshot duy nhất
+- [ ] PLAN đã trình ra và được duyệt (hoặc đã in bảng khi tự duyệt); phần ngoài phạm vi đã viết rõ
+- [ ] Mỗi scenario truy vết được về requirement/mã test case, hoặc được đánh dấu `exploration`
+- [ ] Không lấy hành vi hiện tại của app làm chuẩn đúng/sai khi chưa có acceptance criterion
+- [ ] VERDICT nói rõ EXPLORE là quan sát mới hay dùng lại artefact cũ (kèm build + thời điểm ghi)
 
-### B. Nếu có để lại test file (regression/CI)
+### B. Test bàn giao
 
-- [ ] Locator lấy từ DOM thật (từ lượt LIVE), không phải đoán
+- [ ] Locator lấy từ DOM thật ở EXPLORE, không phải đoán
+- [ ] Một scenario một file spec; tên test khớp mã test case của tester
 - [ ] Không còn `waitForTimeout` cứng nào không có lý do
-- [ ] Regression deterministic chạy được **hai lần liên tiếp** đều pass; baseline intermittent/race dùng attempts + tỷ lệ `x/y`, không áp checklist "hai lần pass"
-- [ ] Không có mật khẩu / token hard-code trong code — nằm ở `.env`, và `.env` đã `.gitignore`
-- [ ] Tên test khớp mã test case của tester
-- [ ] Đã nói rõ cách chạy lại và cách xem report
+- [ ] Qua cổng ổn định `--repeat-each=3 --workers=1 --retries=0`; ca lẫn lộn đã tách `@quarantine` kèm tỷ lệ, không dùng `retries` để giấu
+- [ ] Baseline intermittent/race dùng attempts + tỷ lệ `x/y` — **không** áp cổng ổn định lên nhóm này
+- [ ] Mọi lần HEAL đều giữ nguyên ý định assertion; có đổi expected thì đổi theo requirement và đã nói rõ
+- [ ] Không có mật khẩu / token hard-code — nằm ở `.env`, và `.env` đã `.gitignore`
+- [ ] Đã nói rõ đường dẫn file bàn giao, cách chạy lại, lệnh chạy suite gate (`--grep-invert @quarantine`) và cách xem report
+- [ ] Đã hỏi người dùng có ghi `.testagent.yaml` và có chuyển tài liệu use case ra `docs/test-cases/` không — không tự chuyển file ra khỏi `.testagent/`
 
-### C. Với bug log (áp dụng cho cả hai chế độ)
+### C. Bằng chứng và an toàn
 
-- [ ] Đã đọc full row + evidence + timeline, không chỉ title/status
-- [ ] Bug ID/source row truy vết được và wording gốc vẫn còn bên cạnh bản chuẩn hóa
-- [ ] Actual/expected và fact/inference/unknown được tách riêng
-- [ ] Với log dài/complex flow: báo `raw_clause_coverage: x/y`; mọi clause đã map hoặc ghi `Unknown`; actor/page/state/timing/branch và observation point không bị mất
-- [ ] Với bug thao tác nhanh/race: đã tách setup → critical burst → oracle; không chen wait/assertion làm đổi cadence; báo profile + requested/actual timing + `x/y`; **attempt chạy tay không được tính vào attempt budget**
-- [ ] Trước verify: chính agent đã tái hiện baseline trên build gốc và lưu evidence; evidence lịch sử chỉ hỗ trợ điều tra, không thay gate này cho verdict `Verified fixed`
+- [ ] Verdict là con số, tách khỏi status ticket nguồn
+- [ ] Bằng chứng gồm ảnh tại observation point, console, network (endpoint + status), state đọc từ trang
+- [ ] Đã tách rõ fact / inference / unknown, và nêu điều gì **chưa** kiểm được vì sao
+- [ ] Đã liệt kê bản ghi/dữ liệu do agent tạo ra trên môi trường test và nói rõ đã dọn hay cần ai dọn
+- [ ] Không tự điền mật khẩu; không tự start server khi cổng đã có tiến trình; không thao tác phá huỷ hay chạm production khi chưa được duyệt ở bước CONFIRM
+- [ ] Evidence đã che PII/secrets; không dùng dữ liệu định danh hoặc giao dịch thật từ production
+
+### D. Thêm cho bug log
+
+- [ ] Đã đọc full row + evidence + timeline, không chỉ title/status; bug ID/source row truy vết được và wording gốc còn bên cạnh bản chuẩn hóa
+- [ ] Với log dài/complex flow: báo `raw_clause_coverage: x/y`; mọi clause đã map hoặc ghi `Unknown`
+- [ ] Với bug thao tác nhanh/race: đã tách setup → critical burst → oracle; không chen wait/assertion làm đổi cadence; báo profile + requested/actual timing + `x/y`; **attempt chạy tay không tính vào attempt budget**
+- [ ] Trước verify: chính agent đã tái hiện baseline trên build gốc và lưu evidence; evidence lịch sử không thay được gate này
 - [ ] Verify chạy đúng target build/deployment, platform, role, state và data class của bug gốc
 - [ ] Không chỉ kiểm "lỗi biến mất": đã assert tích cực KQMM và side effect/persistence liên quan
-- [ ] Verdict verify (`Verified fixed`/`Failed`/`Partial`/`Regression`/`Not reproduced`/`Blocked`/`Inconclusive`) tách khỏi status nguồn
-- [ ] Không dùng dữ liệu định danh hoặc giao dịch thật từ production; evidence đã che PII/secrets
 
 ## Bản đồ tài liệu
 
 | File | Nội dung |
 |---|---|
-| `references/live-browser-investigation.md` | **(mặc định)** Điều hướng, đọc cây accessibility, click/điền form, chạy JS trong trang, đọc console + network, chụp bằng chứng, giới hạn của thao tác tay và khi nào phải chuyển sang codify |
-| `references/bug-reproduction.md` | Đọc ngôn ngữ tester Việt, tái hiện/retest bug STG/UAT/prod, evidence, phân loại nguyên nhân, mẫu báo cáo |
-| `references/complex-flow-race-reproduction.md` | Compile log dài thành scenario map; replay nhiều màn hình/tab/role; critical burst, cadence matrix, race/intermittent và observer effect |
-| `references/project-setup.md` | Khi nào mới scaffold, `playwright.config.ts`, đa môi trường, cấu trúc thư mục, npm scripts |
-| `references/ui-e2e.md` | Locator, Page Object, assertion, upload/download, iframe, tab mới, dialog, table, date picker |
+| `references/live-browser-investigation.md` | **Bước EXPLORE + chẩn đoán ở bước HEAL**: chọn/xác minh trình duyệt, đọc cây accessibility, click/điền form, chạy JS trong trang, đọc console + network, bốn kiểu hỏng im lặng, chốt đầu ra cho PLAN |
+| `references/explore-artifacts.md` | **Đầu ra của EXPLORE**: thư mục `.testagent/`, nhật ký hành trình, điểm chốt, ghi use case → sinh tài liệu test case thủ công, HAR, `storageState`, `.testagent.yaml`, khi nào phải explore lại |
+| `references/test-plan-and-traceability.md` | **Bước PLAN + VERDICT**: thứ tự tin cậy của nguồn, kế hoạch có tầng, bảng plan để duyệt, ma trận truy vết, ngoài phạm vi, definition of done |
+| `references/bug-reproduction.md` | Biến thể bug của cả pipeline: đọc ngôn ngữ tester Việt, tái hiện/retest bug STG/UAT/prod, evidence, phân loại nguyên nhân, mẫu báo cáo |
+| `references/complex-flow-race-reproduction.md` | Biến thể race: compile log dài thành scenario map, replay nhiều màn hình/tab/role, critical burst, cadence matrix, observer effect |
+| `references/project-setup.md` | Bước GENERATE khi repo chưa có khung: `playwright.config.ts`, đa môi trường, cấu trúc thư mục, npm scripts |
+| `references/ui-e2e.md` | Bước GENERATE: locator, Page Object, assertion, aria snapshot, upload/download, iframe, tab mới, dialog, table |
 | `references/api-testing.md` | `request` fixture, kiểm tra status/schema, chain token, tạo dữ liệu qua API |
 | `references/visual-responsive.md` | `toHaveScreenshot`, che vùng động, đa viewport, cross-browser, mobile emulation |
 | `references/accessibility.md` | `@axe-core/playwright`, WCAG tags, xử lý vi phạm đã biết |
 | `references/network-mocking.md` | `page.route`, HAR, giả lập lỗi 500/timeout/offline/mạng chậm |
 | `references/auth-and-data.md` | `storageState`, đa role, per-worker auth, fixture, sinh & dọn dữ liệu test |
-| `references/excel-to-spec.md` | Chuyển file test case Excel (mẫu UAT) thành spec + bảng truy vết |
-| `references/reporting-ci.md` | Reporter, Allure, JUnit cho TestRail/Xray, GitHub Actions, Jenkins, GitLab, sharding, Docker |
+| `references/excel-to-spec.md` | Bước PLAN từ file test case Excel (mẫu UAT) → spec + bảng truy vết |
+| `references/reporting-ci.md` | Sau VERDICT: reporter, Allure, JUnit cho TestRail/Xray, GitHub Actions, Jenkins, GitLab, sharding, Docker |
 | `references/performance.md` | Web Vitals, Lighthouse, đo thời gian tải, khi nào cần k6 |
-| `references/troubleshooting.md` | Chẩn đoán app hỏng hay test hỏng, flaky, timeout, lỗi chỉ xảy ra trên CI, selector gãy |
+| `references/troubleshooting.md` | Bước HEAL: app hỏng hay test hỏng, cổng ổn định, quarantine, timeout, lỗi chỉ xảy ra trên CI, selector gãy |
 
 Script bundled (gọi trực tiếp, đọc `--help` trước, không đọc source):
 
-| Script | Dùng khi |
+| Script | Dùng ở bước |
 |---|---|
-| `scripts/explore.mjs` | Dump một lượt toàn bộ locator + ảnh full page để chuẩn bị codify, hoặc khi không dùng được công cụ browser. **Không thay cho Pha 1.** |
-| `scripts/scaffold.mjs` | Dựng khung dự án Playwright TS mới — chỉ khi đã qua cổng CODIFY |
-| `scripts/excel_to_spec.py` | Đọc file test case `.xlsx` sinh spec skeleton + `test-map.json`. Không chạy trên bug list. |
+| `scripts/explore.mjs` | EXPLORE, khi không có công cụ browser — dump một lượt locator + ảnh full page. **Không thay được EXPLORE bằng trình duyệt thật.** |
+| `scripts/scaffold.mjs` | GENERATE, khi repo chưa có khung Playwright TS |
+| `scripts/excel_to_spec.py` | PLAN, khi đầu vào là file test case `.xlsx`. Không chạy trên bug list. |

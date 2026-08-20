@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
 
-> Skill cho Codex và Claude giúp tester trả lời câu hỏi kiểm thử bằng **bằng chứng thu trực tiếp trên trình duyệt** — tái hiện bug, verify fix, đọc console/network ngay tại chỗ — và chỉ kết tinh thành test Playwright + TypeScript khi thật sự cần chạy lại. Kể cả log dài, luồng nhiều màn hình/role và bug chỉ xuất hiện khi thao tác nhanh.
+> Skill cho Codex và Claude biến mọi yêu cầu kiểm thử thành một **pipeline bắt buộc**: quan sát app thật → lập kế hoạch có truy vết → bạn duyệt → sinh spec Playwright + TypeScript → chạy qua cổng ổn định → tự sửa bằng cách quan sát lại → **verdict có số**. Áp cho cả câu hỏi nhanh, bug log dài, luồng nhiều màn hình/role và bug chỉ xuất hiện khi thao tác nhanh.
 
 Đây là một Agent Skill theo chuẩn mở, dùng được trong [Codex](https://learn.chatgpt.com/docs/build-skills) và Claude Code. Skill đóng gói hướng dẫn, reference và script để agent tự nạp khi bạn nhờ tái hiện bug hoặc làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; agent lo phần trinh sát, selector, cấu hình và code.
 
@@ -14,29 +14,42 @@ Phát triển dựa trên ý tưởng của [`anthropics/skills/webapp-testing`]
 
 ## Skill này giải quyết vấn đề gì
 
-Tester chuyển sang automation thường vấp ba chỗ:
+Tester chuyển sang automation thường vấp mấy chỗ này:
 
 | Vấn đề | Skill xử lý thế nào |
 |---|---|
-| **Dựng cả dự án test chỉ để trả lời một câu hỏi** | Mặc định thao tác trực tiếp trên trình duyệt: mở app, bấm, đọc console + network → kết luận kèm bằng chứng. 0 file, 0 dependency |
-| **Đoán selector** → test lúc chạy lúc không | Bắt buộc trinh sát app thật trước khi viết code (cây accessibility cho element có thật; `scripts/explore.mjs` khi cần dump một lượt) |
-| **Script dùng một lần rồi bỏ** | Khi thật sự cần chạy lại: kết tinh thành dự án có cấu trúc — Page Object, fixture, config đa môi trường, CI |
+| **Kiểm thử không có quy trình, mỗi lần một kiểu** | Một pipeline bắt buộc, tám bước, áp cho mọi yêu cầu — từ "xem hộ trang này" tới cả workbook bug log |
+| **Đoán selector** → test lúc chạy lúc không | Bước EXPLORE bắt buộc chạy trên app thật trước khi được lập plan hay sinh code (cây accessibility cho element có thật) |
+| **Kiểm xong rồi để đó, lần sau kiểm lại từ đầu** | Mọi lượt kết thúc bằng spec commit được đã qua cổng ổn định, kèm verdict có số |
 | **File test case Excel nằm một nơi, code nằm một nơi** | `scripts/excel_to_spec.py` đọc file UAT có sẵn, sinh khung spec + bảng truy vết `test-map.json` |
 | **Bug tester mô tả nhanh, DEV cần verify lại sau fix** | Chuẩn hóa full row + evidence → tái hiện baseline → verify đúng build fix → targeted regression |
 | **Log dài, đi qua nhiều màn hình rồi Agent bỏ sót state/bước** | Compile từng raw clause thành scenario map có actor, context/page, from/to state, timing, branch và observation point; báo coverage `x/y` |
 | **Phải bấm nhanh/liên tục mới ra bug** | Tách `setup → critical burst → oracle`, chạy cadence/attempt matrix, đo timing thực tế và không chèn wait làm trigger biến mất |
 
-Nguyên tắc xuyên suốt: **LIVE trước, CODIFY sau — và chỉ codify khi cần.** Mặc định là mở trình duyệt làm thật để trả lời ngay; chỉ viết spec khi cần chạy lại lâu dài (regression/CI) hoặc khi kịch bản vượt khả năng thao tác tay (nhịp bấm dưới 500 ms, tỷ lệ `x/y`, cookie HttpOnly, mock, hai session song song). Không có file spec không có nghĩa là chưa xong việc.
+Nguyên tắc xuyên suốt: **quan sát thật trước, chốt thành test sau — và luôn chốt.** Bằng chứng thu trực tiếp (ảnh, console, network) trả lời câu hỏi ngay; nhưng nó là *bằng chứng*, không phải *sản phẩm bàn giao*. Chưa có test chạy được là chưa xong.
 
-## Ba pha: FRAME → LIVE → CODIFY
+## Pipeline bắt buộc
 
-Mặc định của skill không phải là viết file test, mà là **mở trình duyệt làm thật**:
+Mọi yêu cầu kiểm thử đi qua đúng tám bước này. Không bước nào tuỳ chọn.
 
-- **Pha 0 — FRAME**: chốt URL/build/môi trường, role/state và đích đến (một lần hay chạy lại lâu dài).
-- **Pha 1 — LIVE**: điều hướng, đọc cây accessibility, click/điền, chạy JS trong trang, đọc console + network. Phần lớn yêu cầu kết thúc ở đây.
-- **Pha 2 — CODIFY**: chỉ khi có ít nhất một dấu — **LẶP** (cần chạy lại lâu dài), **NHỊP** (gap < ~500 ms), **SỐ** (tỷ lệ `x/y` trên ≥10 lượt), **QUYỀN** (cookie HttpOnly, mock, hai context, baseline snapshot), **YÊU CẦU** (người dùng nói rõ muốn có file).
+```
+0. FRAME    → chốt target, build/môi trường, role/state, nguồn grounding
+1. EXPLORE  → mở app THẬT bằng công cụ browser, quan sát. Không đoán, không nhớ.
+2. PLAN     → bảng scenario có tầng + truy vết + phần ngoài phạm vi
+3. CONFIRM  → trình bảng cho bạn duyệt
+4. GENERATE → spec + Page Object commit được, một scenario một file
+5. EXECUTE  → chạy qua cổng ổn định (3 lượt, flaky bị quarantine)
+6. HEAL     → fail thì quay lại trình duyệt thật, re-observe, sửa, chạy lại
+7. VERDICT  → PASS/FAIL kèm số ca — hoặc Reproduced / Verified fixed với bug log
+```
 
-**Không có file spec KHÔNG phải là chưa hoàn thành.** Chi tiết chế độ mặc định: [`references/live-browser-investigation.md`](references/live-browser-investigation.md).
+Bốn luật: **không bước nào tuỳ chọn** · **không đảo thứ tự** (không sinh code trước khi EXPLORE, không chạy trước khi CONFIRM) · **bỏ bước phải khai báo** là `Blocked` kèm điều kiện mở khoá · **chưa có test chạy được là chưa xong**.
+
+Ngoại lệ duy nhất: bạn **nói rõ** không muốn file — agent dừng sau bước chạy tay và ghi `Codify skipped — theo yêu cầu người dùng` vào verdict. Agent không bao giờ tự quyết điều này.
+
+**Trả lời sớm, chốt muộn.** EXPLORE thường đã đủ để biết app đúng hay sai, và agent báo kết luận sơ bộ đó ngay — bạn không phải chờ hết pipeline. Nhưng verdict chính thức chỉ có ở bước 7, sau khi test đã qua cổng ổn định.
+
+Bug log không phải quy trình riêng — nó là **biến thể** của cùng tám bước: EXPLORE = decode row + evidence + recon, PLAN = fingerprint + kịch bản tái hiện + oracle, EXECUTE = replay đo `x/y`, VERDICT = reproduction outcome. Xem [`references/bug-reproduction.md`](references/bug-reproduction.md).
 
 ## Case khó: log dài, luồng stateful, race
 
@@ -61,7 +74,7 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 
 | Mảng | Nội dung |
 |---|---|
-| **Điều tra trực tiếp (mặc định)** | Mở app thật, đọc cây accessibility, click/điền, chạy JS trong trang, đọc console + network, chụp bằng chứng |
+| **Quan sát trực tiếp (bước EXPLORE)** | Mở app thật, đọc cây accessibility, click/điền, chạy JS trong trang, đọc console + network, chụp bằng chứng |
 | **Web UI E2E** | Locator theo vai trò, Page Object, form, bảng dữ liệu, upload/download, iframe, tab mới, dialog |
 | **API testing** | `request` fixture, kiểm tra status/schema, chain token, tạo dữ liệu qua API cho test UI |
 | **Visual regression** | `toHaveScreenshot`, che vùng động, quản lý ảnh baseline theo OS |
@@ -75,6 +88,8 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 | **Chẩn đoán** | Test flaky, timeout, lỗi chỉ xảy ra trên CI, locator gãy |
 | **Bug reproduction & fix verification** | Đọc bug log nhiều tab/evidence, tái hiện baseline, phân loại nguyên nhân, verify fix và đề xuất Close/Reopen |
 | **Complex flow & race reproduction** | Scenario map, multi-screen/tab/role, critical burst, cadence matrix, attempt rate và observer effect |
+| **Kế hoạch test & truy vết** | Thứ tự tin cậy của nguồn (SRS → test case → nghiệp vụ → code → quan sát), plan có tầng, ma trận truy vết, "ngoài phạm vi", verdict |
+| **Artefact & tài liệu test case** | Ghi lại phiên EXPLORE để lần sau chạy rẻ hơn; ghi use case → sinh tài liệu test case thủ công `Pre`/bước/`KQMM`; `.testagent.yaml` để khỏi hỏi lại |
 
 ## Cài đặt nhanh
 
@@ -152,13 +167,15 @@ Nhiều kịch bản hơn kèm output mẫu: [docs/USAGE.md](docs/USAGE.md)
 
 ```
 playwright-automation/
-├── SKILL.md                    # Điểm vào — quy trình, định tuyến, nguyên tắc chống flaky
+├── SKILL.md                    # Điểm vào — pipeline 8 bước, định tuyến, nguyên tắc chống flaky
 ├── CHANGELOG.md                # Lịch sử phiên bản
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
 ├── references/                 # Tài liệu chuyên sâu, agent chỉ đọc file cần dùng
-│   ├── live-browser-investigation.md # (mặc định) Điều tra trực tiếp: accessibility tree, console, network
+│   ├── live-browser-investigation.md # Bước EXPLORE: accessibility tree, console, network
+│   ├── explore-artifacts.md    # Ghi lại & dùng lại phiên EXPLORE, sinh tài liệu test case
 │   ├── bug-reproduction.md     # Tái hiện bug, verify fix, evidence và verdict
 │   ├── complex-flow-race-reproduction.md # Log dài, multi-flow, cadence/race
+│   ├── test-plan-and-traceability.md # Trust order, plan có tầng, truy vết, verdict
 │   ├── project-setup.md        # Cài đặt, playwright.config.ts, đa môi trường
 │   ├── ui-e2e.md               # Locator, Page Object, form, bảng, iframe
 │   ├── api-testing.md          # request fixture, schema, checklist test API
@@ -210,8 +227,11 @@ Không cài trước cũng được — Codex hoặc Claude sẽ hướng dẫn 
 
 Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên biết lý do:
 
+- **Pipeline bắt buộc, không có cổng bật/tắt.** Bản 1.x cho phép dừng ở lượt quan sát và coi đó là xong. Bản 2.0 bỏ hẳn: quan sát trực tiếp là *bằng chứng*, không phải *sản phẩm bàn giao*. Ngoại lệ duy nhất là người dùng nói rõ không muốn file — agent không tự quyết.
 - **Khung spec sinh từ Excel cố tình FAIL** (`expect(true, ...).toBe(false)`). Một khung test luôn xanh nguy hiểm hơn không có test, vì nó tạo cảm giác đã kiểm tra trong khi chưa kiểm tra gì.
-- **`retries: 2` chỉ bật trên CI.** Retry ở local sẽ giấu lỗi thật của script.
+- **`retries: 2` chỉ bật trên CI.** Retry ở local sẽ giấu lỗi thật của script. Test mới thì phải qua cổng ổn định (`--repeat-each=3 --workers=1 --retries=0`) mới được nhận vào suite; ca lẫn lộn bị tách `@quarantine`, không bao giờ được làm xanh bằng `retries`.
+- **App đang chạy không phải oracle.** Hành vi hiện tại chỉ nói app *đang* làm gì. Khi chưa có acceptance criterion, skill ghi `Unknown` và hỏi thay vì đóng băng hành vi hiện tại thành `expect` — nếu không, bug hôm nay sẽ thành "chuẩn" của ngày mai.
+- **Sửa test gãy thì không được hạ chuẩn assertion.** Đổi `toHaveText(...)` thành `toBeVisible()` cho xanh là xoá phần kiểm, không phải sửa test.
 - **Race baseline chạy `retries=0`, thường `workers=1`.** Retry làm sai denominator `x/y`; parallel load chỉ được thêm như một biến thử nghiệm riêng.
 - **`waitForTimeout` không dùng để chờ readiness.** Nó chỉ được chấp nhận khi delay chính là test input cadence, được đặt tên, đo và đưa vào ma trận.
 - **`force`/`dispatchEvent` là nhánh chẩn đoán.** Bằng chứng chính vẫn phải dùng action user-like với actionability mặc định.
@@ -220,7 +240,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 ## Lịch sử thay đổi
 
-Phiên bản hiện tại: **1.4.1** — ưu tiên trình duyệt mang profile thật của người dùng ở Pha 1, kèm bước xác minh xem công cụ đang lái binary/profile nào.
+Phiên bản hiện tại: **2.1.0** — pipeline tám bước bắt buộc (breaking từ 2.0.0), cộng thêm artefact phiên EXPLORE dùng lại được, ghi use case → sinh tài liệu test case thủ công, và `.testagent.yaml` để lần chạy sau khỏi hỏi lại.
 Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp

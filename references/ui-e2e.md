@@ -1,15 +1,15 @@
 # Test E2E giao diện web
 
-Mục lục: [Chọn chế độ](#chọn-chế-độ-trước-khi-làm) · [Chọn locator](#chọn-locator) · [Assertion](#assertion) · [Page Object](#page-object-model) · [Form](#làm-việc-với-form) · [Bảng dữ liệu](#bảng-dữ-liệu) · [Upload/Download](#upload-và-download) · [iframe, tab mới, dialog](#iframe-tab-mới-dialog) · [Chờ đúng cách](#chờ-đúng-cách) · [Soft assertion](#soft-assertion) · [Ảnh chụp trong report](#gắn-bằng-chứng-vào-report)
+Mục lục: [Trước khi viết](#trước-khi-viết-một-dòng-nào) · [Chọn locator](#chọn-locator) · [Assertion](#assertion) · [Page Object](#page-object-model) · [Form](#làm-việc-với-form) · [Bảng dữ liệu](#bảng-dữ-liệu) · [Upload/Download](#upload-và-download) · [iframe, tab mới, dialog](#iframe-tab-mới-dialog) · [Chờ đúng cách](#chờ-đúng-cách) · [Soft assertion](#soft-assertion) · [Ảnh chụp trong report](#gắn-bằng-chứng-vào-report)
 
-## Chọn chế độ trước khi làm
+## Trước khi viết một dòng nào
 
-File này nói về **viết test file** (Pha 2). Trước khi mở nó, kiểm lại đã qua cổng CODIFY chưa — xem `SKILL.md`.
+File này là bước **GENERATE** của pipeline trong `SKILL.md`. Hai điều kiện phải xong trước khi mở nó:
 
-- Câu hỏi một lần ("chức năng X chạy đúng chưa", "form này validate ổn không") → làm trực tiếp trên trình duyệt, đọc `live-browser-investigation.md`, **không cần file nào**. Không có spec KHÔNG phải là chưa hoàn thành.
-- Cần chạy lại lâu dài (regression, CI, gate release), hoặc cần thứ thao tác tay không làm được (cadence, `x/y`, cookie HttpOnly, mock, hai context) → dùng file này.
+1. **EXPLORE đã chạy trên app thật** — mọi route, label, `role + name`, endpoint + status trong spec phải lấy từ đó. Viết spec theo phỏng đoán rồi chạy để "xem có đúng không" là nguyên nhân số một của test flaky.
+2. **PLAN đã được duyệt ở bước CONFIRM** — bạn đang hiện thực hoá những scenario cụ thể trong bảng đó, không phải nghĩ ra ca test tại chỗ.
 
-Dù ở nhánh nào, locator phải lấy từ trang thật. Đi một lượt trực tiếp trước rồi mới viết spec — đừng viết theo phỏng đoán rồi chạy để "xem có đúng không".
+Mỗi scenario trong plan thành **một file spec riêng**. Viết xong thì sang bước EXECUTE để qua cổng ổn định — chưa qua cổng thì chưa được tính là nhận vào suite.
 
 ## Chọn locator
 
@@ -101,6 +101,29 @@ Timeout riêng cho chỗ chậm (báo cáo, export file):
 ```typescript
 await expect(page.getByText('Xuất file hoàn tất')).toBeVisible({ timeout: 60_000 });
 ```
+
+### Chốt cả cấu trúc màn hình bằng aria snapshot
+
+Assertion ở trên kiểm từng phần tử một. Khi cần chốt **cả bố cục** của một màn hình — đúng cái cây accessibility đã đọc ở bước EXPLORE — dùng `toMatchAriaSnapshot` (Playwright ≥ 1.49):
+
+```typescript
+await expect(page.locator('main')).toMatchAriaSnapshot(`
+  - heading "Giỏ hàng" [level=1]
+  - list:
+    - listitem: Ba lô Sauce Labs
+  - button "Thanh toán"
+`);
+```
+
+Sinh lần đầu bằng `npx playwright test --update-snapshots`, hoặc in ra để dán vào code:
+
+```typescript
+console.log(await page.locator('main').ariaSnapshot());
+```
+
+Vì sao đáng dùng: nó bắt được thứ mà chuỗi `toBeVisible()` bỏ lọt — nút bị mất, thứ tự đảo, heading tụt level, item lặp hai lần. Và vì nó bám role + tên chứ không bám class hay pixel, nó bền hơn `toHaveScreenshot` rất nhiều: đổi màu, đổi font, đổi khoảng cách đều không làm nó đỏ.
+
+Đừng lạm dụng: chỉ chốt vùng thật sự cần (`main`, một dialog, một bảng), đừng chốt cả `body` — header/footer/banner đổi một chữ là cả suite đỏ. Với vùng có dữ liệu động (số dư, ngày giờ), tách phần đó ra assertion riêng.
 
 ## Page Object Model
 

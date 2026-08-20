@@ -4,6 +4,76 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [2.1.0] — 2026-08-20
+
+Review lại độ phủ của việc apply `aidlc-testagent` sau 2.0.0 và bù các phần còn thiếu. Trọng tâm: **manual explore mode** — tính năng chủ lực của aidlc v0.6.0 mà 2.0.0 bỏ sót hoàn toàn — cùng ba việc làm skill dễ dùng hơn.
+
+### Added
+
+- **`references/explore-artifacts.md`** — định nghĩa cái gì được ghi, ghi ở đâu, dùng lại thế nào. Thư mục chuẩn `.testagent/<target>/` gồm `journey.md`, `test-plan.md`, `checkpoints/`, `use-cases/`, `network/*.har`.
+- **Ghi use case → sinh tài liệu test case thủ công.** Người dùng đi một luồng nghiệp vụ trọn vẹn, agent viết ra tài liệu theo đúng format `Pre` / bước / `KQMM` / tiêu chí pass — thứ tester vẫn phải ngồi gõ tay. Bốn luật đi kèm: chỉ viết những gì đã quan sát, KQMM lấy từ nguồn hạng cao chứ không từ màn hình, giữ nguyên exact UI copy nhưng che PII, dùng đúng từ vựng của team.
+- **Điểm chốt (checkpoint)** — trạng thái nhiều scenario dùng chung ("đã đăng nhập", "đã có đơn nháp") ghi riêng ra để PLAN tham chiếu bằng `Phụ thuộc:` và GENERATE dựng lại bằng `storageState`, thay vì lặp chuỗi click ở mọi test.
+- **`.testagent.yaml`** — config target ở gốc repo (url, auth, grounding theo thứ tự tin cậy, scope, success, output_dir, allow_hosts). Bước FRAME đọc file này trước khi hỏi bất cứ điều gì; có file rồi thì FRAME rút xuống một câu xác nhận. Ba luật: không bao giờ đặt giá trị credential vào đây, `allow_hosts` là cổng an toàn chứ không phải tiện ích, `success` là hợp đồng của bước VERDICT.
+- **Luật dùng lại / explore lại.** Bảng năm dấu hiệu bắt buộc phải explore lại (đổi build, đang verify fix, spec fail ở HEAL, đổi role/môi trường/data class, journey quá 7 ngày). Mỗi lần dùng lại artefact cũ phải khai trong VERDICT — kết luận dựa trên journey tuần trước và dựa trên quan sát vừa xong là hai mức tin cậy khác nhau.
+- **Thu hẹp phạm vi ở bước PLAN** khi target quá lớn: theo một file requirement, theo `scope.feature`, hoặc theo `git diff --name-only <base>`. Cách thứ ba khai rõ là ước lượng best-effort và phải liệt kê file nào không map được sang màn hình nào.
+- **Mục "Một lượt chạy trông thế nào"** trong `SKILL.md` — một lượt hoàn chỉnh từ FRAME tới VERDICT trên ví dụ cụ thể, cho thấy câu trả lời tới ở bước 1 còn sản phẩm tới ở bước 7, và **test đỏ là kết quả đúng khi app sai**.
+- **Mục lục cho `SKILL.md`** (các reference đã có sẵn từ trước).
+- `.testagent/` thêm vào `_gitignore` của khung scaffold và `.gitignore` của repo skill, kèm ghi chú rằng tài liệu use case và test-plan nên chuyển ra `docs/` để commit chứ đừng bỏ ignore cả thư mục.
+
+### Changed
+
+- Bước **EXPLORE** đổi từ danh sách "giữ lại gì" thành bảng ba cột **giữ lại → ghi vào đâu → dùng ở bước nào**, kèm ba lưu ý hay bị bỏ (login trả 204 chứ không phải 200, `ref` chết theo phiên nên phải ghi `role + name`, cây accessibility quy thẳng thành `toMatchAriaSnapshot`).
+- Mẫu **VERDICT** thêm dòng `EXPLORE` (quan sát mới hay dùng lại artefact), `Suite gate` (`--grep-invert @quarantine`) và `Artefact`. Kết thúc lượt phải hỏi người dùng hai việc: có ghi `.testagent.yaml` không, và có chuyển tài liệu use case ra `docs/test-cases/` không — agent không tự chuyển file ra khỏi `.testagent/`.
+- Bảng định tuyến thêm hai dòng: "ghi lại luồng này / viết hộ test case" và "chỉ test phần vừa sửa".
+- Checklist thêm ba mục: VERDICT khai rõ nguồn quan sát, lệnh chạy suite gate, và hỏi trước khi chuyển artefact.
+
+## [2.0.0] — 2026-08-20
+
+**Breaking change.** Pipeline của [`aidlc-io/aidlc-testagent`](https://github.com/aidlc-io/aidlc-testagent) trở thành **điều kiện bắt buộc** của skill, không còn là năng lực tuỳ chọn. Trước 2.0, skill mặc định dừng ở lượt quan sát trực tiếp và chỉ viết spec khi qua cổng CODIFY. Từ 2.0, mọi yêu cầu kiểm thử đều chạy đủ tám bước và kết thúc bằng bộ test commit được.
+
+### Changed — BREAKING
+
+- **Gỡ cổng CODIFY** (`LẶP` / `NHỊP` / `SỐ` / `QUYỀN` / `YÊU CẦU`). Không còn điều kiện nào để được phép không viết test.
+- **Gỡ nguyên tắc "Không có file spec KHÔNG phải là chưa hoàn thành"** (đưa vào ở 1.3.0). Thay bằng: **chưa có test chạy được là chưa xong**. Bằng chứng trực tiếp giờ là *bằng chứng*, không phải *sản phẩm bàn giao*.
+- **Ba pha FRAME → LIVE → CODIFY trở thành pipeline tám bước** `FRAME → EXPLORE → PLAN → CONFIRM → GENERATE → EXECUTE → HEAL → VERDICT`, với bốn luật: không bước nào tuỳ chọn · không đảo thứ tự · bỏ bước phải khai báo `Blocked` kèm điều kiện mở khoá · chưa có test chạy được là chưa xong.
+- **Bug log gộp vào cùng xương sống**, không còn protocol song song. `Decode → Reproduce → Classify → Verify` ánh xạ thành EXPLORE/PLAN/EXECUTE/VERDICT của cùng pipeline. Regression spec cho bug trở thành đầu ra **bắt buộc**; bug chưa tái hiện được vẫn để lại spec `test.fixme` kèm bước và oracle đã biết.
+- **PLAN không còn điều kiện kích hoạt.** 1.5.0 chỉ lập plan khi "phải viết nhiều hơn một spec"; 2.0 lập plan cho mọi lượt — yêu cầu nhỏ nhất thì plan có một scenario chốt lại đúng điều vừa quan sát.
+- **Câu hỏi "chạy một lần hay chạy lại lâu dài" bị bỏ khỏi bước FRAME.** Thay bằng câu hỏi *nơi đặt test*: repo đã có khung Playwright chưa, spec nên nằm ở thư mục nào.
+- **`references/project-setup.md`**: mục "Khi nào mới scaffold" (bốn điều kiện) thay bằng "Scaffold hay dùng khung có sẵn" — câu hỏi không còn là *có nên dựng khung không* mà là *dựng mới hay viết vào khung có sẵn*.
+- Mọi reference đổi khung tham chiếu từ "chế độ mặc định / vùng bắt buộc spec" sang tên bước trong pipeline: `live-browser-investigation.md` là bước EXPLORE (và công cụ chẩn đoán của HEAL), `test-plan-and-traceability.md` là PLAN + VERDICT, `ui-e2e.md` là GENERATE, `troubleshooting.md` là HEAL, `reporting-ci.md` là sau VERDICT.
+- `agents/openai.yaml` và mô tả gói đổi theo: prompt mặc định giờ yêu cầu chạy đủ pipeline thay vì "chỉ viết test khi tôi nhờ".
+
+### Added
+
+- **Ngoại lệ được khai báo rõ**: người dùng **nói rõ** không muốn file thì agent dừng sau bước chạy tay và ghi `Codify skipped — theo yêu cầu người dùng` vào verdict. Đây là ngoại lệ duy nhất, và agent không bao giờ tự quyết.
+- **"Trả lời sớm, chốt muộn"**: EXPLORE báo *kết luận sơ bộ* ngay khi có, để tester không phải chờ hết pipeline; verdict chính thức vẫn chỉ có ở bước 7.
+- **Đầu ra bắt buộc của EXPLORE** thành bảng: nhật ký hành trình · cây accessibility tại điểm chốt · endpoint + status · `storageState` · HAR — kèm cột nói rõ mỗi thứ đi vào bước nào.
+- **Bảng "Kịch bản cần năng lực chỉ spec mới có"** thay cho bảng "Thao tác tay KHÔNG làm được". Cùng nội dung, đổi vai trò: nó không còn là cổng cho phép viết file, mà là lời nhắc đừng cắt những scenario này khỏi PLAN.
+- Checklist gộp lại thành bốn nhóm theo pipeline: A. Pipeline · B. Test bàn giao · C. Bằng chứng và an toàn · D. Thêm cho bug log.
+
+## [1.5.0] — 2026-08-20
+
+Rút ra từ việc đọc [`aidlc-io/aidlc-testagent`](https://github.com/aidlc-io/aidlc-testagent) — một AI test agent tự sinh/chạy/heal bộ E2E. Skill này không đổi mục tiêu (vẫn LIVE-first, vẫn cho tester), nhưng lấy về những kỷ luật mà bên đó đã hình thức hoá và skill còn thiếu.
+
+### Added
+
+- **`references/test-plan-and-traceability.md`** — thứ tự tin cậy của nguồn, kế hoạch có tầng `setup → smoke → core → edge → teardown`, bảng plan để người dùng duyệt, ma trận truy vết hai chiều, phần "ngoài phạm vi" bắt buộc, definition of done và mẫu verdict.
+- **Thứ tự tin cậy của nguồn** ở Pha 0: SRS/acceptance criteria → test case thủ công → quy tắc nghiệp vụ → source code → quan sát app đang chạy. Kèm hai luật: **app đang chạy không phải oracle** (chưa có acceptance criterion thì ghi `Unknown` rồi hỏi, đừng đóng băng hành vi hiện tại thành `expect`), và **ý định lệch hiện thực thì báo, đừng lặng lẽ viết theo code**.
+- **Chốt kế hoạch trước khi viết spec** ở Pha 2, khi phải viết nhiều hơn một spec: trình bảng scenario có tầng, ưu tiên, truy vết và phần ngoài phạm vi để người dùng duyệt — sửa một dòng bảng rẻ hơn sửa mười file. Kèm luật **một scenario, một file spec**.
+- **Cổng ổn định cho test mới**: `--repeat-each=3 --workers=1 --retries=0`, chỉ nhận vào suite khi cả ba lượt pass; ca lẫn lộn bị tách `@quarantine` kèm tỷ lệ quan sát được. Nêu rõ `retries` giấu flaky chứ không sửa flaky. Ghi rõ cổng này **không** áp cho baseline race/intermittent — nhóm đó vẫn đo `x/y`.
+- **Luật chữa test gãy**: mở lại trang thật, đi đúng bước đang fail, đọc DOM hiện tại rồi mới sửa. Hai luật cứng — không hạ chuẩn assertion để test xanh, và trả lời "app đổi hay app hỏng" trước khi động vào code. Bảng phân nhánh đầy đủ trong `references/troubleshooting.md`.
+- **Playwright MCP làm đường khôi phục Pha 1**: host chạy được lệnh mà thiếu công cụ browser thì cắm `npx @playwright/mcp@latest` trước, chỉ khi không cắm được mới hạ xuống `scripts/explore.mjs`. Trước đây skill nhảy thẳng sang script trinh sát và mất luôn chế độ LIVE.
+- **Giữ lại lượt LIVE**: bảng bốn thứ nên chốt trước khi đóng trình duyệt (nhật ký hành trình, cây accessibility tại điểm chốt, `storageState`, HAR) và chúng đi tiếp vào đâu ở Pha 2.
+- **`toMatchAriaSnapshot`** trong `references/ui-e2e.md` — chốt cả cấu trúc màn hình thay vì từng phần tử, bền hơn `toHaveScreenshot` vì bám role + tên chứ không bám pixel.
+- **HAR như bằng chứng bug** trong `references/bug-reproduction.md`: DEV mở thẳng bằng DevTools mà không cần dựng lại môi trường; kèm cảnh báo che secret trước khi đính kèm.
+
+### Changed
+
+- **Luật an toàn** thêm hai mục: host chỉ được coi là staging khi là `localhost`/IP nội bộ, tên có `staging`/`stg`/`test`/`qa`/`dev`/`uat`, hoặc người dùng nói rõ — còn lại mặc định coi như production; và **dừng lại trước động từ phá huỷ** (xoá, thanh toán/chuyển tiền, gửi đi, huỷ đăng ký, vô hiệu hoá, ghi đè dữ liệu người khác) kể cả trên staging, ưu tiên tự tạo dữ liệu nháp rồi phá dữ liệu đó.
+- **Mẫu báo cáo** thêm dòng `Oracle` (đã dựa vào nguồn nào), mục **ngoài phạm vi** bắt buộc, và một dòng **verdict** `PASS`/`FAIL` bằng con số đo được khi có chạy cả bộ.
+- Checklist B: thay "chạy được hai lần liên tiếp đều pass" bằng cổng ổn định ba lượt + quarantine, thêm mục giữ nguyên ý định assertion và mục mỗi spec phải truy vết được về một requirement/mã test case.
+- Bảng định tuyến thêm một dòng cho "cần test những gì / đưa SRS + test case hỏi phạm vi / bộ test đã phủ đủ chưa".
+
 ## [1.4.1] — 2026-08-18
 
 ### Fixed

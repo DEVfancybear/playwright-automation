@@ -1,6 +1,6 @@
 # Mock API và giả lập điều kiện mạng
 
-> **Vùng bắt buộc spec.** Công cụ browser chỉ **đọc** request đã xảy ra, không chặn/sửa được response và không giả lập được offline/throttle. Đừng mất thời gian thử làm bằng thao tác tay — vào thẳng Playwright.
+> **Oracle nằm ở bước EXECUTE, không ở EXPLORE.** Công cụ browser chỉ **đọc** request đã xảy ra, không chặn/sửa được response và không giả lập được offline/throttle. Đừng mất thời gian thử bằng thao tác tay — đưa kịch bản này vào PLAN rồi hiện thực bằng `page.route` trong spec.
 
 Mock cho phép tester kiểm tra những tình huống gần như không dựng được bằng tay: server trả 500, mạng rớt giữa chừng, API trả danh sách rỗng, thanh toán thất bại. Đây là cách bắt bug xử lý lỗi — mảng mà đội dev hay bỏ quên nhất.
 

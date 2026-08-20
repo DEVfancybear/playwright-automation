@@ -1,22 +1,21 @@
-# Điều tra trực tiếp trên trình duyệt (chế độ mặc định)
+# Điều tra trực tiếp trên trình duyệt (bước EXPLORE)
 
-Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Chọn trình duyệt](#chọn-trình-duyệt-xác-minh-trước-đừng-tin-tên-công-cụ) · [Năng lực cần có](#năng-lực-cần-có) · [Vòng điều tra](#vòng-điều-tra-chuẩn) · [Lấy element](#lấy-element-không-đoán-selector) · [Đọc bằng chứng](#đọc-bằng-chứng) · [Gọi API bằng session](#gọi-api-bằng-session-đang-mở) · [Giới hạn](#giới-hạn-phải-nói-ra) · [An toàn](#luật-an-toàn) · [Chuyển sang spec](#chuyển-sang-spec-khi-nào-và-chuyển-cái-gì) · [Mẫu báo cáo](#mẫu-báo-cáo-live)
+Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Chọn trình duyệt](#chọn-trình-duyệt-xác-minh-trước-đừng-tin-tên-công-cụ) · [Năng lực cần có](#năng-lực-cần-có) · [Vòng điều tra](#vòng-điều-tra-chuẩn) · [Lấy element](#lấy-element-không-đoán-selector) · [Đọc bằng chứng](#đọc-bằng-chứng) · [Gọi API bằng session](#gọi-api-bằng-session-đang-mở) · [Giới hạn](#giới-hạn-phải-nói-ra) · [An toàn](#luật-an-toàn) · [Bàn giao cho GENERATE](#bàn-giao-cho-generate-chuyển-cái-gì) · [Mẫu báo cáo](#mẫu-báo-cáo-explore)
 
 ## Khi nào dùng
 
-Đây là chế độ **mặc định** của skill. Dùng khi người dùng muốn biết *chuyện gì đang xảy ra* — không phải khi họ muốn có một bộ test.
+File này là **bước EXPLORE** của pipeline bắt buộc trong `SKILL.md`, và là công cụ chẩn đoán của **bước HEAL**. Mọi lượt kiểm thử đều phải đi qua đây — cấm lập plan hoặc sinh spec khi chưa mở app thật.
 
-Hợp:
+Dùng để:
 
-- "Xem hộ trang này đang lỗi gì", "console báo gì", "API nào fail"
-- "Test giúp chức năng X xem chạy đúng không"
-- Tái hiện một bug deterministic theo đúng các bước tester mô tả
-- Verify nhanh sau khi DEV báo đã fix
-- Kiểm tra validate form, nội dung màn hình, dữ liệu bảng, responsive
+- Trả lời ngay "trang này đang lỗi gì", "console báo gì", "API nào fail" — báo **kết luận sơ bộ** cho người dùng luôn, đừng bắt họ chờ hết pipeline.
+- Lấy route, label, `role + name`, endpoint + status **thật** để bước GENERATE không phải đoán selector.
+- Đi lại đúng các bước tester mô tả khi tái hiện bug.
+- Chẩn đoán ở bước HEAL: test đỏ thì mở lại app, đi tới bước đang fail, đọc DOM hiện tại rồi mới sửa.
 
-Không hợp — xem [Giới hạn](#giới-hạn-phải-nói-ra) và bảng "Thao tác tay KHÔNG làm được" trong `SKILL.md`.
+**Điểm mấu chốt**: EXPLORE cho ra *kết luận sơ bộ*, không phải verdict. **Dừng ở đây là chưa xong** — PLAN, CONFIRM, GENERATE, EXECUTE và VERDICT vẫn còn phía sau. Danh sách những gì bắt buộc phải chốt lại trước khi đóng trình duyệt nằm ở [Bàn giao cho GENERATE](#bàn-giao-cho-generate-chuyển-cái-gì).
 
-**Điểm mấu chốt**: kết thúc bằng một câu trả lời có bằng chứng là **đã hoàn thành**. Không có file spec không phải là làm dở.
+Có kịch bản thao tác tay không kiểm được (cadence dưới ~500 ms, tỷ lệ `x/y`, cookie HttpOnly, mock, hai actor song song) — xem [Giới hạn](#giới-hạn-phải-nói-ra). Chúng không bị loại khỏi phạm vi; chúng chỉ chuyển oracle xuống bước EXECUTE bằng spec.
 
 ## Chọn trình duyệt: xác minh trước, đừng tin tên công cụ
 
@@ -107,7 +106,15 @@ Nếu phải nạp công cụ trước khi dùng, nạp **một lượt duy nh�
 
 **Nếu môi trường không có công cụ browser nào**, nói rõ với người dùng trước khi làm gì tiếp, rồi chọn theo năng lực của host:
 
-- **Host chạy được lệnh** (Claude Code, Codex, IDE): dùng `scripts/explore.mjs` trinh sát một lượt rồi sang Pha 2.
+- **Host chạy được lệnh** (Claude Code, Codex, IDE): thử **khôi phục EXPLORE** trước bằng cách cắm Playwright MCP rồi nạp lại danh sách công cụ:
+
+  ```bash
+  claude mcp add playwright npx @playwright/mcp@latest
+  ```
+
+  Server này cung cấp đúng bộ năng lực trong bảng trên (`browser_navigate`, `browser_snapshot` trả cây accessibility, `browser_click`, `browser_type`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`, `browser_tabs`), nên EXPLORE chạy bình thường. Cần cài Node ≥ 18 và tải browser lần đầu (`npx playwright install chromium`). Xin phép người dùng trước khi thêm MCP server vào cấu hình của họ.
+
+  Chỉ khi không cắm được — chặn mạng, không chạy được `npx`, người dùng từ chối — mới hạ xuống `scripts/explore.mjs` trinh sát một lượt. Ghi rõ trong PLAN là chưa quan sát được trạng thái sau tương tác, và đánh dấu những scenario dựng từ dump tĩnh là rủi ro cao.
 - **Host không chạy được lệnh** (ví dụ claude.ai): không trinh sát được. Báo `Blocked: không có công cụ browser và không chạy được script`, rồi (a) nhờ người dùng dán ảnh chụp / log console / log network / HTML của màn hình cần xem, hoặc (b) soạn sẵn các bước để người dùng tự thao tác và báo lại quan sát. Tuyệt đối không suy đoán hành vi app rồi báo như đã kiểm.
 
 ## Vòng điều tra chuẩn
@@ -158,7 +165,7 @@ link    "Quên mật khẩu" [ref_8] href="/forgot-password"
 
 `ref_N` **là element có thật đang tồn tại**, không phải phỏng đoán. Click/điền theo `ref` là xong.
 
-Ở chế độ này **không cần locator "bền"** — phiên chỉ sống vài phút. Đừng mất công thiết kế selector chống refactor cho việc dùng một lần.
+Để **lái** trong phiên này thì `ref` là đủ, không cần thiết kế selector chống refactor. Nhưng phải **ghi lại `role + name`** của mọi element đã chạm vào: `ref` chết theo phiên, còn `role + name` là thứ bước GENERATE quy đổi thành `getByRole(role, { name })`. Chạm mà không ghi thì bước sau lại phải đoán.
 
 ### `ref` hết hạn sau mỗi lần DOM đổi
 
@@ -168,7 +175,7 @@ Luật: **đọc lại cây ngay trước mỗi thao tác trên một màn hình
 
 Nó hỏng *im lặng*: click vào `ref` cũ vẫn "thành công" nhưng trúng nhầm phần tử. Đọc lại một lần cho cả loạt thao tác thì rẻ, còn sai thì không có gì báo.
 
-Khi sang Pha 2 mới quy đổi:
+Sang bước GENERATE mới quy đổi:
 
 | Node trong cây | Locator Playwright |
 |---|---|
@@ -223,11 +230,11 @@ Dùng để **đối chiếu UI với server**: giao diện có thể còn hiể
 
 ## Giới hạn phải nói ra
 
-**Cookie HttpOnly không đọc/xoá được bằng JS trong trang.** `document.cookie` không thấy nó. Hệ quả: mọi kịch bản "ép token hết hạn", "ép mất phiên", "xoá cookie đăng nhập" **không làm được ở chế độ trực tiếp**.
+**Cookie HttpOnly không đọc/xoá được bằng JS trong trang.** `document.cookie` không thấy nó. Hệ quả: mọi kịch bản "ép token hết hạn", "ép mất phiên", "xoá cookie đăng nhập" **không kiểm được ở bước EXPLORE** — chúng phải thành scenario trong PLAN và được kiểm ở bước EXECUTE bằng spec.
 
 Hai đường hợp lệ, phải nêu cả hai cho người dùng chọn:
 
-- **Chuyển sang spec** (dấu QUYỀN của cổng CODIFY): `await context.clearCookies({ name: '<tên-cookie-phiên-của-app>' })` rồi thao tác tiếp. Tên cookie lấy từ network → response `Set-Cookie` lúc đăng nhập, **không đoán theo tên thường gặp**. Filter `{ name }` cần Playwright ≥ 1.43 — bản cũ hơn bỏ qua tham số và xoá **toàn bộ** cookie, khi đó phải `context.cookies()` trước, `clearCookies()`, rồi `addCookies()` lại phần muốn giữ.
+- **Đưa oracle xuống spec** (bước GENERATE, đây là ca bắt buộc): `await context.clearCookies({ name: '<tên-cookie-phiên-của-app>' })` rồi thao tác tiếp. Tên cookie lấy từ network → response `Set-Cookie` lúc đăng nhập, **không đoán theo tên thường gặp**. Filter `{ name }` cần Playwright ≥ 1.43 — bản cũ hơn bỏ qua tham số và xoá **toàn bộ** cookie, khi đó phải `context.cookies()` trước, `clearCookies()`, rồi `addCookies()` lại phần muốn giữ.
 - **Chờ hết TTL thật**: đọc `Max-Age` trên `Set-Cookie` lúc đăng nhập để biết phải chờ bao lâu, rồi quay lại thao tác.
 
 ```
@@ -239,7 +246,7 @@ set-cookie: <refresh-cookie>=…; Max-Age=<M>   → M/3600 giờ
 
 **Tuyệt đối không kết luận "không có bug" khi phần chưa kiểm được nằm ngoài tầm thao tác tay.** Đúng verdict là `Inconclusive` cho phần đó, kèm cách kiểm tiếp.
 
-Các giới hạn khác: không đo được cadence dưới ~500 ms, không chạy được ≥10 lượt có reset state, không mock/chặn response, không chạy hai actor song song, không arm listener trước hành động (download, dialog). Xem bảng đầy đủ trong `SKILL.md`.
+Các giới hạn khác của thao tác tay: không đo được cadence dưới ~500 ms, không chạy được ≥10 lượt có reset state, không mock/chặn response, không chạy hai actor song song, không arm listener trước hành động (download, dialog). Không giới hạn nào trong số này loại kịch bản khỏi phạm vi — chúng chỉ nói rằng oracle nằm ở spec chứ không nằm ở EXPLORE. Bảng đầy đủ ở mục **Kịch bản cần năng lực chỉ spec mới có** trong `SKILL.md`.
 
 ## Luật an toàn
 
@@ -269,9 +276,9 @@ Các giới hạn khác: không đo được cadence dưới ~500 ms, không ch�
   - **hỏi trước** khi thao tác chạm ra ngoài hệ thống: gửi OTP/SMS/email, đẩy thông báo, gọi cổng thanh toán — staging thường vẫn dùng gateway thật;
   - dọn bằng chính chức năng huỷ/xoá của app nếu có; nếu không, nói rõ "cần DEV/DBA dọn giúp các bản ghi sau: …". Không tự gọi API xoá ngoài phạm vi được cho phép.
 
-## Chuyển sang spec: khi nào và chuyển cái gì
+## Bàn giao cho GENERATE: chuyển cái gì
 
-Khi qua cổng CODIFY (xem `SKILL.md`), mang sang những thứ **đã xác minh** ở lượt trực tiếp — không viết lại từ đầu:
+Bước GENERATE ăn trực tiếp từ bảng này. Mang sang những thứ **đã xác minh** ở lượt trực tiếp — không viết lại từ đầu, không đoán bù:
 
 | Thu được ở LIVE | Dùng trong spec |
 |---|---|
@@ -281,13 +288,20 @@ Khi qua cổng CODIFY (xem `SKILL.md`), mang sang những thứ **đã xác minh
 | Tín hiệu "đã xong" nhìn thấy trên màn hình | `await expect(...).toBeVisible()` |
 | Shape response đọc từ network | assertion schema |
 | Bước nào sinh ra lỗi | biên của `test.step` |
+| Cây accessibility tại điểm chốt | `expect(page.locator('main')).toMatchAriaSnapshot(...)` — chốt cả cấu trúc màn hình, không chỉ một phần tử |
+| Phiên đăng nhập đã mở được | `storageState` (xem `auth-and-data.md`) — khỏi login lại qua UI |
+| HAR của luồng | `routeFromHAR` khi cần chạy lại ổn định/offline (xem `network-mocking.md`) |
+
+**Ghi lại trước khi đóng trình duyệt.** Một lượt LIVE tốt tốn công đi qua login, wizard nhiều bước, feature flag — mà `ref` thì hết hạn, session thì rụng. Trước khi kết thúc, chốt lại tối thiểu: nhật ký hành trình (mỗi màn một dòng `URL — tiêu đề — đã làm gì — quan sát được gì`), cây accessibility tại các điểm chốt, và `storageState` nếu có đăng nhập. Nhật ký này vừa là bản nháp `test.step` cho spec, vừa là bản nháp test case thủ công nếu tester chưa có file test case. Đây là đầu vào bắt buộc của PLAN và GENERATE: **hai bước đó không được bắt đầu lại từ số 0 rồi đoán selector**.
 
 Một chi tiết hay bị bỏ sót: **API trả 204 chứ không phải 200** khi login chỉ set cookie mà không có body. Quan sát ở LIVE rồi mới viết assertion thì tránh được ca fail giả kiểu chốt cứng `toBe(200)`.
 
-## Mẫu báo cáo LIVE
+## Mẫu báo cáo EXPLORE
 
 ```
-Kết luận: <một câu trả lời thẳng câu hỏi của người dùng>
+Kết luận sơ bộ: <một câu trả lời thẳng câu hỏi của người dùng — chưa phải verdict>
+Oracle:   <SRS §… / TC-… đã dựa vào, hoặc "chưa có acceptance criterion —
+           phần dưới chỉ mô tả hành vi quan sát được, không phán đúng/sai">
 
 Đã làm:
   1. Mở <URL> (<môi trường>, BE phía sau: <thật/mock, căn cứ>)

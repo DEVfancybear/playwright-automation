@@ -14,7 +14,7 @@ Ba thứ nên có trong yêu cầu đầu tiên. Thiếu thì agent sẽ hỏi, 
 
 1. **URL** — staging, local hay production? Có cần đăng nhập không, tài khoản test là gì?
 2. **Phạm vi** — một chức năng, một luồng nghiệp vụ, hay cả bộ regression?
-3. **Đích đến** — chạy một lần cho biết kết quả, hay dựng suite để chạy lại lâu dài?
+3. **Nơi đặt test** — repo đã có khung Playwright chưa, spec nên nằm ở thư mục nào? (Mọi lượt đều trả về spec commit được, nên agent cần biết chỗ ghi.)
 
 So sánh:
 
@@ -28,23 +28,25 @@ So sánh:
 
 ---
 
-## Kịch bản 1 — Test nhanh một chức năng
+## Kịch bản 1 — Kiểm nhanh một chức năng
 
-Khi bạn chỉ muốn biết chức năng chạy đúng chưa, chưa cần dựng suite.
+Yêu cầu nhỏ nhất cũng chạy đủ pipeline — chỉ là plan của nó ngắn.
 
 > Test giúp tôi chức năng tìm kiếm sản phẩm ở https://staging.example.com/products.
 > Gõ "áo sơ mi" rồi bấm Tìm, xem kết quả có ra đúng không.
 
 Agent sẽ:
 
-1. Mở trang bằng công cụ browser, đọc cây accessibility để lấy element có thật (không đoán selector).
-2. Gõ "áo sơ mi" vào ô tìm kiếm → bấm Tìm.
-3. Sau mỗi bước: đọc network (endpoint + status), đọc console, chụp màn hình tại observation point.
-4. Trả lời thẳng câu hỏi kèm bằng chứng: kết quả đúng/sai, **bug của app hay lỗi thao tác**, phần nào chưa kiểm được và vì sao.
+1. **EXPLORE** — mở trang bằng công cụ browser, đọc cây accessibility để lấy element có thật (không đoán selector), gõ "áo sơ mi" → bấm Tìm, sau mỗi bước đọc network (endpoint + status), đọc console, chụp màn hình tại observation point.
+2. Báo **kết luận sơ bộ** ngay: kết quả đúng/sai, **bug của app hay lỗi thao tác**, phần nào chưa kiểm được và vì sao. Bạn không phải chờ hết pipeline mới biết câu trả lời.
+3. **PLAN** — trình bảng scenario cho bạn duyệt, thường 1–3 dòng: tìm kiếm ra kết quả đúng, tìm từ khoá không tồn tại, và ca lỗi nếu vừa phát hiện được.
+4. **CONFIRM** — bạn cắt/thêm dòng rồi gật.
+5. **GENERATE → EXECUTE → HEAL** — sinh spec, chạy `--repeat-each=3 --workers=1 --retries=0`, fail thì quay lại trình duyệt xem DOM thật rồi sửa.
+6. **VERDICT** — PASS/FAIL kèm số ca, đường dẫn file bàn giao và lệnh chạy lại.
 
-**Không tạo file nào** — 0 file, 0 dependency, 0 lệnh cài đặt. Cuối cùng agent hỏi: *"Có muốn chốt case này thành test chạy lại được không?"*; trả lời "có" thì mới sang bước viết spec.
+Không muốn có file thì **nói rõ** — agent dừng sau bước chạy tay và ghi `Codify skipped — theo yêu cầu người dùng` trong verdict. Đây là ngoại lệ duy nhất, và phải do bạn nói ra.
 
-Cần **dump một lượt toàn bộ locator + ảnh full page** để chuẩn bị codify, hoặc môi trường không có công cụ browser? Lúc đó mới dùng `explore.mjs` — xem [Dùng script trực tiếp](#dùng-script-trực-tiếp). Kết quả trinh sát của nó trông như thế này:
+Môi trường không có công cụ browser? Agent thử cắm Playwright MCP trước; không được thì mới dùng `explore.mjs` — xem [Dùng script trực tiếp](#dùng-script-trực-tiếp). Kết quả trinh sát của nó trông như thế này:
 
 ```
 ▸ Ô NHẬP LIỆU
@@ -150,7 +152,7 @@ Sau đó nhờ agent điền tiếp:
 
 > Trinh sát https://staging.example.com/login rồi điền hết TODO trong dang-nhap.spec.ts.
 
-**Lưu ý về phạm vi.** Không phải test case nào cũng đáng tự động hóa. Nên bỏ qua ca chỉ chạy một lần, ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày. Agent sẽ nêu ý kiến về những ca này thay vì sinh hết mọi dòng.
+**Lưu ý về phạm vi.** Không phải test case nào cũng tự động hóa được. Ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày — agent đưa chúng vào phần **Ngoài phạm vi** của bảng plan kèm lý do, thay vì im lặng bỏ qua hoặc cố sinh code cho chúng. Bạn xem bảng đó ở bước duyệt và cắt/thêm trước khi agent viết dòng code nào.
 
 ---
 

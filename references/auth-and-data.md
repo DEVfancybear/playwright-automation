@@ -2,7 +2,7 @@
 
 Mục lục: [Vì sao cần storageState](#vì-sao-cần-storagestate) · [Setup project](#thiết-lập-setup-project) · [Nhiều role](#nhiều-role-user--admin) · [Đăng nhập qua API](#đăng-nhập-qua-api-nhanh-nhất) · [Per-worker auth](#per-worker-auth) · [Hai role trong một test](#hai-role-trong-cùng-một-test) · [OTP / 2FA](#otp-và-2fa) · [Sinh dữ liệu test](#sinh-dữ-liệu-test) · [Dọn dữ liệu](#dọn-dữ-liệu-sau-test) · [Data-driven](#chạy-một-test-với-nhiều-bộ-dữ-liệu)
 
-> **Cần một phiên đăng nhập cho một lần kiểm tra thôi?** Đăng nhập trực tiếp trên trình duyệt là đủ — không cần setup project, không cần `storageState`. Agent điền username/SĐT và dữ liệu test, nhưng **không tự điền mật khẩu**: dừng lại nhờ người dùng nhập rồi đi tiếp.
+> **Ở bước EXPLORE**, đăng nhập ngay trên trình duyệt là đủ để đi tiếp. Agent điền username/SĐT và dữ liệu test, nhưng **không tự điền mật khẩu**: dừng lại nhờ người dùng nhập rồi đi tiếp. Trước khi đóng trình duyệt, lưu `storageState` lại — bước GENERATE cần nó để spec không phải login qua UI.
 >
 > **Ép hết phiên / xoá cookie đăng nhập thì bắt buộc dùng spec.** Cookie phiên thường là `HttpOnly`, `document.cookie` không thấy và JS trong trang không xoá được. Chỉ hai đường: `await context.clearCookies({ name: 'access_token' })` trong Playwright, hoặc chờ hết TTL thật (đọc `Max-Age` trên `Set-Cookie` lúc login để biết phải chờ bao lâu).
 

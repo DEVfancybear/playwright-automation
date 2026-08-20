@@ -4,7 +4,7 @@ Mục lục: [Khi nào dùng](#khi-nào-dùng) · [Biên dịch log](#1-biên-d�
 
 ## Khi nào dùng
 
-**Đi bộ một lượt bằng tay trước.** Mở app, đi đúng luồng ở nhịp thường bằng công cụ browser để chốt route, label, oracle và xem bug có tái hiện luôn không. Nếu tái hiện được ở nhịp thường → xong, báo cáo, không cần script hoá. Nếu không → escalate sang file này.
+**Đi bộ một lượt bằng tay trước (bước EXPLORE).** Mở app, đi đúng luồng ở nhịp thường bằng công cụ browser để chốt route, label, oracle và xem bug có tái hiện luôn không. Tái hiện được ở nhịp thường → báo kết luận sơ bộ ngay, rồi vẫn chốt lại thành regression spec như mọi lượt khác. Không tái hiện được ở nhịp thường → bug phụ thuộc cadence, PLAN phải có ma trận nhịp và attempt budget theo file này.
 
 Escalate khi cần một trong các thứ thao tác tay không làm nổi: gap giữa hai action dưới ~500 ms, chạy ≥10 lượt có reset state để lấy tỷ lệ `x/y`, hai actor/session chạy song song, hoặc chạy trên CI.
 

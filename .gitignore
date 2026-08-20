@@ -26,3 +26,6 @@ venv/
 Thumbs.db
 .idea/
 .vscode/
+
+# Artefact phiên EXPLORE khi chạy thử skill ngay trong repo này
+.testagent/

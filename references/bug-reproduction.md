@@ -2,8 +2,20 @@
 
 Mục lục: [Nguyên tắc tổng quát](#nguyên-tắc-tổng-quát) · [Ngôn ngữ tester](#ngôn-ngữ-tester) · [Dạng bug log](#các-dạng-bug-log-phổ-biến) · [Chuẩn hóa một issue](#chuẩn-hóa-một-issue) · [Đọc evidence](#đọc-evidence) · [Quy trình tái hiện](#quy-trình-tái-hiện) · [Luồng dài/race](complex-flow-race-reproduction.md) · [Phân loại](#phân-loại-nguyên-nhân) · [Verify sau khi DEV fix](#verify-bug-sau-khi-dev-fix) · [Regression](#regression-sau-verify) · [Báo cáo](#mẫu-báo-cáo)
 
-> **Công cụ mặc định: thao tác trực tiếp trên trình duyệt.** Tái hiện bug là đi lại đúng các bước tester mô tả trên app thật — mở trang, bấm, đọc console + network — chứ không phải viết spec rồi chạy. Xem `live-browser-investigation.md`.
-> **Reproduction package = báo cáo + evidence.** File spec KHÔNG bắt buộc; chỉ codify khi bug đáng nằm trong suite regression hoặc người dùng yêu cầu. Với bug phụ thuộc nhịp bấm hoặc cần tỷ lệ `x/y`, thao tác tay không đủ — xem `complex-flow-race-reproduction.md`.
+> **Đây là biến thể bug của pipeline bắt buộc trong `SKILL.md`.** Không phải một quy trình song song — cùng tám bước, chỉ đổi nội dung:
+>
+> | Bước | Với bug log nghĩa là |
+> |---|---|
+> | FRAME | Inventory workbook, decode full row + evidence, readiness gate |
+> | EXPLORE | Đi lại đúng bước tester mô tả trên app thật (`live-browser-investigation.md`) |
+> | PLAN | Fingerprint môi trường + kịch bản tái hiện + oracle KQMM + attempt budget |
+> | CONFIRM | Trình kịch bản trước khi chạm dữ liệu — bắt buộc với thao tác có side effect |
+> | GENERATE | Regression spec cho chính bug này, đặt tên theo bug ID |
+> | EXECUTE | Replay đúng cadence, đo `x/y` (`complex-flow-race-reproduction.md`) |
+> | HEAL | Không tái hiện được → đổi giả thuyết, **không đổi kết luận** |
+> | VERDICT | Reproduction outcome + fix-verification verdict + status recommendation |
+>
+> **Reproduction package = báo cáo + evidence + regression spec.** Cả ba đều bắt buộc. Bug chưa tái hiện được thì spec vẫn viết ra ở dạng `test.fixme` kèm bước và oracle đã biết, để lần sau có build/data đúng là chạy được ngay.
 
 ## Nguyên tắc tổng quát
 
@@ -175,6 +187,8 @@ Marker `EVD:` có thể trỏ tới một spreadsheet khác hoặc tab evidence 
 - ID nghiệp vụ hoặc giao dịch đã mask nếu cần đối chiếu;
 - tần suất `x/y` và platform matrix nếu lỗi không ổn định.
 
+Với bug dính tới API, một **file HAR** là bằng chứng mạnh nhất trong nhóm này: nó chứa đủ request/response/timing của cả luồng, DEV mở thẳng bằng Chrome DevTools (Network → import HAR) mà không cần dựng lại môi trường. Lấy HAR bằng cách bấm "Export HAR" trong DevTools của chính người dùng, hoặc ở bước GENERATE/EXECUTE bằng `browser.newContext({ recordHar: { path: 'bug-1234.har' } })`. HAR ghi cả cookie, token và body: **che secret trước khi đính kèm**, và không kèm HAR chụp trên production khi chưa được phép.
+
 ## Quy trình tái hiện
 
 ### 1. Readiness gate
@@ -199,7 +213,7 @@ Ghi stage, URL/build, platform/device/browser, locale/timezone, role, session st
 
 ### 4. Recon trước thao tác
 
-Mở app thật, chờ render, xác minh visible label/DOM và state đầu vào. Với UI, đọc cây accessibility để lấy element có thật theo `live-browser-investigation.md`; không dịch shorthand tester thành selector phỏng đoán. Chỉ quy đổi `role + name` sang locator Playwright khi đã qua cổng CODIFY (`ui-e2e.md`).
+Mở app thật, chờ render, xác minh visible label/DOM và state đầu vào. Với UI, đọc cây accessibility để lấy element có thật theo `live-browser-investigation.md`; không dịch shorthand tester thành selector phỏng đoán. Ghi lại `role + name` của mọi element đã chạm vào — bước GENERATE sẽ quy đổi chúng thành locator (`ui-e2e.md`).
 
 ### 5. Replay đúng state và observation point
 
@@ -355,7 +369,16 @@ Sau replay chính, chọn regression gần theo root cause thay vì chạy ngẫ
 - responsive/overlay trên các platform và viewport thuộc fix scope;
 - config parity giữa các môi trường, dependency healthy/unhealthy khi phù hợp.
 
-Chỉ codify regression sau khi có bước và oracle đủ rõ. Đặt tên theo bug ID + symptom; nếu ID trùng/thiếu, thêm source row/module. Dùng visible locator thật, giữ `Actual` làm message chẩn đoán và `Expected` làm assertion.
+Regression spec là đầu ra bắt buộc, không phải tuỳ chọn. Đặt tên theo bug ID + symptom; nếu ID trùng/thiếu, thêm source row/module. Dùng visible locator thật lấy từ bước EXPLORE, giữ `Actual` làm message chẩn đoán và `Expected` làm assertion.
+
+```typescript
+test('BUG-1234: đơn draft mất ngày đã chọn sau khi bật tuỳ chọn bổ sung', async ({ page }) => {
+  // Nguồn: workbook "QA-UAT.xlsx", tab "Bug list", row 47. Baseline: 5/5 trên build 2.4.1.
+  // Expected (KQMM): ngày đã chọn giữ nguyên sau khi bật tuỳ chọn bổ sung.
+});
+```
+
+Bước và oracle chưa đủ rõ để assert thì vẫn tạo file, đánh `test.fixme` và ghi rõ còn thiếu gì — đừng để bug đi qua mà không để lại vết nào trong suite.
 
 Không chạy `scripts/excel_to_spec.py` trực tiếp trên bug list. Script đó dành cho test case có expected rõ và hiện không bảo toàn đầy đủ Actual, Status, Evidence, Solution hay timeline của issue.
 

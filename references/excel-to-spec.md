@@ -1,12 +1,12 @@
 # Chuyển file test case Excel thành script
 
-> **Vùng bắt buộc spec** — đây là yêu cầu rõ ràng muốn ra file, nên bỏ qua cổng CODIFY.
+> Đây là biến thể của bước **PLAN**: Excel thay agent làm phần lập kế hoạch, vì nó đã chứa sẵn scenario, tiền điều kiện, dữ liệu và kết quả mong đợi. Các bước còn lại của pipeline giữ nguyên.
 
-> **Chỉ dùng cho test case/UAT có steps và expected rõ. Không dùng trực tiếp cho bug list/issue tracker** có các cột Actual/KQTT, Status, Evidence, Solution/Comment hoặc timeline. `scripts/excel_to_spec.py` hiện không bảo toàn đầy đủ các trường đó; chạy nó trên bug log sẽ làm mất ngữ cảnh tái hiện và triage. Với bug STG/UAT/production, đọc `bug-reproduction.md`, chuẩn hóa issue rồi chỉ codify regression sau khi đã tái hiện và chốt oracle.
+> **Chỉ dùng cho test case/UAT có steps và expected rõ. Không dùng trực tiếp cho bug list/issue tracker** có các cột Actual/KQTT, Status, Evidence, Solution/Comment hoặc timeline. `scripts/excel_to_spec.py` hiện không bảo toàn đầy đủ các trường đó; chạy nó trên bug log sẽ làm mất ngữ cảnh tái hiện và triage. Với bug STG/UAT/production, đọc `bug-reproduction.md`, chuẩn hóa issue rồi mới sinh regression spec sau khi đã tái hiện và chốt oracle.
 
 Tester thường đã có sẵn file test case (mẫu KỊCH BẢN NGHIỆM THU / UAT). Đó là tài sản quý: nó chứa nghiệp vụ, tiền điều kiện, dữ liệu và kết quả mong đợi — tức là gần như đủ mọi thứ để viết automation, trừ selector.
 
-Skill này đi theo hướng **giữ Excel làm nguồn sự thật về nghiệp vụ**, sinh ra khung code tương ứng, rồi bổ sung selector lấy từ lượt LIVE (Pha 1) hoặc từ `scripts/explore.mjs`.
+Skill này đi theo hướng **giữ Excel làm nguồn sự thật về nghiệp vụ**, sinh ra khung code tương ứng, rồi bổ sung selector lấy từ bước EXPLORE hoặc từ `scripts/explore.mjs`.
 
 ## Chạy script
 

@@ -1,6 +1,6 @@
 # Đo hiệu năng phía người dùng
 
-> **Đo một lần thì làm trực tiếp.** Chạy trong trang: `performance.getEntriesByType('navigation')[0]` cho thời gian tải, `performance.getEntriesByType('resource')` cho từng request — trả lời ngay, không cần dự án. Dùng file này khi cần **đo lặp và so sánh qua thời gian**, hoặc test tải.
+> **Ở bước EXPLORE**, đo nhanh bằng `performance.getEntriesByType('navigation')[0]` và `performance.getEntriesByType('resource')` chạy ngay trong trang — có số để báo sơ bộ. **Ở bước GENERATE**, dùng file này để biến số đó thành ngưỡng chạy lặp được; test tải thì cần k6/JMeter, xem mục cuối.
 
 Playwright đo được **hiệu năng cảm nhận của một người dùng** (trang tải nhanh không, API phản hồi bao lâu). Nó **không** phải công cụ test tải — muốn biết hệ thống chịu được bao nhiêu người cùng lúc thì cần k6/JMeter, xem mục cuối.
 

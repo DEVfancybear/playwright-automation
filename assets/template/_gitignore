@@ -7,6 +7,10 @@ node_modules/
 # Phiên đăng nhập — chứa cookie thật, ai có file này là vào được tài khoản
 .auth/
 
+# Artefact của phiên EXPLORE — chứa URL nội bộ, tên tài khoản, đôi khi cả token trong HAR.
+# Tài liệu use case và test-plan đáng commit thì chuyển ra docs/ trước, đừng bỏ ignore cả thư mục.
+.testagent/
+
 # Kết quả chạy test
 test-results/
 playwright-report/
