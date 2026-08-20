@@ -8,6 +8,47 @@ Tester thường đã có sẵn file test case (mẫu KỊCH BẢN NGHIỆM THU 
 
 Skill này đi theo hướng **giữ Excel làm nguồn sự thật về nghiệp vụ**, sinh ra khung code tương ứng, rồi bổ sung selector lấy từ bước EXPLORE hoặc từ `scripts/explore.mjs`.
 
+## Mẫu KBKTCN — Kịch bản kiểm thử chức năng
+
+Đây là mẫu được dùng phổ biến nhất. Template trắng: **`assets/testcase-template/KBKTCN.xlsx`** — nhân bản nó khi cần tạo file test case mới cho một màn hình.
+
+Cấu trúc một file KBKTCN:
+
+| Vùng | Nội dung |
+|---|---|
+| Sheet `Tổng hợp` | Bảng tổng kết P/F/PE theo từng màn hình. **Không phải danh sách test case** — script tự bỏ qua sheet này |
+| Sheet `KBKTCN_<màn hình>` | Danh sách test case thật |
+| Dòng 1–11 | Metadata: tên màn hình (`D3`), **tiền tố mã** (`D4`, ví dụ `QLĐH`), bộ đếm Manual/Automation |
+| Dòng 15–17 | **Dải tiêu đề ba dòng** gộp ô — dòng 15 tên cột, 16–17 tiêu đề con (`Android (…)`, `Lần 1`) |
+| Dòng 18+ | Dòng nhóm (`SUITE GIAO DIỆN`), dòng suite (`Suite 1: …`), rồi test case |
+
+Cột: `ID BUG` · `ID` · `Mục đích kiểm thử` · `Trường hợp kiểm thử` · `Data test` · `Các bước thực hiện` · `Kết quả mong muốn` · `Thứ tự ưu tiên` · `Mức độ nghiêm trọng` · ảnh IOS/Android/DB · kết quả Manual (Android/IOS × 3 lần) · `Kết quả test (M)` · kết quả Automation (Browsers/Script × 3 lần) · `Kết quả test (AT)` · `Mã lỗi` · `Ghi chú`.
+
+Script ánh xạ thêm so với mẫu UAT phẳng: `Mục đích kiểm thử` → JSDoc, `Thứ tự ưu tiên` → tag Playwright (`HIGH/HIGHEST → @p0`, `MEDIUM → @p1`, còn lại `@p2`), `Mức độ nghiêm trọng` và `ID BUG` → JSDoc, dòng suite → `test.describe` lồng nhau.
+
+```bash
+npx playwright test --grep @p0     # chạy riêng nhóm ưu tiên cao
+```
+
+### Cạm bẫy: công thức sinh mã bị trôi tham chiếu
+
+Cột `ID` không phải giá trị gõ tay mà là công thức ghép tiền tố với số thứ tự, trừ đi số dòng suite phía trên:
+
+```
+=IF(G20="","",$D$4&"_"&ROW()-17-COUNTBLANK($G$18:G20))
+```
+
+Điểm cuối của `COUNTBLANK` **phải bám đúng dòng hiện tại** (`G20` ở dòng 20). Chèn/xoá dòng có thể làm nó trôi thành `G23`, `G24`… Khi đó dãy mã vừa **trùng** vừa **thủng**: hai test case khác nhau mang cùng một mã, còn một số thì không tồn tại.
+
+Hậu quả không chỉ là xấu số: bug log trỏ về một mã trùng thì không biết thuộc ca nào, và công cụ đọc file sẽ gộp nhầm hai ca thành một, nuốt mất một ca. `excel_to_spec.py` phát hiện và cảnh báo cả hai trường hợp:
+
+```
+⚠ Mã 'QLĐH_31' bị TRÙNG ở dòng Excel 50, 51
+⚠ Dãy mã thủng ở số: 34
+```
+
+Gặp cảnh báo này thì sửa công thức trong Excel trước khi sinh spec — đừng sửa mã bằng tay, lần chèn dòng sau lại trôi tiếp.
+
 ## Chạy script
 
 ```bash

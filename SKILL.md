@@ -99,7 +99,7 @@ Pipeline không đổi; chỉ **nội dung từng bước** đổi theo loại y
 | "Đăng nhập sẵn cho mọi test", "test nhiều role" | `storageState` + setup project | `references/auth-and-data.md` |
 | "Ghi lại luồng này", "viết hộ test case cho chức năng này", team chưa có tài liệu test case | EXPLORE ghi use case → sinh tài liệu `Pre` / bước / `KQMM` / tiêu chí pass, rồi tiếp tục pipeline như thường | `references/explore-artifacts.md` |
 | "Chỉ test phần vừa sửa", đưa commit/branch | PLAN thu hẹp theo `git diff`, khai rõ đây là ước lượng best-effort | `references/test-plan-and-traceability.md` |
-| "Chuyển file test case Excel thành script" | PLAN lấy thẳng từ Excel qua `scripts/excel_to_spec.py` | `references/excel-to-spec.md` |
+| "Chuyển file test case Excel thành script", "team chưa có file test case" | PLAN lấy thẳng từ Excel qua `scripts/excel_to_spec.py`; chưa có file thì nhân bản `assets/testcase-template/KBKTCN.xlsx` | `references/excel-to-spec.md` |
 | "Chạy trên Jenkins/GitHub", "xuất report" | Sau VERDICT: cắm bộ test vào CI làm gate | `references/reporting-ci.md` |
 | "Test bị lúc pass lúc fail", "local ok mà CI fail" | Trọng tâm dồn vào EXECUTE + HEAL | `references/troubleshooting.md` |
 | "Đo tốc độ trang", "test hiệu năng / tải" | EXPLORE đo `performance.getEntriesByType('navigation')`; GENERATE dùng Lighthouse/k6 | `references/performance.md` |
@@ -492,4 +492,11 @@ Script bundled (gọi trực tiếp, đọc `--help` trước, không đọc sou
 |---|---|
 | `scripts/explore.mjs` | EXPLORE, khi không có công cụ browser — dump một lượt locator + ảnh full page. **Không thay được EXPLORE bằng trình duyệt thật.** |
 | `scripts/scaffold.mjs` | GENERATE, khi repo chưa có khung Playwright TS |
-| `scripts/excel_to_spec.py` | PLAN, khi đầu vào là file test case `.xlsx`. Không chạy trên bug list. |
+| `scripts/excel_to_spec.py` | PLAN, khi đầu vào là file test case `.xlsx` (mẫu KBKTCN hoặc UAT phẳng). Không chạy trên bug list. |
+
+Asset:
+
+| Đường dẫn | Dùng khi |
+|---|---|
+| `assets/testcase-template/KBKTCN.xlsx` | Team chưa có file test case cho màn hình đó — nhân bản template này. Đúng cấu trúc KBKTCN: sheet Tổng hợp, khối metadata, dải tiêu đề ba dòng, dropdown P/F/PE, công thức sinh mã tự động |
+| `assets/template/` | Khung dự án Playwright TS mà `scaffold.mjs` sinh ra |

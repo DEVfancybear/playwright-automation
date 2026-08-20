@@ -52,6 +52,14 @@ def normalize(text) -> str:
 
 # (tên field, danh sách mẫu, điểm ưu tiên) — mẫu càng đặc trưng, điểm càng cao
 COLUMN_PATTERNS: list[tuple[str, list[str], int]] = [
+    # Mẫu KBKTCN (Kịch bản kiểm thử chức năng) — đặt trước để thắng các mẫu chung
+    ("bug_id",       ["id bug", "bug id", "ma loi", "ma bug"], 12),
+    ("purpose",      ["muc dich kiem thu", "muc dich"], 12),
+    ("priority",     ["thu tu uu tien", "do uu tien", "muc do uu tien", "priority"], 12),
+    ("severity",     ["muc do nghiem trong", "severity"], 12),
+    ("title",        ["truong hop kiem thu"], 12),
+    ("status",       ["ket qua test (m)", "ket qua test (at)", "ket qua test"], 12),
+
     ("id",           ["ma test case", "ma tc", "test case id", "testcase id", "case id", "ma kich ban"], 10),
     ("id",           ["ma", "id", "stt", "no."], 3),
     ("title",        ["ten test case", "muc tieu", "tieu de", "noi dung kiem tra", "mo ta test case",
@@ -72,7 +80,15 @@ COLUMN_PATTERNS: list[tuple[str, list[str], int]] = [
     ("note",         ["ghi chu", "note", "remark", "comment"], 8),
 ]
 
-FIELDS = ["id", "title", "precondition", "steps", "data", "expected", "actual", "status", "note"]
+FIELDS = ["id", "title", "precondition", "steps", "data", "expected", "actual", "status", "note",
+          "bug_id", "purpose", "priority", "severity"]
+
+# Thứ tự ưu tiên trong Excel → tag Playwright, để lọc suite theo mức khi chạy CI.
+PRIORITY_TAG = {
+    "highest": "@p0", "high": "@p0",
+    "medium": "@p1",
+    "low": "@p2", "lowest": "@p2", "none": "@p2",
+}
 
 
 def match_column(header: str) -> list[tuple[str, int]]:
@@ -138,6 +154,53 @@ def detect_header_row(rows: list[list], max_scan: int = 20) -> tuple[int, dict[s
     return best_row, best_map
 
 
+def header_band_end(rows: list[list], header_row: int, max_band: int = 4) -> int:
+    """
+    Chỉ số dòng cuối của dải tiêu đề (0-based).
+
+    Mẫu KBKTCN có tiêu đề trải **ba dòng** gộp ô (15–17): dòng 15 là tên cột, 16–17
+    là tiêu đề con ('Android (…)', 'Lần 1'…). Sau khi bung ô gộp, dòng 16 và 17 mang
+    lại phần lớn giá trị của dòng 15, nên chúng vẫn 'khớp' bộ nhận diện cột — nếu coi
+    dòng ngay sau tiêu đề là dữ liệu thì các dòng con này biến thành test case rác.
+
+    Dòng nào còn khớp ≥ 60% điểm của dòng tiêu đề thì vẫn thuộc dải tiêu đề.
+    """
+    if header_row < 0 or header_row >= len(rows):
+        return header_row
+    _, base = map_columns(rows[header_row])
+    if base <= 0:
+        return header_row
+
+    end = header_row
+    for idx in range(header_row + 1, min(header_row + 1 + max_band, len(rows))):
+        _, score = map_columns(rows[idx])
+        if score < base * 0.6:
+            break
+        end = idx
+    return end
+
+
+PREFIX_LABELS = ("ma truong hop kiem thu", "ma test case", "ma tc", "tien to ma")
+
+
+def sheet_id_prefix(rows: list[list], header_row: int) -> str:
+    """
+    Đọc tiền tố mã từ khối metadata phía trên dải tiêu đề.
+
+    Mẫu KBKTCN khai 'Mã trường hợp kiểm thử | QLĐH' ở ô riêng, rồi cột ID dùng công
+    thức ghép tiền tố đó với số thứ tự. Đọc được thì spec sinh ra mang đúng mã mà
+    tester dùng khi log bug, khỏi phải truyền --id-prefix bằng tay.
+    """
+    for row in rows[:max(header_row, 0)]:
+        for col, cell in enumerate(row):
+            if normalize(cell) in PREFIX_LABELS:
+                for nxt in row[col + 1:col + 4]:
+                    val = "" if nxt is None else str(nxt).strip()
+                    if val and not val.startswith("<"):
+                        return val + "_"
+    return ""
+
+
 # --------------------------------------------------------------------------
 # Đọc dữ liệu
 # --------------------------------------------------------------------------
@@ -151,6 +214,17 @@ class TestCase:
     steps: list[str] = field(default_factory=list)
     expected: list[str] = field(default_factory=list)
     excel_row: int = 0
+    # Mẫu KBKTCN
+    purpose: str = ""       # Mục đích kiểm thử — ô gộp dọc, phủ nhiều dòng TH
+    priority: str = ""      # Thứ tự ưu tiên
+    severity: str = ""      # Mức độ nghiêm trọng
+    bug_id: str = ""        # ID BUG / Mã lỗi đã log cho ca này
+    group: str = ""         # SUITE GIAO DIỆN / SUITE CHỨC NĂNG
+    suite: str = ""         # Suite 1: <tên>
+
+    @property
+    def tag(self) -> str:
+        return PRIORITY_TAG.get(normalize(self.priority), "")
 
 
 def read_sheet_values(ws) -> list[list]:
@@ -188,13 +262,41 @@ def split_steps(text: str) -> list[str]:
     return parts or [text.strip()]
 
 
+def section_label(row: list, cmap: dict[str, int]) -> str:
+    """
+    Trả về nhãn nếu đây là dòng phân nhóm (SUITE …), ngược lại trả chuỗi rỗng.
+
+    Trong mẫu KBKTCN, dòng suite là một ô gộp ngang C:G. Sau khi bung ô gộp, cả năm
+    cột nội dung mang **cùng một chuỗi** — nếu không nhận ra thì nhãn suite bị đọc
+    thành 'kết quả mong muốn' của một test case ma.
+    """
+    cols = [cmap.get(f) for f in ("purpose", "title", "data", "steps", "expected")]
+    vals = [cell_text(row, c) for c in cols if c is not None]
+    filled = [v for v in vals if v]
+    if len(filled) >= 3 and len(set(filled)) == 1:
+        return filled[0]
+    return ""
+
+
 def extract_cases(rows: list[list], header_row: int, cmap: dict[str, int],
-                  id_prefix: str) -> list[TestCase]:
+                  id_prefix: str, band_end: int | None = None) -> list[TestCase]:
     cases: list[TestCase] = []
     counter = 0
+    group = suite = ""
+    start = (band_end if band_end is not None else header_row) + 1
 
-    for offset, row in enumerate(rows[header_row + 1:], start=header_row + 2):
+    # rows[i] là dòng Excel i+1 (0-based → 1-based), nên offset phải là index + 1.
+    for offset, row in enumerate(rows[start:], start=start + 1):
         if all(c is None or str(c).strip() == "" for c in row):
+            continue
+
+        label = section_label(row, cmap)
+        if label:
+            # Nhóm lớn viết hoa toàn bộ (SUITE GIAO DIỆN); còn lại là suite con.
+            if label == label.upper():
+                group, suite = label, ""
+            else:
+                suite = label
             continue
 
         raw_id = cell_text(row, cmap.get("id"))
@@ -203,15 +305,22 @@ def extract_cases(rows: list[list], header_row: int, cmap: dict[str, int],
         expected = cell_text(row, cmap.get("expected"))
         precondition = cell_text(row, cmap.get("precondition"))
         data = cell_text(row, cmap.get("data"))
+        purpose = cell_text(row, cmap.get("purpose"))
+        priority = cell_text(row, cmap.get("priority"))
+        severity = cell_text(row, cmap.get("severity"))
+        bug_id = cell_text(row, cmap.get("bug_id"))
 
         # Dòng tiêu đề nhóm (chỉ có chữ ở cột title, không có bước/kết quả) — bỏ qua
         if title and not steps and not expected and not raw_id:
             continue
 
         starts_new = bool(raw_id) if "id" in cmap else bool(title)
-        # Ô gộp làm ID lặp lại ở các dòng con → dòng nào trùng ID dòng trước là dòng tiếp nối
+        # Ô gộp làm ID lặp lại ở các dòng con → dòng nào trùng ID dòng trước là dòng tiếp nối.
+        # NHƯNG nếu dòng đó có tiêu đề riêng khác dòng trước thì nó là một ca độc lập đang
+        # bị TRÙNG mã (công thức sinh ID trong Excel sai). Gộp lại sẽ nuốt mất hẳn một ca —
+        # tách ra rồi để audit_ids() báo trùng, đừng im lặng làm mất dữ liệu.
         if starts_new and cases and raw_id and raw_id == cases[-1].tc_id:
-            starts_new = False
+            starts_new = bool(title) and title != cases[-1].title
 
         if starts_new or not cases:
             counter += 1
@@ -220,21 +329,52 @@ def extract_cases(rows: list[list], header_row: int, cmap: dict[str, int],
                 tc_id = f"{id_prefix}{int(tc_id):02d}"
             cases.append(TestCase(
                 tc_id=tc_id,
-                title=title or f"Test case {tc_id}",
+                title=title or purpose or f"Test case {tc_id}",
                 precondition=precondition,
                 data=data,
                 excel_row=offset,
+                purpose=purpose,
+                priority=priority,
+                severity=severity,
+                bug_id=bug_id,
+                group=group,
+                suite=suite,
             ))
 
         cur = cases[-1]
         cur.steps.extend(split_steps(steps))
         cur.expected.extend(split_steps(expected))
-        if precondition and not cur.precondition:
-            cur.precondition = precondition
-        if data and not cur.data:
-            cur.data = data
+        for attr, val in (("precondition", precondition), ("data", data),
+                          ("purpose", purpose), ("priority", priority),
+                          ("severity", severity), ("bug_id", bug_id)):
+            if val and not getattr(cur, attr):
+                setattr(cur, attr, val)
 
     return cases
+
+
+def audit_ids(cases: list[TestCase]) -> list[str]:
+    """
+    Soát mã test case: trùng mã thì truy vết gãy (một bug không biết thuộc ca nào),
+    thủng số thì thường là công thức sinh ID trong Excel bị trôi tham chiếu.
+    """
+    warnings: list[str] = []
+    seen: dict[str, list[int]] = {}
+    for c in cases:
+        seen.setdefault(c.tc_id, []).append(c.excel_row)
+    for tc_id, at in seen.items():
+        if len(at) > 1:
+            warnings.append(f"Mã '{tc_id}' bị TRÙNG ở dòng Excel {', '.join(map(str, at))}")
+
+    nums = sorted(int(m.group(1)) for c in cases
+                  if (m := re.search(r"(\d+)\s*$", c.tc_id)))
+    if len(nums) > 2:
+        missing = [n for n in range(nums[0], nums[-1] + 1) if n not in nums]
+        if missing:
+            head = ", ".join(map(str, missing[:10]))
+            more = f" (+{len(missing) - 10} nữa)" if len(missing) > 10 else ""
+            warnings.append(f"Dãy mã thủng ở số: {head}{more}")
+    return warnings
 
 
 # --------------------------------------------------------------------------
@@ -275,42 +415,65 @@ def generate_spec(sheet_name: str, cases: list[TestCase], source_file: str) -> s
         f"test.describe('{ts_string(sheet_name)}', () => {{",
     ]
 
+    # Gom theo suite để report hiện đúng cấu trúc trong file Excel. Không có suite
+    # (mẫu Excel phẳng) thì chỉ một nhóm rỗng, cấu trúc giữ nguyên như trước.
+    groups: dict[str, list[TestCase]] = {}
     for case in cases:
-        lines.append("")
-        if case.precondition or case.data:
-            lines.append("  /**")
+        key = " › ".join(x for x in (case.group, case.suite) if x)
+        groups.setdefault(key, []).append(case)
+
+    for suite_name, suite_cases in groups.items():
+        pad = "  " if suite_name else ""
+        if suite_name:
+            lines.append("")
+            lines.append(f"  test.describe('{ts_string(suite_name)}', () => {{")
+
+        for case in suite_cases:
+            lines.append("")
+            meta = [m for m in (
+                f"Mục đích: {block_comment(case.purpose)}" if case.purpose else "",
+                f"Tiền điều kiện: {block_comment(case.precondition)}" if case.precondition else "",
+                f"Dữ liệu: {block_comment(case.data)}" if case.data else "",
+                f"Ưu tiên: {case.priority}" if case.priority else "",
+                f"Mức độ: {case.severity}" if case.severity else "",
+                f"Bug đã log: {block_comment(case.bug_id)}" if case.bug_id else "",
+            ) if m]
+            if meta:
+                lines.append(f"{pad}  /**")
+                for m in meta:
+                    lines.append(f"{pad}   * {m}")
+                lines.append(f"{pad}   * Dòng trong Excel: {case.excel_row}")
+                lines.append(f"{pad}   */")
+
+            title = f"{case.tc_id}: {case.title}" if not case.title.startswith(case.tc_id) else case.title
+            opts = f", {{ tag: '{case.tag}' }}" if case.tag else ""
+            lines.append(f"{pad}  test('{ts_string(title)}'{opts}, async ({{ page }}) => {{")
+
             if case.precondition:
-                lines.append(f"   * Tiền điều kiện: {block_comment(case.precondition)}")
-            if case.data:
-                lines.append(f"   * Dữ liệu: {block_comment(case.data)}")
-            lines.append(f"   * Dòng trong Excel: {case.excel_row}")
-            lines.append("   */")
+                lines.append(f"{pad}    // Tiền điều kiện: {block_comment(case.precondition)}")
+                lines.append(f"{pad}    // TODO: chuẩn bị tiền điều kiện (đăng nhập sẵn, tạo dữ liệu qua API...)")
+                lines.append("")
 
-        title = f"{case.tc_id}: {case.title}" if not case.title.startswith(case.tc_id) else case.title
-        lines.append(f"  test('{ts_string(title)}', async ({{ page }}) => {{")
+            if not case.steps:
+                lines.append(f"{pad}    // TODO: file Excel không mô tả bước thực hiện cho ca này")
 
-        if case.precondition:
-            lines.append(f"    // Tiền điều kiện: {block_comment(case.precondition)}")
-            lines.append("    // TODO: chuẩn bị tiền điều kiện (đăng nhập sẵn, tạo dữ liệu qua API...)")
-            lines.append("")
+            for i, step in enumerate(case.steps, start=1):
+                lines.append(f"{pad}    await test.step('{ts_string(f'{i}. {step}')}', async () => {{")
+                lines.append(f"{pad}      // TODO: {block_comment(step)}")
+                lines.append(f"{pad}    }});")
+                lines.append("")
 
-        if not case.steps:
-            lines.append("    // TODO: file Excel không mô tả bước thực hiện cho ca này")
+            expected_text = " | ".join(case.expected) if case.expected else "(Excel không ghi kết quả mong đợi)"
+            lines.append(f"{pad}    await test.step('Kết quả mong đợi: {ts_string(expected_text)}', async () => {{")
+            for exp in case.expected:
+                lines.append(f"{pad}      // TODO: assertion cho — {block_comment(exp)}")
+            lines.append(f"{pad}      // Ví dụ: await expect(page.getByText('...')).toBeVisible();")
+            lines.append(f"{pad}      expect(true, 'Chưa hiện thực assertion cho ca này').toBe(false);")
+            lines.append(f"{pad}    }});")
+            lines.append(f"{pad}  }});")
 
-        for i, step in enumerate(case.steps, start=1):
-            lines.append(f"    await test.step('{ts_string(f'{i}. {step}')}', async () => {{")
-            lines.append(f"      // TODO: {block_comment(step)}")
-            lines.append("    });")
-            lines.append("")
-
-        expected_text = " | ".join(case.expected) if case.expected else "(Excel không ghi kết quả mong đợi)"
-        lines.append(f"    await test.step('Kết quả mong đợi: {ts_string(expected_text)}', async () => {{")
-        for exp in case.expected:
-            lines.append(f"      // TODO: assertion cho — {block_comment(exp)}")
-        lines.append("      // Ví dụ: await expect(page.getByText('...')).toBeVisible();")
-        lines.append("      expect(true, 'Chưa hiện thực assertion cho ca này').toBe(false);")
-        lines.append("    });")
-        lines.append("  });")
+        if suite_name:
+            lines.append("  });")
 
     lines.append("});")
     lines.append("")
@@ -418,7 +581,17 @@ QUY TRÌNH ĐẦY ĐỦ
                 print(f"     {i:>3}: {preview}")
             continue
 
-        cases = extract_cases(rows, header_row, cmap, args.id_prefix)
+        # Sheet tổng hợp/dashboard không có cột kết quả mong đợi — nó là báo cáo,
+        # không phải danh sách test case. Sinh spec từ nó chỉ ra các ca rác kiểu
+        # 'Total — Total'. Bỏ qua, trừ khi người dùng chỉ định dòng tiêu đề bằng tay.
+        if "expected" not in cmap and not args.header_row:
+            print(f"\n▸ {sheet_name}: bỏ qua — không có cột kết quả mong đợi "
+                  f"(nhiều khả năng là sheet tổng hợp, không phải danh sách test case).")
+            continue
+
+        band_end = header_band_end(rows, header_row)
+        prefix = sheet_id_prefix(rows, header_row) or args.id_prefix
+        cases = extract_cases(rows, header_row, cmap, prefix, band_end=band_end)
 
         header_cells = rows[header_row]
         mapping_desc = ", ".join(
@@ -435,10 +608,20 @@ QUY TRÌNH ĐẦY ĐỦ
         if len(cases) > 5:
             print(f"     ... còn {len(cases) - 5} ca nữa")
 
+        suites = [s for s in dict.fromkeys(f"{c.group} › {c.suite}".strip(" ›") for c in cases) if s]
+        if suites:
+            print(f"   Suite nhận diện: {len(suites)} — {'; '.join(suites[:3])}"
+                  f"{' …' if len(suites) > 3 else ''}")
+
         missing_expected = [c.tc_id for c in cases if not c.expected]
         if missing_expected:
             print(f"   ⚠ {len(missing_expected)} ca không có kết quả mong đợi: {', '.join(missing_expected[:6])}")
             print("     Ca không có kết quả mong đợi thì không kiểm chứng được — nên bổ sung vào Excel trước.")
+
+        for w in audit_ids(cases):
+            print(f"   ⚠ {w}")
+            print("     Mã trùng/thủng thường do công thức sinh ID trong Excel bị trôi tham chiếu"
+                  " (COUNTBLANK không bám đúng dòng hiện tại). Xem assets/testcase-template/KBKTCN.xlsx.")
 
         if not cases:
             continue

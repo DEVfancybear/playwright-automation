@@ -4,6 +4,29 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [2.2.0] — 2026-08-20
+
+Đối chiếu với một file test case thật đang dùng trong dự án (mẫu **KBKTCN — Kịch bản kiểm thử chức năng**) và bổ sung template + sửa parser cho khớp. Mẫu này khác hẳn mẫu UAT phẳng mà `excel_to_spec.py` được viết cho: có sheet tổng hợp, khối metadata, dải tiêu đề ba dòng gộp ô, dòng phân suite, và cột ID là công thức.
+
+### Added
+
+- **`assets/testcase-template/KBKTCN.xlsx`** — template trắng đúng cấu trúc KBKTCN: sheet `Tổng hợp` với bộ đếm liên kết sang sheet chi tiết, khối metadata (tên màn hình, tiền tố mã, đếm Manual/Automation), dải tiêu đề ba dòng, dòng nhóm `SUITE …` + dòng suite, dropdown `P/F/PE` phủ **toàn bộ** cột kết quả, dropdown ưu tiên và mức độ nghiêm trọng, một dòng ví dụ và chú thích ô cần điền.
+- **Bộ đếm là công thức, không phải số cứng** — `COUNTIF` theo cột `Kết quả test (M)` và `(AT)`, tự cập nhật khi tester điền kết quả.
+- **`excel_to_spec.py` nhận diện thêm 4 cột KBKTCN**: `Mục đích kiểm thử`, `Thứ tự ưu tiên`, `Mức độ nghiêm trọng`, `ID BUG`. Ưu tiên đổi thành tag Playwright (`HIGH/HIGHEST → @p0`, `MEDIUM → @p1`, còn lại `@p2`) để lọc bằng `--grep @p0`.
+- **Dòng suite thành `test.describe` lồng nhau**, giữ đúng cấu trúc `SUITE GIAO DIỆN › Suite 1: …` trong report.
+- **Tự đọc tiền tố mã** từ ô `Mã trường hợp kiểm thử` trong khối metadata — khỏi truyền `--id-prefix` bằng tay.
+- **Soát mã test case** (`audit_ids`): cảnh báo mã trùng và dãy mã bị thủng, kèm gợi ý nguyên nhân là công thức `COUNTBLANK` trôi tham chiếu.
+
+### Fixed
+
+- **Sheet tổng hợp bị đọc thành test case.** Sheet không có cột kết quả mong đợi giờ bị bỏ qua — trước đây nó sinh ra các ca rác kiểu `Total — Total`.
+- **Dải tiêu đề ba dòng bị đọc thành test case.** Sau khi bung ô gộp, dòng 16–17 mang lại giá trị của dòng 15 nên vẫn khớp bộ nhận diện cột; thêm `header_band_end()` để bỏ trọn dải.
+- **Dòng suite bị đọc thành test case ma.** Ô gộp ngang `C:G` làm cả năm cột nội dung mang cùng một chuỗi, nên nhãn suite bị hiểu thành "kết quả mong muốn"; thêm `section_label()` nhận diện và chuyển chúng thành `describe`.
+- **Hai test case trùng mã bị gộp làm một, nuốt mất một ca.** Logic "trùng ID dòng trước = dòng tiếp nối" vốn để xử lý ô gộp dọc, nhưng gặp mã trùng do lỗi công thức thì làm mất dữ liệu. Giờ chỉ gộp khi dòng đó không có tiêu đề riêng.
+- **Số dòng Excel trong `test-map.json` lệch 1.**
+
+Trên file thật (113 test case): trước bản này đọc ra 115 mục — gồm 2 ca rác từ sheet tổng hợp, 1 ca rác từ dải tiêu đề, và **thiếu 1 ca thật** do gộp nhầm mã trùng. Sau bản này: đúng 113 ca, 9 suite, kèm cảnh báo mã `QLĐH_31` trùng ở dòng 50–51 và dãy mã thủng số 34.
+
 ## [2.1.0] — 2026-08-20
 
 Review lại độ phủ của việc apply `aidlc-testagent` sau 2.0.0 và bù các phần còn thiếu. Trọng tâm: **manual explore mode** — tính năng chủ lực của aidlc v0.6.0 mà 2.0.0 bỏ sót hoàn toàn — cùng ba việc làm skill dễ dùng hơn.
