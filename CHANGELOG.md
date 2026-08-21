@@ -4,6 +4,34 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [2.3.0] — 2026-08-21
+
+Đăng nhập trở thành việc của agent, không phải của tester. Trước bản này skill dừng ở ô mật khẩu và bắt người dùng gõ tay mỗi lượt — vừa phá luồng tự động, vừa không giải quyết được gì về bảo mật.
+
+### Added
+
+- **`scripts/auth-login.mjs`** — đăng nhập tự động, lưu `storageState`, dùng lại cho mọi lượt sau. Đọc credential từ `.env` hoặc biến môi trường; agent chỉ truyền **tên biến**, không bao giờ đọc giá trị mật khẩu.
+  - **Tự dò form** theo nhãn/role/type, chạy được ngay trên phần lớn trang đăng nhập mà không cần khai selector. Dò sai thì `--user-selector` / `--pass-selector` / `--submit-selector`.
+  - **`--check`** trả exit 0/3 để pipeline biết có cần đăng nhập lại không — đây là thứ biến đăng nhập từ "mỗi lượt một lần" thành "một lần cho cả tuần".
+  - **TOTP 2FA** tự cài theo RFC 6238 (HMAC-SHA1, không thêm dependency), qua `--totp-env`. Đã kiểm với cả 4 test vector SHA-1 chính thức của RFC.
+  - **Xác minh sau khi lưu**: mở lại bằng context sạch để chứng minh phiên dùng được thật, thay vì tin là "file đã tồn tại".
+  - **Sidecar `.meta.json`** nhớ trang đích sau đăng nhập, để lần kiểm sau xác minh đúng chỗ.
+  - Che mật khẩu trong mọi output; bắt và hiển thị thông báo lỗi của app khi sai credential.
+- Mục **"Đăng nhập: tự động, không hỏi"** trong `SKILL.md` (bước EXPLORE), kèm bảng xử lý cho SSO, nhiều role, 2FA và OTP SMS.
+- `TEST_TOTP_SECRET` trong `_env.example` của khung scaffold.
+
+### Changed
+
+- **Gỡ luật "không tự điền mật khẩu"** khỏi `SKILL.md`, `live-browser-investigation.md` và `auth-and-data.md`. Thay bằng: **đăng nhập tự động, nhưng agent không cầm mật khẩu.** Ba điều cấm giữ nguyên tinh thần bảo mật cũ mà không chặn tự động hoá — không hỏi mật khẩu trong hội thoại (transcript được lưu), không truyền qua tham số dòng lệnh (nằm trong `ps` và shell history), không hard-code trong spec.
+- Ví dụ pipeline trong `SKILL.md` đổi bước EXPLORE từ "dừng ở ô mật khẩu, nhờ người dùng nhập" thành "`--check` → hết phiên → tự đăng nhập bằng `.env`".
+
+### Fixed
+
+- Tuỳ chọn `--env-file` xung đột với cờ CLI cùng tên của Node — Node ≥20 nuốt nó kể cả khi đứng sau tên script, làm process thoát mã 9 trước khi script chạy. Đổi thành `--env`.
+- README kẹt ở "Phiên bản hiện tại: 2.1.0" từ lần phát hành 2.2.0.
+
+Đã chạy thật trên SauceDemo: tự dò form không cần selector, đăng nhập, xác minh trên `/inventory.html`, lượt sau bỏ qua đăng nhập; sai mật khẩu báo đúng thông báo của app và thoát mã 1.
+
 ## [2.2.0] — 2026-08-20
 
 Đối chiếu với một file test case thật đang dùng trong dự án (mẫu **KBKTCN — Kịch bản kiểm thử chức năng**) và bổ sung template + sửa parser cho khớp. Mẫu này khác hẳn mẫu UAT phẳng mà `excel_to_spec.py` được viết cho: có sheet tổng hợp, khối metadata, dải tiêu đề ba dòng gộp ô, dòng phân suite, và cột ID là công thức.

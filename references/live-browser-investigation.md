@@ -258,7 +258,7 @@ Các giới hạn khác của thao tác tay: không đo được cadence dưới
   ```
   Có sẵn thì dùng cái đang chạy và nói rõ là đang dùng tiến trình có sẵn. Start chồng vừa fail vừa có thể giết bản build người dùng đang xem.
 
-- **Không tự điền mật khẩu.** Username/SĐT và dữ liệu test thì điền bình thường; tới ô mật khẩu thì dừng, nhờ người dùng nhập và bấm đăng nhập, chờ họ báo xong rồi đi tiếp. Nói rõ lý do để họ không tưởng là mình bị kẹt.
+- **Đăng nhập bằng `scripts/auth-login.mjs`, không gõ tay.** Script đọc credential từ `.env`, tự đăng nhập, lưu `storageState` để lượt sau khỏi làm lại. Agent chỉ truyền **tên biến**, không đọc giá trị mật khẩu. Không hỏi mật khẩu trong hội thoại và không truyền nó qua tham số dòng lệnh — cả hai đều để lại vết. Thiếu `.env` thì đưa hướng dẫn cho người dùng tự điền vào file.
 
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật. Đọc header response để biết:
   ```

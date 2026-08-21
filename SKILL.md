@@ -48,8 +48,8 @@ Người dùng nói: *"Test giúp tôi luồng đặt hàng ở https://staging.
 0 FRAME     Đọc .testagent.yaml → có target "checkout-staging" rồi. Xác nhận một dòng.
             Grounding: docs/requirements/checkout.md + test-cases/checkout.xlsx.
 
-1 EXPLORE   Mở Chrome, đăng nhập (dừng ở ô mật khẩu, nhờ người dùng nhập),
-            đi hết luồng: trang chủ → thêm giỏ → thanh toán → xác nhận.
+1 EXPLORE   auth-login.mjs --check → hết phiên → tự đăng nhập bằng .env (5s),
+            rồi đi hết luồng: trang chủ → thêm giỏ → thanh toán → xác nhận.
             Ghi journey.md: URL, role+name từng element, endpoint + status.
             ⚠ Badge giỏ hàng chậm ~1,2 s. POST /api/auth/login trả 204 chứ không phải 200.
 
@@ -96,7 +96,7 @@ Pipeline không đổi; chỉ **nội dung từng bước** đổi theo loại y
 | "So sánh giao diện", "responsive" | EXPLORE đổi kích thước cửa sổ; GENERATE dùng `toHaveScreenshot` + projects đa viewport | `references/visual-responsive.md` |
 | "Test accessibility", "WCAG" | EXPLORE soi cây accessibility; GENERATE dùng `@axe-core/playwright` | `references/accessibility.md` |
 | "Giả lập API lỗi / mạng chậm / offline" | `page.route`, HAR | `references/network-mocking.md` |
-| "Đăng nhập sẵn cho mọi test", "test nhiều role" | `storageState` + setup project | `references/auth-and-data.md` |
+| "Đăng nhập sẵn cho mọi test", "test nhiều role", "sao phải tự gõ mật khẩu" | `scripts/auth-login.mjs` ở EXPLORE, `storageState` + setup project ở GENERATE | `references/auth-and-data.md` |
 | "Ghi lại luồng này", "viết hộ test case cho chức năng này", team chưa có tài liệu test case | EXPLORE ghi use case → sinh tài liệu `Pre` / bước / `KQMM` / tiêu chí pass, rồi tiếp tục pipeline như thường | `references/explore-artifacts.md` |
 | "Chỉ test phần vừa sửa", đưa commit/branch | PLAN thu hẹp theo `git diff`, khai rõ đây là ước lượng best-effort | `references/test-plan-and-traceability.md` |
 | "Chuyển file test case Excel thành script", "team chưa có file test case" | PLAN lấy thẳng từ Excel qua `scripts/excel_to_spec.py`; chưa có file thì nhân bản `assets/testcase-template/KBKTCN.xlsx` | `references/excel-to-spec.md` |
@@ -150,6 +150,33 @@ Năng lực cần dùng: điều hướng · đọc cây accessibility (mỗi el
 Vòng quan sát: mở đúng URL người dùng nói → đọc cây để biết đang ở state nào → thao tác **đúng các bước tester mô tả, không rút gọn** → sau mỗi bước quan trọng đọc network + console + chụp ảnh → cần state phía server thì gọi API bằng chính session đang mở.
 
 **Đọc `references/live-browser-investigation.md`** cho chi tiết: bảng năng lực đầy đủ, cách xác minh đang lái trình duyệt nào, quy đổi `role + name` → `getByRole`, luật điều hướng SPA, bốn kiểu hỏng im lặng (overlay che, tab mới, element ngoài viewport, dialog gốc), `ref` hết hạn sau mỗi lần DOM đổi, cách biết trang đã render xong khi không có `networkidle`, và giới hạn cookie HttpOnly.
+
+### Đăng nhập: tự động, không hỏi
+
+App cần đăng nhập thì **agent tự lo, không dừng lại bắt tester gõ mật khẩu**. Chạy đúng ba bước này trước khi thao tác gì khác:
+
+```bash
+# 1. Còn phiên cũ dùng được không? exit 0 = còn, khỏi đăng nhập lại.
+node scripts/auth-login.mjs --url <trang login> --out .auth/<target>.json --check
+
+# 2. Hết phiên (exit 3) thì đăng nhập lại. Credential đọc từ .env, agent không cầm.
+node scripts/auth-login.mjs --url <trang login> --out .auth/<target>.json
+
+# 3. Mở app bằng phiên đó và thao tác bình thường.
+```
+
+Script tự dò form theo nhãn/role, tự xác minh phiên dùng được thật (mở lại bằng context sạch), và nhớ trang đích để lần sau kiểm đúng chỗ. Chạy `--help` trước, không đọc source.
+
+| Tình huống | Xử lý |
+|---|---|
+| `.env` chưa có `TEST_USER`/`TEST_PASS` | Script in ra đúng tên biến cần điền. Chuyển nguyên hướng dẫn đó cho người dùng, chờ họ điền vào **file** rồi báo lại. Tuyệt đối không hỏi mật khẩu trong hội thoại |
+| Tên biến khác (`ADMIN_USER`, `QLDH_PASS`…) | `--user-env` / `--pass-env`, hoặc khai `credentials_env` trong `.testagent.yaml` |
+| Dò sai form (SSO, nhiều bước, iframe) | Đọc cây accessibility lấy selector thật rồi truyền `--user-selector` / `--pass-selector` / `--submit-selector` |
+| App bật 2FA bằng Authenticator | `--totp-env TEST_TOTP_SECRET` — script tự sinh mã TOTP |
+| OTP qua SMS thật | Không tự động được. Ghi vào **ngoài phạm vi** và xin tài khoản test được miễn OTP — xem `references/auth-and-data.md` |
+| Nhiều role | Mỗi role một file `.auth/<target>-<role>.json` |
+
+`.auth/` chứa cookie thật — đã nằm sẵn trong `.gitignore` của khung scaffold. Không đính kèm vào ticket, không dán vào chat.
 
 ### Đầu ra bắt buộc của EXPLORE
 
@@ -376,7 +403,7 @@ Với mỗi ca fail, trả lời câu hỏi tester cần nhất: đây là **bug
 Áp dụng cho EXPLORE và EXECUTE, không có ngoại lệ:
 
 - **Không tự khởi động dev server khi cổng đã có tiến trình chạy.** Lấy cổng từ URL người dùng đưa (hoặc từ script `dev` trong `package.json`), rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có sẵn thì dùng tiến trình đang chạy và nói rõ điều đó.
-- **Không tự điền mật khẩu.** Số điện thoại/username và dữ liệu test thì điền; tới ô mật khẩu thì dừng, nhờ người dùng nhập, chờ họ báo đã đăng nhập xong rồi đi tiếp. Trong spec thì đọc từ `.env`, không hard-code.
+- **Đăng nhập tự động — nhưng agent không cầm mật khẩu.** Credential luôn nằm ở `.env` hoặc biến môi trường; agent chỉ truyền **tên biến**, không đọc giá trị. Chạy `scripts/auth-login.mjs` để đăng nhập và lưu phiên, đừng gõ mật khẩu vào form bằng tay. Ba điều cấm: **không hỏi mật khẩu trong hội thoại** (transcript được lưu lại), **không truyền mật khẩu qua tham số dòng lệnh** (lộ trong `ps` và shell history), **không hard-code trong spec**. Thiếu `.env` thì hướng dẫn người dùng tự tạo file rồi báo lại — họ gõ vào file, không gõ vào chat.
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật — đọc response header (`server`, `via`, gateway). Kết luận "không tái hiện được" trên mock gần như vô giá trị.
 - **Thao tác trên staging/UAT tạo ra dữ liệu thật; production thì chỉ đọc.** Ghi lại mọi bản ghi agent tạo ra và đưa vào bằng chứng; scenario `teardown` phải dọn chúng. Không suy ra "đây là staging" từ cảm giác: host chỉ coi là an toàn khi là `localhost`/IP nội bộ, tên có `staging`/`stg`/`test`/`qa`/`dev`/`uat`, hoặc chính người dùng nói rõ. Còn lại mặc định coi như production.
 - **Dừng lại trước động từ phá huỷ, kể cả trên staging.** Xoá · thanh toán/chuyển tiền · gửi đi (SMS, email, thông báo, duyệt hồ sơ) · huỷ đăng ký · vô hiệu hoá tài khoản · ghi đè dữ liệu người khác. Nêu rõ ở bước CONFIRM sắp làm gì lên bản ghi nào và chờ người dùng đồng ý. Ưu tiên **tự tạo dữ liệu nháp rồi phá dữ liệu đó**, đừng đụng bản ghi có sẵn.
@@ -453,7 +480,8 @@ Khi một test fail: **mở trace trước khi đoán nguyên nhân.** Trace có
 - [ ] Bằng chứng gồm ảnh tại observation point, console, network (endpoint + status), state đọc từ trang
 - [ ] Đã tách rõ fact / inference / unknown, và nêu điều gì **chưa** kiểm được vì sao
 - [ ] Đã liệt kê bản ghi/dữ liệu do agent tạo ra trên môi trường test và nói rõ đã dọn hay cần ai dọn
-- [ ] Không tự điền mật khẩu; không tự start server khi cổng đã có tiến trình; không thao tác phá huỷ hay chạm production khi chưa được duyệt ở bước CONFIRM
+- [ ] Đăng nhập qua `auth-login.mjs` đọc `.env`; không hỏi mật khẩu trong hội thoại, không truyền qua dòng lệnh, không hard-code
+- [ ] Không tự start server khi cổng đã có tiến trình; không thao tác phá huỷ hay chạm production khi chưa được duyệt ở bước CONFIRM
 - [ ] Evidence đã che PII/secrets; không dùng dữ liệu định danh hoặc giao dịch thật từ production
 
 ### D. Thêm cho bug log
@@ -490,6 +518,7 @@ Script bundled (gọi trực tiếp, đọc `--help` trước, không đọc sou
 
 | Script | Dùng ở bước |
 |---|---|
+| `scripts/auth-login.mjs` | EXPLORE, khi app cần đăng nhập — tự login bằng credential trong `.env`, lưu `storageState`, `--check` để bỏ qua khi phiên còn sống. Hỗ trợ TOTP 2FA |
 | `scripts/explore.mjs` | EXPLORE, khi không có công cụ browser — dump một lượt locator + ảnh full page. **Không thay được EXPLORE bằng trình duyệt thật.** |
 | `scripts/scaffold.mjs` | GENERATE, khi repo chưa có khung Playwright TS |
 | `scripts/excel_to_spec.py` | PLAN, khi đầu vào là file test case `.xlsx` (mẫu KBKTCN hoặc UAT phẳng). Không chạy trên bug list. |

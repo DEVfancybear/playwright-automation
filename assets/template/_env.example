@@ -14,6 +14,10 @@ TEST_TZ=
 TEST_USER=
 TEST_PASS=
 
+# 2FA bằng app Authenticator: dán secret dạng base32 (chuỗi hiện khi quét QR).
+# Để trống nếu tài khoản test được miễn 2FA — đó là cách nên xin backend làm.
+TEST_TOTP_SECRET=
+
 # Tài khoản quản trị (nếu cần test phân quyền)
 ADMIN_USER=
 ADMIN_PASS=

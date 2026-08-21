@@ -2,9 +2,40 @@
 
 Mục lục: [Vì sao cần storageState](#vì-sao-cần-storagestate) · [Setup project](#thiết-lập-setup-project) · [Nhiều role](#nhiều-role-user--admin) · [Đăng nhập qua API](#đăng-nhập-qua-api-nhanh-nhất) · [Per-worker auth](#per-worker-auth) · [Hai role trong một test](#hai-role-trong-cùng-một-test) · [OTP / 2FA](#otp-và-2fa) · [Sinh dữ liệu test](#sinh-dữ-liệu-test) · [Dọn dữ liệu](#dọn-dữ-liệu-sau-test) · [Data-driven](#chạy-một-test-với-nhiều-bộ-dữ-liệu)
 
-> **Ở bước EXPLORE**, đăng nhập ngay trên trình duyệt là đủ để đi tiếp. Agent điền username/SĐT và dữ liệu test, nhưng **không tự điền mật khẩu**: dừng lại nhờ người dùng nhập rồi đi tiếp. Trước khi đóng trình duyệt, lưu `storageState` lại — bước GENERATE cần nó để spec không phải login qua UI.
+> **Ở bước EXPLORE**, đăng nhập là việc của `scripts/auth-login.mjs` — chạy `--check` trước, hết phiên thì nó tự đăng nhập bằng credential trong `.env` rồi lưu `storageState`. Agent không gõ mật khẩu và không đọc giá trị mật khẩu; nó chỉ truyền tên biến. File đó dùng lại luôn ở bước GENERATE, nên spec không phải login qua UI.
 >
 > **Ép hết phiên / xoá cookie đăng nhập thì bắt buộc dùng spec.** Cookie phiên thường là `HttpOnly`, `document.cookie` không thấy và JS trong trang không xoá được. Chỉ hai đường: `await context.clearCookies({ name: 'access_token' })` trong Playwright, hoặc chờ hết TTL thật (đọc `Max-Age` trên `Set-Cookie` lúc login để biết phải chờ bao lâu).
+
+## Đăng nhập tự động ở bước EXPLORE
+
+Trước khi thao tác gì trên app cần đăng nhập, chạy hai lệnh này. Không gõ mật khẩu bằng tay, không hỏi mật khẩu trong hội thoại.
+
+```bash
+# Còn phiên dùng được thì thôi (exit 0); hết hạn thì exit 3.
+node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json --check   || node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+```
+
+Credential đọc từ `.env` cạnh dự án — agent chỉ truyền **tên biến**:
+
+```bash
+TEST_USER=qa_user01
+TEST_PASS=...
+TEST_TOTP_SECRET=...      # chỉ khi app bật 2FA bằng Authenticator
+```
+
+Script tự dò ô tài khoản/mật khẩu/nút submit theo nhãn và role, nên phần lớn form đăng nhập chạy được ngay mà không cần khai selector. Dò sai thì truyền `--user-selector` / `--pass-selector` / `--submit-selector` lấy từ cây accessibility.
+
+**Ba thứ script làm mà auth setup viết vội thường quên:**
+
+| | Vì sao quan trọng |
+|---|---|
+| Chờ tín hiệu đăng nhập xong rồi mới lưu | Lưu ngay sau khi click thì cookie phiên có thể chưa set kịp → file rỗng, mọi test sau fail rất khó truy |
+| Mở lại bằng context sạch để xác minh | Chứng minh phiên thật sự dùng được, không phải chỉ "file có tồn tại" |
+| Nhớ trang đích sau đăng nhập (`.meta.json`) | Nhiều app vẫn hiện form login ở `/` kể cả khi đã đăng nhập; xác minh ở đó sẽ luôn kết luận sai là hết phiên |
+
+**Bảo mật — ba điều cấm.** Không hỏi mật khẩu trong hội thoại (transcript được lưu). Không truyền mật khẩu qua tham số dòng lệnh (nằm trong `ps` và shell history). Không hard-code trong spec. `.env` và `.auth/` đều phải nằm trong `.gitignore`.
+
+Với app không gắn phiên vào cookie/localStorage (token chỉ sống trong `sessionStorage`, hoặc cần header riêng), `storageState` không tái lập được phiên — script sẽ báo rõ ở bước xác minh. Khi đó dùng [đăng nhập qua API](#đăng-nhập-qua-api-nhanh-nhất) rồi bơm token.
 
 ## Vì sao cần storageState
 
