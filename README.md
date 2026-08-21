@@ -81,7 +81,7 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 | **Responsive & cross-browser** | Đa viewport, giả lập thiết bị, Chromium/Firefox/WebKit |
 | **Accessibility** | `@axe-core/playwright`, WCAG 2.1 AA, kiểm tra bàn phím |
 | **Mock & giả lập lỗi** | `page.route`, HAR, lỗi 500, timeout, offline, mạng 3G |
-| **Đăng nhập tự động** | Agent tự đăng nhập bằng credential trong `.env` — không bắt tester gõ mật khẩu, không đưa mật khẩu vào hội thoại. Tự dò form, hỗ trợ TOTP 2FA, tái dùng phiên |
+| **Đăng nhập tự động** | Agent tự đăng nhập bằng credential trong `.env` — không bắt tester gõ mật khẩu, không đưa mật khẩu vào hội thoại. Tự dò form, hỗ trợ TOTP 2FA, tái dùng phiên. Agent bị chặn egress thì bắc cầu bằng file phiên |
 | **Dữ liệu & xác thực** | `storageState` đăng nhập một lần, đa role, sinh dữ liệu duy nhất, dọn dữ liệu |
 | **Từ Excel sang script** | Đọc mẫu KỊCH BẢN NGHIỆM THU / UAT, sinh spec + truy vết |
 | **Report & CI/CD** | HTML report, Allure, JUnit cho TestRail/Xray, GitHub Actions, Jenkins, GitLab, sharding |
@@ -242,7 +242,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 ## Lịch sử thay đổi
 
-Phiên bản hiện tại: **2.3.0** — agent tự đăng nhập bằng credential trong `.env` (không bắt tester gõ mật khẩu nữa), template Excel KBKTCN, pipeline tám bước bắt buộc từ 2.0.0.
+Phiên bản hiện tại: **2.4.0** — agent tự đăng nhập bằng `.env`, và khi runtime agent bị chặn egress thì bắc cầu bằng file phiên qua Playwright MCP; template Excel KBKTCN; pipeline tám bước bắt buộc từ 2.0.0.
 Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp

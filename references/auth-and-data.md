@@ -8,6 +8,8 @@ Mục lục: [Vì sao cần storageState](#vì-sao-cần-storagestate) · [Setup
 
 ## Đăng nhập tự động ở bước EXPLORE
 
+> **Kiểm topology trước.** Runtime chạy script của agent và trình duyệt agent lái có thể là hai máy khác nhau. `curl --max-time 8 <target>` từ runtime agent: ra mã HTTP thì dùng cách dưới; timeout mà trình duyệt vẫn mở được target thì phải [bắc cầu bằng file phiên](#bắc-cầu-file-phiên-qua-ranh-giới-mạng). Bảng đầy đủ ở `SKILL.md`.
+
 Trước khi thao tác gì trên app cần đăng nhập, chạy hai lệnh này. Không gõ mật khẩu bằng tay, không hỏi mật khẩu trong hội thoại.
 
 ```bash
@@ -36,6 +38,33 @@ Script tự dò ô tài khoản/mật khẩu/nút submit theo nhãn và role, n�
 **Bảo mật — ba điều cấm.** Không hỏi mật khẩu trong hội thoại (transcript được lưu). Không truyền mật khẩu qua tham số dòng lệnh (nằm trong `ps` và shell history). Không hard-code trong spec. `.env` và `.auth/` đều phải nằm trong `.gitignore`.
 
 Với app không gắn phiên vào cookie/localStorage (token chỉ sống trong `sessionStorage`, hoặc cần header riêng), `storageState` không tái lập được phiên — script sẽ báo rõ ở bước xác minh. Khi đó dùng [đăng nhập qua API](#đăng-nhập-qua-api-nhanh-nhất) rồi bơm token.
+
+## Bắc cầu file phiên qua ranh giới mạng
+
+Agent chạy trong container bị chặn egress không chạy `auth-login.mjs` tới staging được — nhưng nó vẫn lái được trình duyệt trên máy người dùng, và trình duyệt đó thì tới được. Thứ đi qua ranh giới là **file phiên**, không phải kết nối.
+
+Người dùng chạy một lần trên máy mình:
+
+```bash
+node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+```
+
+Rồi nạp vào trình duyệt agent lái:
+
+```bash
+# Cách 1 — gọn nhất: mọi tab agent mở đều đã đăng nhập
+npx @playwright/mcp@latest --storage-state .auth/staging.json
+
+# Cách 2 — profile bền: đăng nhập một lần trong profile, sống qua nhiều phiên
+npx @playwright/mcp@latest --user-data-dir ~/.pw-profile-staging
+
+# Cách 3 — agent tự nạp giữa chừng (đổi role): bật --caps=storage
+#   rồi gọi tool browser_set_storage_state
+```
+
+Ba tuỳ chọn này là của Playwright MCP, và `storageState` mà `auth-login.mjs` sinh ra đúng định dạng Playwright nên nạp thẳng được.
+
+Sau bước một-lần đó, agent không phải nhờ người dùng đăng nhập nữa — kể cả lượt cần soi DOM/network trực tiếp. Còn nếu **trình duyệt cũng** nằm trong container bị chặn thì không cứu được: báo `Blocked` kèm điều kiện mở egress hoặc chuyển agent sang máy có VPN.
 
 ## Vì sao cần storageState
 

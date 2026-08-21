@@ -4,6 +4,26 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [2.4.0] — 2026-08-21
+
+Vá một giả định sai của 2.3.0: `auth-login.mjs` chỉ giải quyết được khi **runtime chạy script của agent cũng là nơi tới được target**. Agent chạy trong container bị chặn egress vẫn lái được trình duyệt trên máy người dùng — script thì không tới được staging, còn trình duyệt thì tới được. Bản 2.3.0 nhầm hai thứ đó là một, nên trong topology này nó vẫn bắt người dùng đăng nhập tay từng lượt.
+
+### Added
+
+- **Kiểm topology trước khi bàn chuyện đăng nhập.** Một lệnh `curl --max-time 8 <target>` chạy từ runtime agent, rồi phân ba nhánh: runtime tới được → `auth-login.mjs` thẳng; runtime tắc nhưng trình duyệt mở được → bắc cầu file phiên; cả hai tắc → `Blocked` kèm điều kiện mở khoá. Nêu rõ: đừng suy ra topology từ cảm giác.
+- **Bắc cầu bằng file phiên.** Thứ đi qua ranh giới là file `storageState`, không phải kết nối mạng. Người dùng chạy `auth-login.mjs` một lần trên máy mình, rồi nạp vào trình duyệt agent lái bằng một trong ba cách của Playwright MCP:
+  - `--storage-state .auth/<target>.json` — mọi tab agent mở đều đã đăng nhập
+  - `--user-data-dir <profile>` — đăng nhập một lần trong profile, sống qua nhiều phiên
+  - `--caps=storage` + tool `browser_set_storage_state` — nạp giữa chừng khi cần đổi role
+  Sau bước một-lần đó agent không phải nhờ người dùng đăng nhập nữa, kể cả lượt cần soi DOM/network trực tiếp.
+
+### Changed
+
+- Mục "Đăng nhập: tự động, không hỏi" trong `SKILL.md` ghi rõ nó chỉ áp cho nhánh runtime-tới-được-target, thay vì ngầm định mọi môi trường.
+- `live-browser-investigation.md` thêm luật kiểm topology vào phần an toàn: đừng bảo người dùng chạy script rồi tưởng là xong.
+
+`storageState` do `auth-login.mjs` sinh ra đúng định dạng Playwright nên nạp thẳng vào Playwright MCP được. Ba tuỳ chọn CLI ở trên đối chiếu từ README chính thức của `microsoft/playwright-mcp`; phần chạy thật qua MCP chưa kiểm được trong môi trường này.
+
 ## [2.3.0] — 2026-08-21
 
 Đăng nhập trở thành việc của agent, không phải của tester. Trước bản này skill dừng ở ô mật khẩu và bắt người dùng gõ tay mỗi lượt — vừa phá luồng tự động, vừa không giải quyết được gì về bảo mật.

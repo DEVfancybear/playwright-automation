@@ -151,7 +151,49 @@ Vòng quan sát: mở đúng URL người dùng nói → đọc cây để biế
 
 **Đọc `references/live-browser-investigation.md`** cho chi tiết: bảng năng lực đầy đủ, cách xác minh đang lái trình duyệt nào, quy đổi `role + name` → `getByRole`, luật điều hướng SPA, bốn kiểu hỏng im lặng (overlay che, tab mới, element ngoài viewport, dialog gốc), `ref` hết hạn sau mỗi lần DOM đổi, cách biết trang đã render xong khi không có `networkidle`, và giới hạn cookie HttpOnly.
 
+### Ai tới được target? Kiểm trước khi bàn chuyện đăng nhập
+
+**Runtime chạy script của agent và trình duyệt agent lái không phải lúc nào cũng cùng một máy.** Agent chạy trong container bị chặn egress vẫn lái được Chrome trên máy người dùng — script thì không tới được target, còn trình duyệt thì tới được. Nhầm hai thứ này là lý do khiến mọi hướng dẫn "chạy script đi" trở thành vô nghĩa.
+
+Kiểm bằng một lệnh, **từ chính runtime của agent**:
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" --max-time 8 <target-url>
+```
+
+| Kết quả | Topology | Đăng nhập thế nào |
+|---|---|---|
+| Ra mã HTTP (kể cả 401/403) | Runtime agent tới được target | `auth-login.mjs` chạy thẳng — tự động hoàn toàn, xem mục dưới |
+| Timeout / DNS fail, **nhưng** trình duyệt agent lái mở được target | Runtime bị chặn egress, trình duyệt nằm phía người dùng | **Bắc cầu bằng file phiên** — xem mục ngay sau |
+| Cả hai đều không mở được | Không tới được target | `Blocked`. Điều kiện mở khoá: mở egress tới host đó, hoặc chạy agent trên máy có VPN |
+
+Đừng suy ra topology từ cảm giác — chạy `curl` rồi thử điều hướng trình duyệt tới target. Hai kết quả đó mới quyết định.
+
+### Bắc cầu bằng file phiên (khi runtime agent bị chặn egress)
+
+Thứ đi qua ranh giới là **file phiên**, không phải kết nối mạng. Agent không cần tới được target; chỉ trình duyệt cần.
+
+Người dùng chạy **một lần** trên máy mình:
+
+```bash
+node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+```
+
+Rồi nạp file đó vào trình duyệt agent lái — chọn một trong ba:
+
+| Cách | Lệnh | Khi nào dùng |
+|---|---|---|
+| Nạp lúc khởi động MCP | `npx @playwright/mcp@latest --storage-state .auth/staging.json` | Gọn nhất; mọi tab agent mở đều đã đăng nhập sẵn |
+| Profile bền | `npx @playwright/mcp@latest --user-data-dir ~/.pw-profile-staging` | Đăng nhập một lần trong profile đó, sống qua nhiều phiên, không cần file phiên |
+| Agent tự nạp lúc chạy | `--caps=storage`, rồi gọi `browser_set_storage_state` | Khi cần đổi role giữa chừng một lượt |
+
+Sau bước này agent **không phải nhờ người dùng đăng nhập nữa**, kể cả những lượt cần nhìn tận mắt DOM và network. Trước đó thì có: lượt đầu tiên vẫn cần người dùng chạy một lệnh.
+
+Nếu trình duyệt cũng nằm trong container bị chặn thì không có cách nào cứu — đó là `Blocked` thật, đừng vòng vo.
+
 ### Đăng nhập: tự động, không hỏi
+
+*(Áp dụng khi runtime agent tới được target — dòng đầu của bảng topology trên.)*
 
 App cần đăng nhập thì **agent tự lo, không dừng lại bắt tester gõ mật khẩu**. Chạy đúng ba bước này trước khi thao tác gì khác:
 
