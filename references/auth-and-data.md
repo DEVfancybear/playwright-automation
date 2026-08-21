@@ -49,7 +49,7 @@ Người dùng chạy một lần trên máy mình:
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
 ```
 
-Rồi nạp vào trình duyệt agent lái:
+Rồi nạp vào trình duyệt agent lái. **Nếu agent lái Chrome thật của người dùng thì không cần bước này** — chỉ cần đăng nhập một lần trong chính Chrome đó, phiên nằm trong profile và sống qua nhiều lượt. Ba lệnh dưới chỉ dành cho Playwright MCP:
 
 ```bash
 # Cách 1 — gọn nhất: mọi tab agent mở đều đã đăng nhập

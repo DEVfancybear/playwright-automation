@@ -179,10 +179,11 @@ Người dùng chạy **một lần** trên máy mình:
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
 ```
 
-Rồi nạp file đó vào trình duyệt agent lái — chọn một trong ba:
+**Trước hết xác định agent đang lái cái gì** — Playwright MCP hay Chrome thật của người dùng. Hai thứ nạp phiên theo cách khác hẳn nhau:
 
 | Cách | Lệnh | Khi nào dùng |
 |---|---|---|
+| **Chrome thật của người dùng** | Không cần lệnh nào — đăng nhập một lần trong chính Chrome đó | Khi agent lái Chrome của người dùng (không phải Playwright MCP). Phiên nằm trong profile nên sống qua nhiều lượt; chỉ phải đăng nhập lại khi profile bị xoá hoặc phiên hết hạn |
 | Nạp lúc khởi động MCP | `npx @playwright/mcp@latest --storage-state .auth/staging.json` | Gọn nhất; mọi tab agent mở đều đã đăng nhập sẵn |
 | Profile bền | `npx @playwright/mcp@latest --user-data-dir ~/.pw-profile-staging` | Đăng nhập một lần trong profile đó, sống qua nhiều phiên, không cần file phiên |
 | Agent tự nạp lúc chạy | `--caps=storage`, rồi gọi `browser_set_storage_state` | Khi cần đổi role giữa chừng một lượt |

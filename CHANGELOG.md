@@ -4,6 +4,13 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [2.4.1] — 2026-08-21
+
+### Fixed
+
+- Bảng "bắc cầu bằng file phiên" ở 2.4.0 chỉ liệt kê ba cách của Playwright MCP, bỏ sót ca phổ biến nhất: **agent lái Chrome thật của người dùng**. Với Chrome thật thì không cần file phiên gì cả — đăng nhập một lần trong chính profile đó là xong, phiên sống qua nhiều lượt. Đưa nhầm ba lệnh MCP cho ca này sẽ khiến người dùng loay hoay với thứ không áp dụng được.
+- Thêm bước xác định agent đang lái Playwright MCP hay Chrome thật trước khi chọn cách nạp phiên.
+
 ## [2.4.0] — 2026-08-21
 
 Vá một giả định sai của 2.3.0: `auth-login.mjs` chỉ giải quyết được khi **runtime chạy script của agent cũng là nơi tới được target**. Agent chạy trong container bị chặn egress vẫn lái được trình duyệt trên máy người dùng — script thì không tới được staging, còn trình duyệt thì tới được. Bản 2.3.0 nhầm hai thứ đó là một, nên trong topology này nó vẫn bắt người dùng đăng nhập tay từng lượt.
