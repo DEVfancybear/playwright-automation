@@ -242,7 +242,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 ## Lịch sử thay đổi
 
-Phiên bản hiện tại: **2.4.1** — agent tự đăng nhập bằng `.env`, và khi runtime agent bị chặn egress thì bắc cầu bằng file phiên qua Playwright MCP; template Excel KBKTCN; pipeline tám bước bắt buộc từ 2.0.0.
+Phiên bản hiện tại: **2.5.0** — agent tự đăng nhập bằng `.env`, và khi runtime agent bị chặn egress thì bắc cầu bằng file phiên qua Playwright MCP; template Excel KBKTCN; pipeline tám bước bắt buộc từ 2.0.0.
 Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp

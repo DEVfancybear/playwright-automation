@@ -66,6 +66,16 @@ Ba tuỳ chọn này là của Playwright MCP, và `storageState` mà `auth-logi
 
 Sau bước một-lần đó, agent không phải nhờ người dùng đăng nhập nữa — kể cả lượt cần soi DOM/network trực tiếp. Còn nếu **trình duyệt cũng** nằm trong container bị chặn thì không cứu được: báo `Blocked` kèm điều kiện mở egress hoặc chuyển agent sang máy có VPN.
 
+## Phiên hết hạn nhanh hơn một lượt chạy
+
+Đăng nhập một lần chỉ ăn thua khi phiên sống đủ lâu. Gặp CMS đặt TTL 15–30 phút thì người dùng bị kéo vào vòng lặp: cứ nửa tiếng lại phải gõ mật khẩu một lần.
+
+Cách gọn nhất khi agent lái Chrome thật: **để trình quản lý mật khẩu của Chrome điền hộ.** Người dùng lưu tài khoản staging vào Chrome một lần; từ đó mỗi lần phiên chết, trang login tự điền sẵn và agent chỉ việc bấm "Đăng nhập". Mật khẩu không đi qua agent, không đi qua hội thoại, không nằm trong `.env` nào cả — nó ở trong password manager, đúng chỗ của nó.
+
+Không dùng được cách đó thì hai lối còn lại: tick "Ghi nhớ đăng nhập" rồi xin BE nâng TTL trên staging; hoặc đổi sang Playwright MCP khởi động bằng `--storage-state`, phiên chết thì chạy lại `auth-login.mjs` một lệnh.
+
+Dù chọn cách nào, **báo TTL ngắn lên như một finding về môi trường**. Nó phá mọi lượt chạy dài — regression đầy đủ, hay bug race cần vài chục attempt — chứ không chỉ gây phiền.
+
 ## Vì sao cần storageState
 
 Nếu mỗi test đều đăng nhập qua giao diện, một suite 100 test sẽ tốn thêm khoảng 100 × 5 giây = hơn 8 phút chỉ để gõ lại cùng một mật khẩu, và thêm 100 cơ hội để test fail vì lý do không liên quan đến thứ đang test.

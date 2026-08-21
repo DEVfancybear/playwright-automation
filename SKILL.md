@@ -192,6 +192,22 @@ Sau bước này agent **không phải nhờ người dùng đăng nhập nữa*
 
 Nếu trình duyệt cũng nằm trong container bị chặn thì không có cách nào cứu — đó là `Blocked` thật, đừng vòng vo.
 
+### Phiên hết hạn nhanh hơn một lượt chạy
+
+Triệu chứng: đăng nhập một lần **không đủ**. Chạy được 15–30 phút là văng ra, một buổi phải đăng nhập lại bốn năm lần. Lúc này "đăng nhập một lần trong profile" vô nghĩa, và người dùng bị biến thành **một bước bắt buộc trong vòng lặp** — đúng thứ pipeline này sinh ra để loại bỏ.
+
+Ba cách, theo thứ tự nên thử:
+
+| Cách | Làm gì | Agent có phải cầm mật khẩu không |
+|---|---|---|
+| **Trình quản lý mật khẩu của Chrome** | Người dùng lưu tài khoản staging vào Chrome **một lần**. Phiên chết → Chrome tự điền lại ở trang login → agent chỉ bấm "Đăng nhập" | **Không.** Chrome điền, agent không bao giờ thấy giá trị |
+| **Kéo dài TTL ở nguồn** | Tick "Ghi nhớ đăng nhập". Vẫn ngắn thì xin BE/DevOps nâng session TTL trên staging, hoặc cấp tài khoản service TTL dài | Không |
+| **Đổi sang Playwright MCP + file phiên** | Chạy `auth-login.mjs` trên máy người dùng, khởi động MCP với `--storage-state`. Phiên chết thì chạy lại **một lệnh**, không gõ tay | Không — script đọc `.env` |
+
+Cách 1 ít xáo trộn nhất và thường là đủ: nó biến "gõ mật khẩu" thành "bấm một nút", mà nút thì agent bấm được. Chrome không tự điền lúc trang load thì bấm vào ô tài khoản để hiện gợi ý đã lưu rồi chọn.
+
+**Đồng thời báo lên như một finding về môi trường.** Staging bắt đăng nhập lại mỗi 20 phút là trở ngại kiểm thử có thật — nó ăn thời gian của mọi tester chứ không riêng agent, và nó làm hỏng mọi lượt chạy dài (regression, race cần nhiều attempt). Đưa vào mục **ngoài phạm vi / bị chặn** của báo cáo kèm điều kiện mở khoá, đừng lặng lẽ chịu đựng.
+
 ### Đăng nhập: tự động, không hỏi
 
 *(Áp dụng khi runtime agent tới được target — dòng đầu của bảng topology trên.)*

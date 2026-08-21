@@ -4,6 +4,20 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [2.5.0] — 2026-08-21
+
+Bịt nốt lỗ hổng cuối của chuỗi 2.3–2.4: kiểm được topology rồi, bắc cầu phiên rồi, nhưng **phiên hết hạn nhanh hơn một lượt chạy** thì mọi thứ trên vẫn vô nghĩa. Gặp CMS đặt TTL 15–30 phút, "đăng nhập một lần trong profile" không cứu được và người dùng lại bị kéo vào vòng lặp gõ mật khẩu.
+
+### Added
+
+- Mục **"Phiên hết hạn nhanh hơn một lượt chạy"** trong `SKILL.md` và `auth-and-data.md`, ba cách theo thứ tự nên thử:
+  - **Trình quản lý mật khẩu của Chrome** điền hộ — biến "gõ mật khẩu" thành "bấm một nút", mà nút thì agent bấm được. Mật khẩu không đi qua agent, không qua hội thoại, không nằm trong `.env`: nó ở trong password manager, đúng chỗ của nó.
+  - **Kéo dài TTL ở nguồn** — tick "Ghi nhớ đăng nhập", hoặc xin BE/DevOps nâng session TTL trên staging, hoặc tài khoản service TTL dài.
+  - **Đổi sang Playwright MCP + `--storage-state`** — phiên chết thì chạy lại một lệnh, không gõ tay.
+- Luật mới: **TTL ngắn phải được báo lên như một finding về môi trường**, đưa vào mục ngoài phạm vi / bị chặn kèm điều kiện mở khoá. Nó phá mọi lượt chạy dài (regression đầy đủ, bug race cần vài chục attempt) chứ không chỉ gây phiền, và nó ăn thời gian của mọi tester chứ không riêng agent.
+
+Bản 2.4.x mặc định ngầm rằng phiên sống đủ lâu để "đăng nhập một lần" có nghĩa. Với môi trường TTL ngắn thì giả định đó sai, và bản này nói rõ ra.
+
 ## [2.4.1] — 2026-08-21
 
 ### Fixed
