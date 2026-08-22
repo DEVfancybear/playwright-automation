@@ -24,7 +24,7 @@ npx @duong.dev/playwright-automation install --codex    # Codex
 npx @duong.dev/playwright-automation install            # Claude Code (tương thích lệnh cũ)
 ```
 
-Với Codex, skill được copy vào `~/.agents/skills/playwright-automation/`. Với Claude Code, skill được copy vào `~/.claude/skills/playwright-automation/`.
+Với Codex, skill được copy vào `$CODEX_HOME/skills/playwright-automation/` khi `CODEX_HOME` đã cấu hình; nếu không thì dùng `~/.codex/skills/playwright-automation/`. Riêng cài theo dự án vẫn dùng `.agents/skills/`. Với Claude Code, skill được copy vào `~/.claude/skills/playwright-automation/`.
 
 Các lệnh khác:
 
@@ -32,11 +32,13 @@ Các lệnh khác:
 npx @duong.dev/playwright-automation install --codex --project  # cài vào .agents/skills/ của dự án
 npx @duong.dev/playwright-automation install --codex --force    # ghi đè bản Codex đã cài
 npx @duong.dev/playwright-automation install --claude --project # cài vào .claude/skills/ của dự án
-npx @duong.dev/playwright-automation install --dir <đường dẫn>   # cài vào chỗ tự chọn
+npx @duong.dev/playwright-automation install --dir <đường-dẫn>/playwright-automation # thư mục skill đích
 npx @duong.dev/playwright-automation where --codex       # xem bản Codex ở đâu
 npx @duong.dev/playwright-automation uninstall --codex   # gỡ bản Codex
 npx @duong.dev/playwright-automation --help
 ```
+
+`--dir` là **thư mục skill đích chính xác**, không phải thư mục cha. Để tránh xoá nhầm dữ liệu, `install --force` và `uninstall` chỉ xoá khi đích không phải filesystem root/home/cwd/source repo và `SKILL.md` tại đó khai báo `name: playwright-automation`. Đích không xác minh được sẽ bị từ chối; installer không tự dọn một thư mục tuỳ ý.
 
 Cập nhật lên bản mới: chạy lại lệnh `install --force`. `npx` luôn lấy phiên bản mới nhất trên npm.
 
@@ -47,19 +49,21 @@ Cách này không dựng liên kết tới repo, nên nếu bạn định **sử
 ## Cách 1 — Codex (dùng cho mọi dự án)
 
 ```bash
-git clone https://github.com/DEVfancybear/playwright-automation.git ~/.agents/skills/playwright-automation
+CODEX_SKILLS_DIR="${CODEX_HOME:-$HOME/.codex}/skills"
+git clone https://github.com/DEVfancybear/playwright-automation.git "$CODEX_SKILLS_DIR/playwright-automation"
 ```
 
 Trên Windows PowerShell:
 
 ```powershell
-git clone https://github.com/DEVfancybear/playwright-automation.git "$env:USERPROFILE\.agents\skills\playwright-automation"
+$codexRoot = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+git clone https://github.com/DEVfancybear/playwright-automation.git (Join-Path $codexRoot 'skills\playwright-automation')
 ```
 
 Cấu trúc sau khi cài:
 
 ```
-~/.agents/skills/
+$CODEX_HOME/skills/ (hoặc ~/.codex/skills/)
 └── playwright-automation/
     ├── SKILL.md
     ├── agents/openai.yaml
@@ -125,7 +129,7 @@ Mở cuộc trò chuyện mới và gõ:
 Dựng giúp tôi khung automation test Playwright cho https://example.com
 ```
 
-Nếu skill được nạp, Claude sẽ nhắc tới quy trình LIVE → CODIFY, hoặc `scaffold.mjs` (vì đây là yêu cầu dựng khung rõ ràng). Với câu hỏi kiểu "xem hộ trang này lỗi gì", skill được nạp đúng sẽ **mở trình duyệt thao tác trực tiếp** thay vì viết file test.
+Nếu skill được nạp, Claude sẽ nhắc tới quy trình LIVE → CODIFY, hoặc `scaffold.mjs` (vì đây là yêu cầu dựng khung rõ ràng). Với câu hỏi kiểu "xem hộ trang này lỗi gì", skill được nạp đúng sẽ **mở trình duyệt trước** để lấy evidence thật, rồi tiếp tục plan → generate → execute/heal → verdict. Chỉ yêu cầu thuần thao tác có từ giới hạn rõ như “chỉ mở”, “chỉ chụp ảnh” hoặc “chỉ lấy locator” mới dừng mà không codify test.
 
 ---
 
@@ -209,7 +213,7 @@ Skill hoạt động đúng khi agent **mở trình duyệt lấy element thật
 Kiểm tra file trên đĩa:
 
 ```bash
-ls ~/.agents/skills/playwright-automation/SKILL.md  # Codex
+ls "${CODEX_HOME:-$HOME/.codex}/skills/playwright-automation/SKILL.md" # Codex
 ls ~/.claude/skills/playwright-automation/SKILL.md # Claude Code
 ```
 
@@ -221,7 +225,7 @@ Skill là phần hướng dẫn; để **chạy** test thì cần các công c�
 
 ### Node.js (bắt buộc)
 
-Cần Node ≥ 18. Kiểm tra:
+Cần Node ≥ 20. Kiểm tra:
 
 ```bash
 node --version
@@ -269,14 +273,25 @@ npm i -D allure-playwright        # report Allure (cần thêm Java)
 
 ## Cập nhật
 
+**Cài bằng npm** (cách ở đầu tài liệu):
+
 ```bash
-cd ~/.agents/skills/playwright-automation
+npx @duong.dev/playwright-automation install --codex --force
+npx @duong.dev/playwright-automation install --claude --force
+```
+
+**Chỉ với bản clone bằng git**:
+
+```bash
+cd "${CODEX_HOME:-$HOME/.codex}/skills/playwright-automation"
 git pull
 
 # Hoặc Claude Code
 cd ~/.claude/skills/playwright-automation
 git pull
 ```
+
+Sau khi cập nhật, mở phiên Agent mới để catalog skill được nạp lại.
 
 Trên claude.ai: xoá skill cũ trong Settings rồi upload file `.skill` mới.
 
@@ -295,7 +310,7 @@ Trên claude.ai: **Settings → Capabilities → Skills** → xoá skill.
 
 | Hiện tượng | Nguyên nhân | Xử lý |
 |---|---|---|
-| Codex không thấy skill | Sai vị trí hoặc chưa quét lại | Kiểm tra `~/.agents/skills/playwright-automation/SKILL.md`, mở `/skills`, rồi khởi động lại nếu cần |
+| Codex không thấy skill | Sai vị trí, còn bản legacy hoặc chưa quét lại | Chạy `where --codex`, kiểm tra `$CODEX_HOME/skills/playwright-automation/SKILL.md` (fallback `~/.codex/skills/...`), rồi mở phiên Codex mới; bản global cũ trong `~/.agents/skills` không phải đích cài hiện tại |
 | Agent không tự dùng skill | Yêu cầu quá chung chung | Gọi `$playwright-automation` trong Codex, hoặc nhắc rõ "Playwright", "reproduce bug", "verify bug fix" |
 | Claude không dùng skill dù đã cài | Chưa khởi động lại Claude Code, hoặc skill chưa được bật | Khởi động lại; kiểm tra công tắc trong Settings |
 | Cấu trúc thư mục sai | Clone tạo thêm một tầng lồng nhau | `SKILL.md` phải nằm ngay trong `playwright-automation/`, không phải `playwright-automation/playwright-automation/` |

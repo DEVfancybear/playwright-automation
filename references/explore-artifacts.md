@@ -34,7 +34,7 @@ File này định nghĩa **cái gì được ghi, ghi ở đâu, dùng lại th�
 | `use-cases/*.md` | `docs/test-cases/` hoặc file test case của team | Đây là tài liệu nghiệp vụ, không phải rác tạm |
 | `test-plan.md` | Cạnh bộ spec, hoặc đính vào ticket | Là bản ghi "đã thoả thuận test những gì" |
 
-Đừng tự chuyển — hỏi người dùng ở bước VERDICT xem có muốn giữ hai file đó không.
+Trong `relaxed`, không tạo thêm vòng hỏi ở VERDICT: giữ nguyên hai file trong `.testagent/`, báo đường dẫn và chỉ chuyển khi người dùng đã yêu cầu commit tài liệu nghiệp vụ. Trong `guarded`, có thể đề nghị sau khi đã trả verdict nhưng không biến việc này thành điều kiện hoàn tất.
 
 ## Nhật ký hành trình
 
@@ -117,7 +117,7 @@ Cách làm: khi người dùng nói "ghi lại luồng này" hoặc khi một ch
 Bốn luật khi sinh tài liệu này:
 
 - **Chỉ viết những gì đã quan sát được.** Không thêm bước "hợp lý" mà người dùng chưa đi qua. Bước nào chưa kiểm thì ghi ở phần *Ngoài phạm vi*, không viết như đã kiểm.
-- **KQMM lấy từ nguồn hạng cao, không lấy từ màn hình.** Nếu chưa có SRS/test case nào chống lưng, ghi `KQMM: chưa có acceptance criterion — mô tả dưới đây là hành vi quan sát được` rồi hỏi người dùng xác nhận. Xem `test-plan-and-traceability.md`.
+- **KQMM lấy từ nguồn hạng cao, không lấy từ màn hình.** Nếu chưa có SRS/test case nào chống lưng, ghi `KQMM: chưa có acceptance criterion — mô tả dưới đây là hành vi quan sát được`; vẫn kiểm technical invariant và để verdict nghiệp vụ là `Inconclusive`. Chỉ hỏi khi thiếu oracle làm chính ca trọng tâm không thể định nghĩa. Xem `test-plan-and-traceability.md`.
 - **Giữ nguyên exact UI copy** ("Cảm ơn bạn đã đặt hàng!") vì nó là oracle; nhưng che PII, số điện thoại thật, mã đơn thật.
 - **Dùng đúng từ vựng của team** (`Pre`, `KQMM`, `KQTT`) nếu họ đang dùng, để tài liệu dán thẳng vào file test case có sẵn được.
 
@@ -156,9 +156,16 @@ version: 1
 targets:
   - name: checkout-staging
     url: https://staging.example.com
+    autonomy:
+      mode: relaxed                 # relaxed | guarded
+      auto_start_dev_server: true   # chỉ local + port trống + script repo rõ ràng
+      auto_install_dependencies: true
+      max_heal_attempts: 3
     auth:
       strategy: form                 # none | form | reuse-state
+      login_url: https://staging.example.com/login
       credentials_env: [APP_USER, APP_PASS]   # tên biến môi trường, KHÔNG phải giá trị
+      totp_env: TEST_TOTP_SECRET
       storage_state: .auth/checkout-staging.json
     grounding:                       # theo thứ tự tin cậy
       requirements: [docs/requirements/checkout.md]
@@ -174,13 +181,14 @@ targets:
     allow_hosts: []                  # host không khớp mẫu staging phải khai ở đây
 ```
 
-Ba luật:
+Bốn luật:
 
 - **Không bao giờ đặt giá trị credential trong file này.** Chỉ đặt *tên biến môi trường*. File này được commit; `.env` thì không.
+- **`autonomy.mode` điều khiển cổng tương tác, không phải quyền.** `relaxed` tự duyệt phần an toàn trên non-production; production/side effect thật vẫn phải chọn `guarded` hoặc xin quyền cụ thể. Chi tiết: `autonomous-execution.md`.
 - **`allow_hosts` là cổng an toàn, không phải tiện ích.** Host không phải `localhost`/IP nội bộ và không khớp `staging|stg|test|qa|dev|uat` thì mặc định bị coi là production. Muốn chạy trên nó phải khai vào đây, và người dùng phải biết mình đang khai gì.
 - **`success` là hợp đồng của bước VERDICT.** `min_scenarios` chặn việc "1 test pass" được báo là xanh; `stability_runs` là số lượt của cổng ổn định.
 
-Có file này rồi thì bước FRAME chỉ còn xác nhận một dòng: *"Chạy trên target `checkout-staging` (staging.example.com, scope checkout) như config, đúng chứ?"*
+Có file này rồi thì `relaxed` dùng thẳng target và chỉ ghi một dòng tiến độ; `guarded` mới hỏi xác nhận. Nếu chưa có, `relaxed` tự tạo target ở VERDICT khi các giá trị đã quan sát không xung đột với config hiện hữu.
 
 ## Khi nào phải explore lại
 

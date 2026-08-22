@@ -4,6 +4,38 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [3.0.0] — 2026-08-22
+
+**Breaking change về interaction gate.** Pipeline vẫn đủ tám bước, nhưng non-production không còn mặc định dừng ở FRAME/CONFIRM/VERDICT để hỏi tester. Chế độ `relaxed` tự chạy từ target tới verdict; `guarded` giữ cổng duyệt cho production và side effect thật.
+
+### Added
+
+- `references/autonomous-execution.md`: zero-touch loop, decision table "tự tiếp tục / phải dừng", ask budget một blocker message, cấu hình `autonomy` và luật sở hữu process/dữ liệu.
+- `autonomy.mode: relaxed | guarded` trong `.testagent.yaml`, cùng `auto_start_dev_server`, `auto_install_dependencies` và `max_heal_attempts`.
+- Auto-login hỗ trợ form hai bước `username → Tiếp tục → password` và tự dùng `TEST_TOTP_SECRET` khi trang yêu cầu TOTP.
+- Regression coverage bằng browser thật cho session/form render trễ, TOTP, form hai bước và trang có business-code input.
+- Installer và tài liệu hỗ trợ tường minh cả Codex (`--codex`) lẫn Claude Code (`--claude`) ở phạm vi global/project/custom, gồm cả force-update và uninstall.
+- Contract ý định tổng quát: prompt `URL + test feature/màn hình` tự mở rộng thành browser → auto-login → explore → plan → generate → execute/heal → report; không hard-code sản phẩm mẫu.
+
+### Changed
+
+- `relaxed` là mặc định cho local/dev/QA/staging/UAT: Agent tự resolve config, dùng/gia hạn phiên, tự duyệt plan an toàn, scaffold/cài dependency cần thiết, execute → heal → re-run và cleanup đúng record do lượt test tạo.
+- `CONFIRM` trở thành decision record: `agent-self-approved (relaxed)` hoặc user approval ở ranh giới rủi ro, thay vì luôn là một vòng chờ.
+- `auth-login.mjs` mặc định là lệnh ensure idempotent; pipeline chỉ gọi một lần, không cần `--check || login`. Output không còn in username hay một phần mật khẩu.
+- Auth helper chờ đúng auth surface trên SPA thay vì kiểm ngay sau `DOMContentLoaded`, và chỉ nhận selector OTP đặc hiệu để không nhầm `promoCode`/`postalCode`.
+- `explore.mjs` bỏ các cờ inline `--username`/`--password`/`--save-auth`; phiên phải được tạo an toàn bằng `auth-login.mjs` rồi nạp qua `--auth`.
+- Installer Codex global ghi đúng vào `$CODEX_HOME/skills` (fallback `~/.codex/skills`) thay vì `~/.agents/skills`; cài theo dự án vẫn dùng `.agents/skills` và installer cảnh báo nếu còn bản global legacy.
+- Runtime tối thiểu tăng từ Node 18 lên Node 20 để khớp toolchain Playwright 1.62.1 của bản phát hành.
+- VERDICT tự ghi target config nếu không xung đột và không hỏi hai câu hành chính ở cuối lượt.
+
+### Safety
+
+- `relaxed` không cấp thêm quyền và không hạ chất lượng test. Production vẫn read-only khi chưa có quyền cụ thể; tiền/gửi ra ngoài/gateway chưa xác minh, dữ liệu người khác, CAPTCHA/MFA người dùng và secret còn thiếu vẫn là hard gate.
+- Agent chỉ được tự xoá exact ID mang dấu `AUTOTEST-` do chính lượt chạy tạo và chỉ dừng server/process do chính nó khởi động.
+- Auth helper che username, password, TOTP secret và mã OTP sinh ra khỏi cả lỗi Playwright lẫn thông báo lỗi do app echo; URL log bị bỏ userinfo/query/fragment.
+- Helper tắt debug mode có thể log `fill(secret)`, từ chối trang xác minh trả HTTP 4xx/5xx và chỉ tin sidecar session khi nó thuộc đúng login target hiện tại.
+- `install --force`/`uninstall` từ chối root/home/cwd/source repo và mọi target không có `SKILL.md` nhận diện đúng skill, tránh xoá nhầm thư mục tuỳ ý qua `--dir`.
+
 ## [2.5.0] — 2026-08-21
 
 Bịt nốt lỗ hổng cuối của chuỗi 2.3–2.4: kiểm được topology rồi, bắc cầu phiên rồi, nhưng **phiên hết hạn nhanh hơn một lượt chạy** thì mọi thứ trên vẫn vô nghĩa. Gặp CMS đặt TTL 15–30 phút, "đăng nhập một lần trong profile" không cứu được và người dùng lại bị kéo vào vòng lặp gõ mật khẩu.

@@ -2,7 +2,7 @@
 
 File này là bước **PLAN** (và mẫu verdict của bước **VERDICT**) trong pipeline bắt buộc ở `SKILL.md`. Mọi lượt kiểm thử đều đi qua đây — kể cả yêu cầu nhỏ nhất, khi đó plan chỉ có một scenario chốt lại đúng điều vừa quan sát ở EXPLORE.
 
-Đầu vào: nguồn grounding thu ở bước FRAME + quan sát thật thu ở bước EXPLORE. Đầu ra: một bảng scenario đem đi duyệt ở bước CONFIRM.
+Đầu vào: nguồn grounding thu ở bước FRAME + quan sát thật thu ở bước EXPLORE. Đầu ra: một bảng scenario có decision record ở bước CONFIRM — Agent tự duyệt phần an toàn trong `relaxed`, người dùng duyệt khi `guarded` hoặc chạm ranh giới quyền.
 
 ## Thứ tự tin cậy của nguồn
 
@@ -18,7 +18,7 @@ Khi nhiều nguồn cùng nói về một hành vi, chúng **không ngang nhau**
 
 Ba luật đi kèm:
 
-- **App đang chạy không phải oracle.** "Bấm ra như vậy" không chứng minh "như vậy là đúng". Không có nguồn hạng 1–3 nào nói tới hành vi đang xét thì ghi `Unknown — chưa có acceptance criterion` và hỏi, đừng lấy hành vi hiện tại làm chuẩn rồi đóng băng nó thành assertion.
+- **App đang chạy không phải oracle.** "Bấm ra như vậy" không chứng minh "như vậy là đúng". Không có nguồn hạng 1–3 thì ghi `Unknown — chưa có acceptance criterion`; vẫn tự kiểm technical invariant (không 5xx, UI phản hồi, schema hợp lệ) và kết luận phần nghiệp vụ là `Inconclusive`. Chỉ hỏi khi expected bị thiếu/mâu thuẫn làm chính ca trọng tâm không thể định nghĩa; đừng lấy hành vi hiện tại làm chuẩn rồi đóng băng nó thành assertion.
 - **Ý định lệch hiện thực thì báo, đừng lặng lẽ viết theo code.** Requirement nói `tổng = tiền hàng + thuế` mà màn hình trả lệch 1 đồng: đó là một finding, không phải con số để chép vào `expect`. Viết assertion theo requirement, để test đỏ, rồi báo — đó mới là test có giá trị.
 - **Nguồn hạng thấp không phủ quyết nguồn hạng cao.** Đọc code thấy nhánh cho qua khi mã bưu chính rỗng, trong khi test case nói phải chặn: kết luận là *code sai*, không phải *test case cũ*.
 
@@ -51,12 +51,14 @@ Mỗi scenario ghi đủ sáu trường:
 
 Thêm `Phụ thuộc` khi scenario cần scenario khác chạy trước (`checkout-happy` cần `auth-login`).
 
-## Bảng plan để người dùng duyệt
+## Bảng plan và decision record
 
-Trình bảng này **trước khi gõ dòng code đầu tiên**. Tester biết nghiệp vụ hơn agent, và sửa một dòng bảng rẻ hơn sửa mười file spec.
+Lập và ghi bảng này **trước khi gõ dòng code đầu tiên**. Tester vẫn có thể sửa scope bất đồng bộ; `relaxed` không chờ một lượt gật đầu nếu plan chỉ gồm action an toàn trên non-production.
 
 ```
 Kế hoạch test — <target>   (<N> scenario, grounding: <nguồn đã nạp>)
+Mode: relaxed
+Approval: agent-self-approved (relaxed) at <timestamp>
 
 TẦNG     ID                    LAYER  ƯU TIÊN  TRUY VẾT            TIÊU ĐỀ
 -------------------------------------------------------------------------------
@@ -73,9 +75,7 @@ Ngoài phạm vi (cố tình không cover):
   - Luồng hoàn tiền — chưa có acceptance criterion
 ```
 
-Ghi bảng này ra `test-plan.md` khi bộ test đủ lớn để tester muốn sửa trực tiếp rồi trả lại. Đừng ghi ra file cho kế hoạch ba dòng.
-
-**Chỉ sang bước GENERATE sau khi người dùng gật.** Nếu ngữ cảnh là chạy tự động/CI và không có ai để hỏi, cứ đi tiếp nhưng phải in bảng ra để lại vết — đừng treo chờ input mãi.
+Trong `relaxed`, luôn ghi bảng vào `.testagent/<target>/test-plan.md`, kể cả plan ngắn, vì file là audit trail cho việc tự duyệt. In tóm tắt rồi sang GENERATE. Trong `guarded`, thay dòng approval bằng `user-approved` kèm phạm vi/action được duyệt và chỉ đi tiếp sau khi nhận quyền. CI/non-interactive đánh dấu phần vượt ranh giới là `Blocked`, không treo chờ input. Decision table: `autonomous-execution.md`.
 
 ## "Ngoài phạm vi" là phần bắt buộc
 

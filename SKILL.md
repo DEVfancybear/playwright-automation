@@ -1,6 +1,6 @@
 ---
 name: playwright-automation
-description: Test agent cho tester/QA — chạy pipeline bắt buộc explore → plan → duyệt → sinh spec → chạy (cổng ổn định) → heal → verdict; mọi lượt trả về test Playwright + TypeScript commit được kèm verdict có số. Dùng khi muốn kiểm tra trang đang chạy, console/network báo gì, nhờ bấm thử một luồng, đọc bug log/issue sheet, hiểu KQMM/KQTT/EVD, xử lý log dài, luồng stateful nhiều màn hình/tab/role, bug chỉ ra khi thao tác nhanh/liên tục hoặc có race, tái hiện bug trước khi DEV sửa, verify/retest sau fix trên STG/UAT/prod, phân biệt lỗi code với config/data/infra, dựng framework, lập kế hoạch test từ SRS/test case và chứng minh độ phủ, test E2E/API/visual/responsive/accessibility, mock API, chuyển Excel thành script, xử lý flaky, tích hợp CI/CD. Cũng kích hoạt khi nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, reproduce bug, dev đã fix, race/flaky/intermittent, test tự động, kế hoạch test, độ phủ/traceability, hoặc đưa link/localhost kèm yêu cầu kiểm tra, tiếng Việt hoặc Anh.
+description: Test agent tự chủ cho tester/QA — tự đọc target, bảo đảm phiên đăng nhập từ .env/storageState, explore app thật, tự duyệt plan an toàn, sinh/chạy/heal test Playwright + TypeScript rồi trả verdict có số. Chế độ relaxed mặc định trên local/dev/QA/staging/UAT để giảm tương tác; guarded dành cho production và side effect thật. Dùng khi kiểm tra trang/console/network, bấm thử luồng, đọc bug log KQMM/KQTT/EVD, tái hiện hoặc verify bug, xử lý flow nhiều màn hình/tab/role và race/flaky/intermittent, phân biệt lỗi code/config/data/infra, dựng framework, lập kế hoạch/traceability, test E2E/API/visual/responsive/accessibility, mock API, chuyển Excel thành spec hoặc tích hợp CI/CD. Cũng kích hoạt khi nhắc Playwright, Selenium, Cypress, E2E, POM, smoke/regression, test tự động, reproduce bug, dev đã fix, hoặc đưa link/localhost kèm yêu cầu kiểm tra, tiếng Việt hoặc Anh.
 ---
 
 # Playwright Test Agent cho Tester
@@ -10,17 +10,38 @@ Skill này không trả lời bằng cảm nhận và không dừng lại ở m�
 1. **Một bộ test `@playwright/test` + TypeScript commit được vào repo.**
 2. **Một verdict có số** — không phải "hầu hết đều ổn".
 
-Đối tượng dùng skill này thường là tester thủ công đang chuyển sang automation. Họ biết rất rõ *nghiệp vụ cần test gì*, nhưng chưa chắc rành *selector, async, CI*. Vì vậy: giải thích ngắn gọn bằng tiếng Việt, trình bảng kế hoạch cho họ duyệt trước khi sinh code, và nói rõ cách chạy lại bộ test bàn giao.
+Một lệnh thuần thao tác như “chỉ mở URL” hoặc “chỉ chụp ảnh” mà **không yêu cầu test/kiểm tra** không phải một yêu cầu kiểm thử: làm đúng thao tác được giao và trả kết quả scoped. Nhưng hễ prompt có URL cùng ý định test/kiểm tra/reproduce/verify một màn hình hay feature, mặc định mở rộng thành mục tiêu đầu-cuối bên dưới; từ `only/chỉ` rõ ràng của người dùng mới được thu hẹp scope.
 
-Mục lục: [Pipeline](#pipeline-bắt-buộc) · [Một lượt chạy trông thế nào](#một-lượt-chạy-trông-thế-nào) · [Định tuyến](#bước-1--định-tuyến) · [0 FRAME](#0--frame) · [1 EXPLORE](#1--explore) · [2 PLAN](#2--plan) · [3 CONFIRM](#3--confirm) · [4 GENERATE](#4--generate) · [5 EXECUTE](#5--execute) · [6 HEAL](#6--heal) · [7 VERDICT](#7--verdict) · [An toàn](#luật-an-toàn) · [Chống flaky](#7-nguyên-tắc-để-test-không-flaky) · [Chạy & debug](#chạy-và-debug) · [Checklist](#checklist-trước-khi-coi-là-xong) · [Bản đồ tài liệu](#bản-đồ-tài-liệu)
+Đối tượng dùng skill này thường là tester thủ công đang chuyển sang automation. Họ biết rất rõ *nghiệp vụ cần test gì*, nhưng chưa chắc rành *selector, async, CI*. Vì vậy: giải thích ngắn gọn bằng tiếng Việt, tự hoàn tất phần kỹ thuật có thể suy ra an toàn, và chỉ kéo tester vào khi thiếu một quyết định nghiệp vụ hoặc quyền thực sự chặn lượt chạy.
+
+Mục lục: [Chế độ tự chủ](#chế-độ-tự-chủ) · [Pipeline](#pipeline-bắt-buộc) · [Một lượt chạy trông thế nào](#một-lượt-chạy-trông-thế-nào) · [Định tuyến](#bước-1--định-tuyến) · [0 FRAME](#0--frame) · [1 EXPLORE](#1--explore) · [2 PLAN](#2--plan) · [3 CONFIRM](#3--confirm) · [4 GENERATE](#4--generate) · [5 EXECUTE](#5--execute) · [6 HEAL](#6--heal) · [7 VERDICT](#7--verdict) · [An toàn](#luật-an-toàn) · [Chống flaky](#7-nguyên-tắc-để-test-không-flaky) · [Chạy & debug](#chạy-và-debug) · [Checklist](#checklist-trước-khi-coi-là-xong) · [Bản đồ tài liệu](#bản-đồ-tài-liệu)
+
+## Chế độ tự chủ
+
+Skill có hai chế độ. Chọn theo thứ tự: yêu cầu hiện tại của người dùng → `autonomy.mode` trong `.testagent.yaml` → mặc định theo môi trường.
+
+| Chế độ | Khi dùng | Cách Agent vận hành |
+|---|---|---|
+| **`relaxed`** (mặc định cho `localhost`, dev, QA, staging, UAT) | Công việc kiểm thử thông thường trên môi trường không phải production | Tự suy ra cấu hình còn thiếu từ repo, tự bảo đảm đăng nhập, tự duyệt plan an toàn, tự scaffold/cài dependency cần thiết, chạy → heal → chạy lại, tạo và dọn dữ liệu riêng của lượt test. Không hỏi "có tiếp tục không?" giữa các bước |
+| **`guarded`** | Production/host chưa xác định, side effect thật, dữ liệu có sẵn của người khác, hoặc người dùng yêu cầu kiểm soát từng cổng | Trình plan và chờ duyệt trước khi ghi dữ liệu/chạy phần rủi ro; các bước đọc, phân tích và viết code vẫn tự làm |
+
+Nếu không chắc target có phải non-production, chọn `guarded`. Chuyển sang `relaxed` **chỉ nới cổng tương tác**, không cấp thêm quyền ngoài yêu cầu và không nới chuẩn chất lượng: vẫn cấm giấu flaky bằng retry, hạ assertion, đoán locator, lộ secret, ghi production hay kích hoạt tiền/gửi thông báo thật. Khi thực thi một target sống, đọc `references/autonomous-execution.md` để áp dụng đúng decision table và cấu hình.
+
+Trong `relaxed`, chỉ dừng hỏi khi câu trả lời thật sự chặn tiến độ: thiếu secret mà helper không thể lấy, CAPTCHA/MFA cần người, acceptance criterion mâu thuẫn làm mất oracle, không tới được target, hoặc sắp chạm ranh giới production/tiền/gửi ra ngoài/xoá dữ liệu không do Agent tạo. Gom mọi thứ đang thiếu vào **một yêu cầu ngắn duy nhất**; sau khi được mở khoá thì tiếp tục từ checkpoint, không phỏng vấn lại.
+
+### Hiểu yêu cầu ngắn như một mục tiêu đầu-cuối
+
+Khi người dùng đưa URL non-production kèm động từ kiểm thử và một feature/màn hình, ví dụ `mở <staging-login-url> và test màn hình đơn hàng`, đó là yêu cầu chạy **toàn bộ pipeline**, không phải chỉ điều hướng tới URL. Agent tự mở browser, bảo đảm đăng nhập bằng credential từ `.env`/secret store, khám phá UI thật, tự chốt plan an toàn, sinh và chạy test, heal lỗi test rồi trả report/verdict. Chỉ thu hẹp thành “mở trang” khi người dùng nói rõ họ chỉ muốn điều hướng/chụp ảnh.
+
+Ví dụ trên là mẫu ý định. Không hard-code domain, đường dẫn, selector, tên biến credential hay nghiệp vụ của một hệ thống cụ thể; mọi thứ phải được suy ra từ prompt, repo/config và DOM/API quan sát được ở lượt hiện tại. Quy tắc này áp dụng giống nhau trong Codex và Claude Code.
 
 ## Pipeline bắt buộc
 
 ```
-0. FRAME    → chốt target, build/môi trường, role/state, nguồn grounding
-1. EXPLORE  → mở app THẬT bằng công cụ browser, quan sát. Không đoán, không nhớ.
+0. FRAME    → tự chốt target, build/môi trường, role/state, nguồn grounding
+1. EXPLORE  → tự bảo đảm phiên đăng nhập, mở app THẬT và quan sát. Không đoán.
 2. PLAN     → bảng scenario có tầng + truy vết + phần ngoài phạm vi
-3. CONFIRM  → trình bảng cho người dùng duyệt
+3. CONFIRM  → relaxed: Agent tự duyệt phạm vi an toàn; guarded/rủi ro: người dùng duyệt
 4. GENERATE → spec + Page Object commit được, một scenario một file
 5. EXECUTE  → chạy qua cổng ổn định (N lượt, flaky bị quarantine)
 6. HEAL     → fail thì quay lại trình duyệt thật, re-observe, sửa, chạy lại
@@ -31,10 +52,12 @@ Mục lục: [Pipeline](#pipeline-bắt-buộc) · [Một lượt chạy trông 
 
 | Luật | Nghĩa là |
 |---|---|
-| **Không bước nào tuỳ chọn** | Kể cả câu hỏi nhỏ nhất cũng đi đủ tám bước. "Câu này đơn giản, khỏi lập plan" không phải lý do hợp lệ |
-| **Không đảo thứ tự** | Không sinh code trước khi EXPLORE. Không chạy trước khi CONFIRM. Không kết luận trước khi EXECUTE |
+| **Không bước nào tuỳ chọn** | Kể cả yêu cầu kiểm thử nhỏ nhất cũng đi đủ tám bước. "Câu này đơn giản, khỏi lập plan" không phải lý do hợp lệ |
+| **Không đảo thứ tự** | Không sinh code trước khi EXPLORE. Không chạy trước khi quyết định CONFIRM được ghi lại (tự duyệt hoặc người dùng duyệt). Không kết luận trước khi EXECUTE |
 | **Bỏ bước phải khai báo** | Bị chặn thật (thiếu build, thiếu tài khoản, guardrail production) thì ghi vào VERDICT là `Blocked` kèm lý do và điều kiện mở khoá — không im lặng bỏ qua |
 | **Chưa có test chạy được = chưa xong** | Ảnh chụp và log console là *bằng chứng*, không phải *sản phẩm bàn giao* |
+
+`relaxed` không bỏ bước nào; nó thay những lần chờ không cần thiết bằng một quyết định có dấu vết trong `.testagent/<target>/test-plan.md`.
 
 **Ngoại lệ duy nhất**: người dùng **nói rõ** không muốn file. Khi đó dừng sau EXECUTE-bằng-thao-tác-tay, và ghi trong verdict `Codify skipped — theo yêu cầu người dùng`. Ngoại lệ này do người dùng nói ra, agent không bao giờ tự quyết.
 
@@ -45,10 +68,11 @@ Mục lục: [Pipeline](#pipeline-bắt-buộc) · [Một lượt chạy trông 
 Người dùng nói: *"Test giúp tôi luồng đặt hàng ở https://staging.example.com, tài khoản qa_user01."*
 
 ```
-0 FRAME     Đọc .testagent.yaml → có target "checkout-staging" rồi. Xác nhận một dòng.
+0 FRAME     Đọc .testagent.yaml → target "checkout-staging", autonomy=relaxed.
+            Tự dùng config và ghi một dòng tiến độ; không chờ xác nhận.
             Grounding: docs/requirements/checkout.md + test-cases/checkout.xlsx.
 
-1 EXPLORE   auth-login.mjs --check → hết phiên → tự đăng nhập bằng .env (5s),
+1 EXPLORE   auth-login.mjs tự kiểm phiên → hết hạn thì tự đăng nhập bằng .env (5s),
             rồi đi hết luồng: trang chủ → thêm giỏ → thanh toán → xác nhận.
             Ghi journey.md: URL, role+name từng element, endpoint + status.
             ⚠ Badge giỏ hàng chậm ~1,2 s. POST /api/auth/login trả 204 chứ không phải 200.
@@ -60,7 +84,8 @@ Người dùng nói: *"Test giúp tôi luồng đặt hàng ở https://staging.
             checkout-total(core) · checkout-no-postal(edge).
             Ngoài phạm vi: thanh toán thật (mock) · OTP SMS (không tự động được).
 
-3 CONFIRM   Trình bảng. Người dùng cắt checkout-no-postal, thêm "giỏ hàng trống".
+3 CONFIRM   Ghi bảng vào test-plan.md, tự duyệt 5 scenario an toàn trên staging.
+            Nếu tester chủ động sửa scope trong lúc Agent chạy thì cập nhật trước GENERATE.
 
 4 GENERATE  5 file spec + CheckoutPage.ts, locator lấy từ journey.md, không đoán.
 
@@ -75,7 +100,7 @@ Người dùng nói: *"Test giúp tôi luồng đặt hàng ở https://staging.
             1 tách vì flaky. Bàn giao e2e/tests/*.spec.ts. Lệnh chạy lại + report.
 ```
 
-Điểm cần thấy: câu trả lời tới ở bước 1, sản phẩm tới ở bước 7, và **test đỏ là kết quả đúng** khi app sai.
+Điểm cần thấy: Agent đi từ target đến verdict mà không cần một lượt "gật đầu" trung gian; câu trả lời tới ở bước 1, sản phẩm tới ở bước 7, và **test đỏ là kết quả đúng** khi app sai.
 
 ## Bước 1 — Định tuyến
 
@@ -83,6 +108,7 @@ Pipeline không đổi; chỉ **nội dung từng bước** đổi theo loại y
 
 | Người dùng nói gì | Biến thể | Đọc thêm |
 |---|---|---|
+| "Tự chạy hết", "đừng hỏi nhiều", target local/staging/UAT, hoặc `.testagent.yaml` đặt `autonomy.mode: relaxed` | Vận hành zero-touch; chỉ dừng ở ranh giới quyền/secret/oracle thật sự | `references/autonomous-execution.md` |
 | "Xem hộ trang này", "đang lỗi gì", "console/network báo gì", "bấm thử giúp", đưa link/localhost kèm câu hỏi | EXPLORE trả lời câu hỏi ngay; PLAN tối thiểu một scenario chốt đúng điều vừa quan sát để nó không tái phát | `references/live-browser-investigation.md` |
 | "Test giúp chức năng X xem chạy đúng không" | Biến thể chuẩn, đủ tám bước | `references/live-browser-investigation.md`, `references/test-plan-and-traceability.md`, `references/ui-e2e.md` |
 | "Đọc bug log", "reproduce bug", KQMM/KQTT/EVD, issue STG/UAT/prod | **Biến thể bug**: EXPLORE = decode row + evidence + recon · PLAN = fingerprint + kịch bản tái hiện · VERDICT = reproduction outcome. GENERATE sinh regression spec cho bug đó | `references/bug-reproduction.md` |
@@ -112,17 +138,18 @@ Yêu cầu chạm nhiều mảng ("test luồng đặt hàng, có cả API và �
 
 Thu đủ điều kiện trước khi chạm vào app. Đầu ra của bước này là: **target + build/môi trường + role/state + nguồn grounding**.
 
-**Đọc `.testagent.yaml` ở gốc repo trước khi hỏi bất cứ điều gì.** Nếu file đó đã có target khớp yêu cầu, bước FRAME rút xuống một câu xác nhận: *"Chạy trên target `checkout-staging` (staging.example.com, scope checkout) như config, đúng chứ?"*. Chưa có file thì hỏi như dưới, rồi **ghi lại thành config ở bước VERDICT** để lần sau khỏi hỏi lại. Cấu trúc file: `references/explore-artifacts.md`.
+**Đọc `.testagent.yaml` ở gốc repo trước khi hỏi bất cứ điều gì.** Nếu file đã có target khớp yêu cầu thì dùng thẳng. Trong `relaxed`, chỉ ghi một dòng tiến độ — *"Dùng target `checkout-staging` (staging.example.com, scope checkout) từ config"* — rồi tiếp tục; đó không phải câu hỏi. Trong `guarded`, xin xác nhận một dòng. Chưa có file thì suy ra từ URL người dùng đưa, `playwright.config.*`, `.env.example`, npm scripts và convention spec hiện có; ghi target mới ở bước VERDICT nếu không đè lên cấu hình mâu thuẫn. Cấu trúc file: `references/explore-artifacts.md`.
 
-Nếu đầu vào là bug log/issue sheet, **không hỏi lại những gì row đã nói**. Đọc full row và evidence trước, chuẩn hóa thành environment/platform, precondition, test data/state, actions, actual, expected và unknown. Chỉ hỏi phần thật sự chặn: URL/build đích, tài khoản hoặc seed data an toàn, evidence nằm ngoài sheet, acceptance criterion còn mâu thuẫn. Xem `references/bug-reproduction.md`.
+Nếu đầu vào là bug log/issue sheet, **không hỏi lại những gì row đã nói**. Đọc full row và evidence trước, chuẩn hóa thành environment/platform, precondition, test data/state, actions, actual, expected và unknown. Chỉ hỏi phần thật sự chặn: URL/build đích không thể suy ra, secret/seed data không có nguồn an toàn, evidence bắt buộc nằm ngoài sheet, acceptance criterion còn mâu thuẫn. Xem `references/bug-reproduction.md`.
 
-Nếu đầu vào là yêu cầu kiểm thử mới, chỉ hỏi những mục chưa có — đừng phỏng vấn dài dòng:
+Nếu đầu vào là yêu cầu kiểm thử mới, tự tìm trước rồi chỉ hỏi mục vừa thiếu vừa chặn — đừng phỏng vấn dài dòng:
 
-1. **URL** app cần test (staging/local/prod?) và có cần đăng nhập không → nếu có, xin tài khoản test.
-2. **Phạm vi**: một chức năng, cả luồng nghiệp vụ, hay cả bộ regression?
-3. **Nơi đặt test**: repo đã có khung Playwright chưa, hay cần dựng mới; spec nên nằm ở thư mục nào.
+1. **URL**: lấy từ yêu cầu → `.testagent.yaml` → Playwright config → biến `BASE_URL`. Không tìm được mới hỏi.
+2. **Phạm vi**: lấy đúng chức năng/bug/requirement người dùng nhắc; nếu họ nói chung chung thì bắt đầu bằng critical path + smoke và ghi phần chưa phủ, không hỏi để trì hoãn.
+3. **Nơi đặt test**: theo suite hiện có; chưa có thì dùng `e2e/` và tự scaffold. Không hỏi về convention có thể đọc từ repo.
+4. **Đăng nhập**: chạy helper trước; không hỏi tên tài khoản nếu config đã khai tên biến credential. Chỉ yêu cầu tester đặt secret vào `.env` khi helper báo thiếu.
 
-Câu hỏi "chạy một lần hay chạy lại lâu dài" **không còn được hỏi nữa** — đầu ra luôn là bộ test chạy lại được.
+Câu hỏi "chạy một lần hay chạy lại lâu dài" **không còn được hỏi nữa** — đầu ra luôn là bộ test chạy lại được. Trong `relaxed`, nếu nhiều giả định nhỏ cùng tồn tại, ghi chúng vào plan/verdict và tiếp tục; đừng biến từng giả định thành một vòng hội thoại.
 
 ### Thứ tự tin cậy của nguồn
 
@@ -130,7 +157,7 @@ Khi nhiều nguồn cùng nói về một hành vi, chúng không ngang nhau. X�
 
 Hai luật, áp dụng xuyên suốt pipeline:
 
-- **App đang chạy không phải là oracle.** "Bấm ra như vậy" không chứng minh "như vậy là đúng". Không có nguồn hạng cao nào nói tới hành vi đang xét thì ghi `Unknown — chưa có acceptance criterion` rồi hỏi, đừng lấy hành vi hiện tại làm chuẩn rồi đóng băng nó thành `expect`.
+- **App đang chạy không phải là oracle.** "Bấm ra như vậy" không chứng minh "như vậy là đúng". Không có nguồn hạng cao thì kiểm technical invariant (không 5xx, schema/UI hợp lệ), ghi business verdict `Inconclusive — chưa có acceptance criterion`, và tiếp tục trong `relaxed`. Chỉ hỏi khi thiếu expected result làm ca trọng tâm không thể kiểm; đừng đóng băng hành vi hiện tại thành `expect`.
 - **Ý định lệch hiện thực thì báo, đừng lặng lẽ theo code.** Requirement nói tổng = tiền hàng + thuế mà màn hình trả lệch 1 đồng: đó là một finding, không phải con số để chép vào assertion. Viết assertion theo requirement, để test đỏ, rồi báo.
 
 Nếu người dùng đưa file test case Excel/SRS, đọc file đó thay vì hỏi. Chi tiết: `references/test-plan-and-traceability.md`.
@@ -208,30 +235,25 @@ Cách 1 ít xáo trộn nhất và thường là đủ: nó biến "gõ mật kh
 
 **Đồng thời báo lên như một finding về môi trường.** Staging bắt đăng nhập lại mỗi 20 phút là trở ngại kiểm thử có thật — nó ăn thời gian của mọi tester chứ không riêng agent, và nó làm hỏng mọi lượt chạy dài (regression, race cần nhiều attempt). Đưa vào mục **ngoài phạm vi / bị chặn** của báo cáo kèm điều kiện mở khoá, đừng lặng lẽ chịu đựng.
 
-### Đăng nhập: tự động, không hỏi
+### Đăng nhập: một lệnh idempotent, tự gia hạn phiên
 
 *(Áp dụng khi runtime agent tới được target — dòng đầu của bảng topology trên.)*
 
-App cần đăng nhập thì **agent tự lo, không dừng lại bắt tester gõ mật khẩu**. Chạy đúng ba bước này trước khi thao tác gì khác:
+App cần đăng nhập thì **Agent tự lo, không dừng lại bắt tester gõ mật khẩu**. Gọi helper đúng một lần trước khi thao tác; chế độ mặc định của script là **ensure**: tự kiểm file phiên, còn sống thì dùng lại, hết hạn thì đăng nhập và xác minh lại.
 
 ```bash
-# 1. Còn phiên cũ dùng được không? exit 0 = còn, khỏi đăng nhập lại.
-node scripts/auth-login.mjs --url <trang login> --out .auth/<target>.json --check
-
-# 2. Hết phiên (exit 3) thì đăng nhập lại. Credential đọc từ .env, agent không cầm.
+# Credential đọc từ .env; lệnh không chứa username/password.
 node scripts/auth-login.mjs --url <trang login> --out .auth/<target>.json
-
-# 3. Mở app bằng phiên đó và thao tác bình thường.
 ```
 
-Script tự dò form theo nhãn/role, tự xác minh phiên dùng được thật (mở lại bằng context sạch), và nhớ trang đích để lần sau kiểm đúng chỗ. Chạy `--help` trước, không đọc source.
+Script tự dò cả form một trang lẫn luồng username → Tiếp tục → password, tự dùng `TEST_TOTP_SECRET` khi gặp TOTP, tự xác minh phiên bằng context sạch, và nhớ trang đích để lần sau kiểm đúng chỗ. `--check` chỉ dành cho chẩn đoán khi cần biết riêng trạng thái phiên; pipeline bình thường không cần ghép hai lệnh. Chạy `--help` trước, không đọc source.
 
 | Tình huống | Xử lý |
 |---|---|
-| `.env` chưa có `TEST_USER`/`TEST_PASS` | Script in ra đúng tên biến cần điền. Chuyển nguyên hướng dẫn đó cho người dùng, chờ họ điền vào **file** rồi báo lại. Tuyệt đối không hỏi mật khẩu trong hội thoại |
+| `.env` chưa có `TEST_USER`/`TEST_PASS` | Script in ra đúng tên biến cần điền. Đây là một trong số ít blocker hợp lệ: gửi **một** hướng dẫn để người dùng điền vào file rồi tiếp tục từ auth checkpoint. Tuyệt đối không hỏi mật khẩu trong hội thoại |
 | Tên biến khác (`ADMIN_USER`, `QLDH_PASS`…) | `--user-env` / `--pass-env`, hoặc khai `credentials_env` trong `.testagent.yaml` |
-| Dò sai form (SSO, nhiều bước, iframe) | Đọc cây accessibility lấy selector thật rồi truyền `--user-selector` / `--pass-selector` / `--submit-selector` |
-| App bật 2FA bằng Authenticator | `--totp-env TEST_TOTP_SECRET` — script tự sinh mã TOTP |
+| Dò sai form (SSO, nhiều bước, iframe) | Đọc cây accessibility lấy selector thật rồi truyền `--user-selector` / `--next-selector` / `--pass-selector` / `--submit-selector` |
+| App bật 2FA bằng Authenticator | Nếu `.env` có `TEST_TOTP_SECRET`, script tự nhận và sinh mã; tên khác thì dùng `--totp-env <TÊN>` |
 | OTP qua SMS thật | Không tự động được. Ghi vào **ngoài phạm vi** và xin tài khoản test được miễn OTP — xem `references/auth-and-data.md` |
 | Nhiều role | Mỗi role một file `.auth/<target>-<role>.json` |
 
@@ -318,13 +340,14 @@ Chi tiết, ma trận truy vết hai chiều và cách chấm độ phủ: `refe
 
 ## 3 — CONFIRM
 
-Trình bảng PLAN cho người dùng duyệt **trước khi sinh code và trước khi chạm dữ liệu**. Tester biết nghiệp vụ hơn agent; sửa một dòng bảng rẻ hơn sửa mười file spec.
+CONFIRM là bước ghi lại **ai đã chấp nhận phạm vi và theo chế độ nào**, không mặc định là một vòng chờ người dùng.
 
-- **Có người trả lời**: chờ duyệt. Họ sửa/cắt/thêm dòng thì cập nhật bảng rồi mới đi tiếp.
-- **Không ai trả lời** (chạy tự động, CI, non-interactive): tự duyệt để pipeline không treo, **nhưng phải in bảng ra** để lại vết trong log.
-- **Bộ test đủ lớn để tester muốn sửa tay**: ghi bảng ra `test-plan.md` rồi đọc lại file đó khi họ trả về.
+- **`relaxed` + non-production + không có side effect thật**: ghi bảng vào `.testagent/<target>/test-plan.md`, đánh dấu `Approval: agent-self-approved (relaxed)`, in tóm tắt và đi thẳng sang GENERATE. Không hỏi "plan này được chưa?".
+- **`guarded` hoặc chạm ranh giới quyền**: trình đúng phần cần quyết định và chờ người dùng duyệt. Một lần duyệt áp cho các action đã liệt kê rõ; thay đổi phạm vi/rủi ro thì xin lại.
+- **Người dùng chủ động sửa plan trong khi Agent đang chạy**: nhận thay đổi ở ranh giới an toàn gần nhất, cập nhật bảng rồi tiếp tục; không buộc họ phải tham gia nếu họ không muốn.
+- **CI/non-interactive**: chỉ chạy phần nằm trong `relaxed`; phần cần quyền được ghi `Blocked`, không treo job chờ input.
 
-Cổng này cũng là chỗ xin phép cho **thao tác phá huỷ** và **thao tác trên production** — xem [Luật an toàn](#luật-an-toàn).
+Plan lớn vẫn ghi ra file để tester có thể sửa bất đồng bộ, nhưng việc tạo file không phải lý do dừng. Decision table đầy đủ: `references/autonomous-execution.md`.
 
 ---
 
@@ -340,6 +363,8 @@ node scripts/scaffold.mjs --dir ./e2e --base-url https://staging.example.com --f
 ```
 
 Khung sinh ra gồm `playwright.config.ts` (đa môi trường, reporter, retry, trace), `pages/`, `tests/{ui,api,visual}/`, `fixtures/`, `utils/`, `.auth/` và `.env.example`. Chi tiết: `references/project-setup.md`.
+
+Trong `relaxed`, tự cài **đúng dependency/browser còn thiếu** bằng package manager và lockfile của repo, chỉ trong workspace đang test; không nâng cấp package không liên quan. Tự khởi động dev server chỉ theo luật ở mục [An toàn](#luật-an-toàn), và chỉ dừng process do chính Agent khởi động.
 
 **Repo đã có khung** → đọc `playwright.config.ts` và một spec có sẵn trước, rồi viết theo đúng phong cách đó. Đừng áp khung mới đè lên convention của họ.
 
@@ -389,6 +414,8 @@ npx playwright test tests/ui/checkout.spec.ts --repeat-each=3 --workers=1 --retr
 
 Kết quả lẫn lộn (vài lần pass, vài lần fail) là **flaky, và flaky bị tách riêng chứ không nhập vào suite xanh** — gắn `@quarantine` kèm một dòng ghi rõ tỷ lệ quan sát được, rồi báo cho người dùng. **Đừng thêm `retries` để nó xanh**: `retries` giấu flaky chứ không sửa flaky, và một suite xanh giả còn tệ hơn suite đỏ thật.
 
+Trong `relaxed`, chạy toàn bộ tập lệnh đã tự duyệt mà không dừng sau từng file. Lỗi đi thẳng sang HEAL; fix xong tự chạy lại tập nhỏ nhất liên quan rồi cổng ổn định. Chỉ hỏi nếu việc chạy tiếp cần quyền mới hoặc mở rộng scope đáng kể.
+
 **Biến thể race/intermittent thì ngược lại.** Mục tiêu là *đo tỷ lệ*, không phải đạt "N lượt đều pass" — "ba lần đều pass" ở đây chính là bằng chứng chưa tái hiện được. Dùng attempt budget đã chốt ở PLAN, `--workers=1 --retries=0` để denominator không bị trộn, và báo requested/observed timing. Xem `references/complex-flow-race-reproduction.md`.
 
 **Nếu EXPLORE bị chặn nên chưa có spec** (host không chạy được lệnh, người dùng từ chối file): EXECUTE nghĩa là đi lại kịch bản PLAN bằng thao tác tay, ghi bằng chứng từng bước. Verdict phải nói rõ đây là kết quả chạy tay, chưa có test tự động chốt lại.
@@ -411,7 +438,7 @@ Trả lời câu hỏi này **trước** khi động vào code:
 Hai luật cứng:
 
 - **Không hạ chuẩn assertion để test xanh.** Đổi `toHaveText('1.250.000 ₫')` thành `toBeVisible()`, bỏ bớt `expect`, nới `timeout` lên 120s cho khỏi fail — đó không phải sửa test, đó là xoá phần kiểm.
-- **Giới hạn số lần sửa** (mặc định 2). Hết lượt mà vẫn đỏ thì dừng, đưa ca đó vào verdict là `fail` kèm chẩn đoán — đừng sửa vô hạn tới khi nó xanh bằng mọi giá.
+- **Giới hạn số lần sửa** (`relaxed` mặc định 3, `guarded` mặc định 2; có thể đặt `autonomy.max_heal_attempts`). Hết lượt mà vẫn đỏ thì dừng, đưa ca đó vào verdict là `fail` kèm chẩn đoán — đừng sửa vô hạn tới khi nó xanh bằng mọi giá.
 
 **Biến thể bug**: không tái hiện được thì **đổi giả thuyết, không đổi kết luận**. Thử lại với state/role/data class/cadence/build khác, mỗi lần ghi lại đã đổi biến nào. Hết attempt budget thì verdict là `Not reproduced` hoặc `Inconclusive` kèm danh sách biến đã thử — không được im lặng chuyển thành "không có bug".
 
@@ -447,7 +474,7 @@ Verdict: FAIL
 
 Dòng `EXPLORE` bắt buộc nói rõ **quan sát mới hay dùng lại artefact cũ** — kết luận dựa trên journey ghi tuần trước và kết luận dựa trên quan sát vừa xong là hai mức tin cậy khác nhau.
 
-**Chốt lại để lần sau rẻ hơn.** Trước khi kết thúc, hỏi người dùng hai việc: (1) ghi `.testagent.yaml` cho target này chưa — có rồi thì lần sau bước FRAME chỉ còn một câu xác nhận; (2) tài liệu use case vừa sinh có muốn chuyển vào `docs/test-cases/` để commit không — nó là tài liệu nghiệp vụ, không phải rác tạm. Đừng tự chuyển file ra khỏi `.testagent/`.
+**Chốt lại để lần sau rẻ hơn mà không tạo thêm vòng hỏi.** Trong `relaxed`, tự tạo/cập nhật target trong `.testagent.yaml` nếu không có xung đột và không bao giờ ghi giá trị secret; báo chính xác phần đã ghi. Giữ tài liệu use case trong `.testagent/` và liệt kê đường dẫn — chỉ chuyển sang `docs/test-cases/` khi người dùng đã yêu cầu commit tài liệu nghiệp vụ. Không kết thúc bằng câu hỏi hành chính kiểu "có muốn lưu config không?".
 
 **Bug log:** giữ đúng giọng tester — tách rõ `Pre`, bước, `KQTT`, `KQMM`, evidence và tần suất tái hiện. Báo riêng ba dòng: `Reproduction outcome`, `Fix-verification verdict` (`Verified fixed`/`Failed`/`Partial`/`Regression`/`Not reproduced`/`Blocked`/`Inconclusive`) và `Status recommendation`. `Closed`, `Resolved` hay `Notbug` chỉ là trạng thái nguồn, không thay cho kết quả độc lập; không sửa status nguồn nếu người dùng chưa yêu cầu rõ. Giữ nguyên exact UI copy/test value cần đối chiếu, nhưng che PII, account ID, business/transaction ID. Mẫu đầy đủ: `references/bug-reproduction.md`.
 
@@ -459,13 +486,14 @@ Với mỗi ca fail, trả lời câu hỏi tester cần nhất: đây là **bug
 
 ## Luật an toàn
 
-Áp dụng cho EXPLORE và EXECUTE, không có ngoại lệ:
+Các invariant dưới đây áp dụng cho EXPLORE và EXECUTE ở cả hai chế độ. `relaxed` thay đổi **khi nào phải hỏi**, không thay đổi ranh giới secret, production và side effect thật:
 
-- **Không tự khởi động dev server khi cổng đã có tiến trình chạy.** Lấy cổng từ URL người dùng đưa (hoặc từ script `dev` trong `package.json`), rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có sẵn thì dùng tiến trình đang chạy và nói rõ điều đó.
-- **Đăng nhập tự động — nhưng agent không cầm mật khẩu.** Credential luôn nằm ở `.env` hoặc biến môi trường; agent chỉ truyền **tên biến**, không đọc giá trị. Chạy `scripts/auth-login.mjs` để đăng nhập và lưu phiên, đừng gõ mật khẩu vào form bằng tay. Ba điều cấm: **không hỏi mật khẩu trong hội thoại** (transcript được lưu lại), **không truyền mật khẩu qua tham số dòng lệnh** (lộ trong `ps` và shell history), **không hard-code trong spec**. Thiếu `.env` thì hướng dẫn người dùng tự tạo file rồi báo lại — họ gõ vào file, không gõ vào chat.
+- **Dev server theo quyền sở hữu process.** Lấy cổng từ target hoặc script `dev`, rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có tiến trình thì dùng nó, không start chồng và không kill. Không có tiến trình, target là local và repo có script dev rõ ràng thì `relaxed` được tự start ngầm, ghi PID/lệnh, chờ readiness và cuối lượt chỉ dừng đúng process do mình tạo; `guarded` hỏi trước.
+- **Đăng nhập tự động — nhưng secret không đi qua hội thoại/lệnh.** Credential luôn nằm ở `.env` hoặc biến môi trường; Agent chỉ truyền **tên biến**, không mở/in giá trị. Việc chạy trusted helper `scripts/auth-login.mjs` để process tự nạp secret nội bộ và điền form là **được phép và bắt buộc**, không phải lý do từ chối login. Chạy helper một lần để ensure và lưu phiên, đừng gõ mật khẩu vào form bằng thao tác hội thoại. Ba điều cấm: **không hỏi mật khẩu trong hội thoại**, **không truyền mật khẩu qua tham số dòng lệnh**, **không hard-code trong spec**. Thiếu `.env` thì đưa một hướng dẫn để người dùng tự tạo file rồi tiếp tục từ checkpoint.
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật — đọc response header (`server`, `via`, gateway). Kết luận "không tái hiện được" trên mock gần như vô giá trị.
-- **Thao tác trên staging/UAT tạo ra dữ liệu thật; production thì chỉ đọc.** Ghi lại mọi bản ghi agent tạo ra và đưa vào bằng chứng; scenario `teardown` phải dọn chúng. Không suy ra "đây là staging" từ cảm giác: host chỉ coi là an toàn khi là `localhost`/IP nội bộ, tên có `staging`/`stg`/`test`/`qa`/`dev`/`uat`, hoặc chính người dùng nói rõ. Còn lại mặc định coi như production.
-- **Dừng lại trước động từ phá huỷ, kể cả trên staging.** Xoá · thanh toán/chuyển tiền · gửi đi (SMS, email, thông báo, duyệt hồ sơ) · huỷ đăng ký · vô hiệu hoá tài khoản · ghi đè dữ liệu người khác. Nêu rõ ở bước CONFIRM sắp làm gì lên bản ghi nào và chờ người dùng đồng ý. Ưu tiên **tự tạo dữ liệu nháp rồi phá dữ liệu đó**, đừng đụng bản ghi có sẵn.
+- **Production mặc định chỉ đọc.** Không suy ra môi trường từ cảm giác: chỉ coi là non-production khi host là `localhost`/IP nội bộ, tên có `staging`/`stg`/`test`/`qa`/`dev`/`uat`, hoặc người dùng/config nói rõ. Còn lại chọn `guarded`. `allow_hosts` chỉ cho phép kết nối tới host, không phải quyền ghi production.
+- **Dữ liệu tự tạo trên non-production được tự quản.** Trong `relaxed`, Agent được tạo dữ liệu duy nhất có tiền tố `AUTOTEST-`, ghi lại ID, rồi sửa/xoá **đúng các bản ghi do chính lượt này tạo** để setup/teardown. Xác minh ID/target trước khi xoá và báo nếu cleanup thất bại. Bản ghi có sẵn, dữ liệu người khác, huỷ đăng ký, vô hiệu hoá tài khoản hoặc ghi đè ngoài tập ID đã ghi vẫn phải dừng xin phép.
+- **Luôn dừng trước side effect thật:** thanh toán/chuyển tiền, gửi SMS/email/thông báo ra ngoài, duyệt/phát hành hồ sơ, gọi gateway không mock, mua hàng hoặc hành động pháp lý. Mock/sandbox xác minh được thì được tự chạy; nếu không xác minh được, coi là thật và xin quyền với action + target cụ thể.
 
 ## 7 nguyên tắc để test không flaky
 
@@ -513,10 +541,11 @@ Khi một test fail: **mở trace trước khi đoán nguyên nhân.** Trace có
 ### A. Pipeline
 
 - [ ] Đã đi đủ tám bước; bước nào bị chặn đã ghi `Blocked` kèm lý do và điều kiện mở khoá
+- [ ] Đã ghi mode (`relaxed`/`guarded`) và nguồn chọn mode; không có vòng hỏi/duyệt nào tránh được
 - [ ] EXPLORE chạy trên đúng URL/build/môi trường, đúng role, đúng state và data class mà yêu cầu nói tới
 - [ ] Đã xác minh backend phía sau là thật hay mock, và đã nói rõ chạy trên trình duyệt profile thật hay profile tạm
 - [ ] Đã đọc lại state 2–3 lần khi màn hình còn đang đổi, không kết luận từ một snapshot duy nhất
-- [ ] PLAN đã trình ra và được duyệt (hoặc đã in bảng khi tự duyệt); phần ngoài phạm vi đã viết rõ
+- [ ] PLAN đã ghi ra; CONFIRM ghi rõ `agent-self-approved (relaxed)` hoặc bằng chứng người dùng duyệt; phần ngoài phạm vi đã viết rõ
 - [ ] Mỗi scenario truy vết được về requirement/mã test case, hoặc được đánh dấu `exploration`
 - [ ] Không lấy hành vi hiện tại của app làm chuẩn đúng/sai khi chưa có acceptance criterion
 - [ ] VERDICT nói rõ EXPLORE là quan sát mới hay dùng lại artefact cũ (kèm build + thời điểm ghi)
@@ -531,7 +560,7 @@ Khi một test fail: **mở trace trước khi đoán nguyên nhân.** Trace có
 - [ ] Mọi lần HEAL đều giữ nguyên ý định assertion; có đổi expected thì đổi theo requirement và đã nói rõ
 - [ ] Không có mật khẩu / token hard-code — nằm ở `.env`, và `.env` đã `.gitignore`
 - [ ] Đã nói rõ đường dẫn file bàn giao, cách chạy lại, lệnh chạy suite gate (`--grep-invert @quarantine`) và cách xem report
-- [ ] Đã hỏi người dùng có ghi `.testagent.yaml` và có chuyển tài liệu use case ra `docs/test-cases/` không — không tự chuyển file ra khỏi `.testagent/`
+- [ ] Trong `relaxed`, `.testagent.yaml` đã được tạo/cập nhật nếu không xung đột; use case vẫn ở `.testagent/` trừ khi người dùng đã yêu cầu chuyển
 
 ### C. Bằng chứng và an toàn
 
@@ -539,8 +568,9 @@ Khi một test fail: **mở trace trước khi đoán nguyên nhân.** Trace có
 - [ ] Bằng chứng gồm ảnh tại observation point, console, network (endpoint + status), state đọc từ trang
 - [ ] Đã tách rõ fact / inference / unknown, và nêu điều gì **chưa** kiểm được vì sao
 - [ ] Đã liệt kê bản ghi/dữ liệu do agent tạo ra trên môi trường test và nói rõ đã dọn hay cần ai dọn
-- [ ] Đăng nhập qua `auth-login.mjs` đọc `.env`; không hỏi mật khẩu trong hội thoại, không truyền qua dòng lệnh, không hard-code
-- [ ] Không tự start server khi cổng đã có tiến trình; không thao tác phá huỷ hay chạm production khi chưa được duyệt ở bước CONFIRM
+- [ ] Đăng nhập bằng một lần gọi `auth-login.mjs` (ensure) đọc `.env`; không hỏi mật khẩu trong hội thoại, không truyền qua dòng lệnh, không hard-code
+- [ ] Không start chồng/kill server có sẵn; process do Agent start đã được theo dõi và dừng đúng cách
+- [ ] Chỉ tự cleanup ID do chính lượt test tạo trên non-production; không ghi production hay kích hoạt side effect thật khi chưa được duyệt
 - [ ] Evidence đã che PII/secrets; không dùng dữ liệu định danh hoặc giao dịch thật từ production
 
 ### D. Thêm cho bug log
@@ -556,6 +586,7 @@ Khi một test fail: **mở trace trước khi đoán nguyên nhân.** Trace có
 
 | File | Nội dung |
 |---|---|
+| `references/autonomous-execution.md` | **Chế độ `relaxed`/`guarded`**: zero-touch loop, decision table tiếp tục/dừng, auto-login, auto-plan, server/dependency, cleanup và cấu hình `autonomy` |
 | `references/live-browser-investigation.md` | **Bước EXPLORE + chẩn đoán ở bước HEAL**: chọn/xác minh trình duyệt, đọc cây accessibility, click/điền form, chạy JS trong trang, đọc console + network, bốn kiểu hỏng im lặng, chốt đầu ra cho PLAN |
 | `references/explore-artifacts.md` | **Đầu ra của EXPLORE**: thư mục `.testagent/`, nhật ký hành trình, điểm chốt, ghi use case → sinh tài liệu test case thủ công, HAR, `storageState`, `.testagent.yaml`, khi nào phải explore lại |
 | `references/test-plan-and-traceability.md` | **Bước PLAN + VERDICT**: thứ tự tin cậy của nguồn, kế hoạch có tầng, bảng plan để duyệt, ma trận truy vết, ngoài phạm vi, definition of done |
@@ -577,7 +608,7 @@ Script bundled (gọi trực tiếp, đọc `--help` trước, không đọc sou
 
 | Script | Dùng ở bước |
 |---|---|
-| `scripts/auth-login.mjs` | EXPLORE, khi app cần đăng nhập — tự login bằng credential trong `.env`, lưu `storageState`, `--check` để bỏ qua khi phiên còn sống. Hỗ trợ TOTP 2FA |
+| `scripts/auth-login.mjs` | EXPLORE, khi app cần đăng nhập — một lần gọi tự dùng lại/gia hạn phiên, login form một hoặc hai bước bằng credential trong `.env`, lưu `storageState`, tự nhận `TEST_TOTP_SECRET` |
 | `scripts/explore.mjs` | EXPLORE, khi không có công cụ browser — dump một lượt locator + ảnh full page. **Không thay được EXPLORE bằng trình duyệt thật.** |
 | `scripts/scaffold.mjs` | GENERATE, khi repo chưa có khung Playwright TS |
 | `scripts/excel_to_spec.py` | PLAN, khi đầu vào là file test case `.xlsx` (mẫu KBKTCN hoặc UAT phẳng). Không chạy trên bug list. |

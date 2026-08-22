@@ -33,12 +33,9 @@ TUỲ CHỌN
   --wait-for <selector>    Chờ selector này xuất hiện trước khi đọc DOM
   --max <n>                Số phần tử tối đa liệt kê. Mặc định: 150
 
-  ĐĂNG NHẬP TRƯỚC KHI TRINH SÁT
-  --auth <file.json>       Dùng storageState đã lưu sẵn
-  --login-url <url>        Trang đăng nhập (mặc định dùng --url)
-  --username <giá trị>     Tài khoản
-  --password <giá trị>     Mật khẩu
-  --save-auth <file.json>  Lưu lại storageState sau khi đăng nhập để lần sau dùng --auth
+  PHIÊN ĐĂNG NHẬP
+  --auth <file.json>       Dùng storageState đã được auth-login.mjs bảo đảm
+                           Không nhận username/password trên command line.
 
   TƯƠNG TÁC TRƯỚC KHI CHỤP
   --click <text>           Bấm phần tử có text này trước khi đọc DOM (lặp lại được)
@@ -56,8 +53,8 @@ VÍ DỤ
   node explore.mjs --url https://staging.example.com/login
   node explore.mjs --url https://app.example.com --auth .auth/user.json --out recon/dashboard
   node explore.mjs --url https://example.com --click "Đăng ký" --out recon/register
-  node explore.mjs --url https://app.example.com/login \\
-     --username tester@example.com --password 'Abc@123' --save-auth .auth/user.json
+  node auth-login.mjs --url https://app.example.com/login --out .auth/user.json
+  node explore.mjs --url https://app.example.com --auth .auth/user.json
 
 KẾT QUẢ
   In tóm tắt ra màn hình (đủ để viết test luôn) và lưu vào --out:
@@ -82,10 +79,6 @@ try {
       'wait-for': { type: 'string' },
       max: { type: 'string', default: '150' },
       auth: { type: 'string' },
-      'login-url': { type: 'string' },
-      username: { type: 'string' },
-      password: { type: 'string' },
-      'save-auth': { type: 'string' },
       click: { type: 'string', multiple: true, default: [] },
       fill: { type: 'string', multiple: true, default: [] },
       'no-screenshot': { type: 'boolean', default: false },
@@ -179,37 +172,6 @@ const fail = async (msg, err) => {
   await browser.close();
   process.exit(1);
 };
-
-// --- Đăng nhập (tuỳ chọn) -------------------------------------------------
-if (args.username && args.password) {
-  const loginUrl = args['login-url'] || args.url;
-  console.log(`→ Đăng nhập tại ${loginUrl} ...`);
-  try {
-    await page.goto(loginUrl, { waitUntil: 'domcontentloaded', timeout: navTimeout });
-
-    const userField = page.locator(
-      'input[type="email"], input[name*="user" i], input[name*="email" i], ' +
-      'input[id*="user" i], input[id*="email" i], input[type="text"]'
-    ).first();
-    const passField = page.locator('input[type="password"]').first();
-
-    await userField.fill(args.username, { timeout: 15000 });
-    await passField.fill(args.password, { timeout: 15000 });
-    await passField.press('Enter');
-    await page.waitForLoadState('networkidle', { timeout: navTimeout }).catch(() => {});
-
-    if (await page.locator('input[type="password"]').count() > 0) {
-      console.warn('⚠ Vẫn thấy ô mật khẩu sau khi submit — có thể đăng nhập chưa thành công.');
-    }
-    if (args['save-auth']) {
-      mkdirSync(path.dirname(path.resolve(args['save-auth'])), { recursive: true });
-      await context.storageState({ path: args['save-auth'] });
-      console.log(`→ Đã lưu phiên đăng nhập: ${args['save-auth']}`);
-    }
-  } catch (err) {
-    await fail('Đăng nhập thất bại. Thử --headed để nhìn xem đang kẹt ở đâu.', err);
-  }
-}
 
 // --- Điều hướng -----------------------------------------------------------
 console.log(`→ Mở ${args.url} ...`);

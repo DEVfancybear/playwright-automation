@@ -10,11 +10,11 @@ Mục lục: [Nói sao cho agent hiểu](#nói-sao-cho-agent-hiểu-đúng) · [
 
 ## Nói sao cho agent hiểu đúng
 
-Ba thứ nên có trong yêu cầu đầu tiên. Thiếu thì agent sẽ hỏi, nhưng có sẵn thì nhanh hơn:
+Ba thứ nên có trong yêu cầu đầu tiên. Thiếu thì `relaxed` tự tìm trong repo/config trước và chỉ hỏi nếu thật sự không thể chạy tiếp:
 
 1. **URL** — staging, local hay production? Có cần đăng nhập không, tài khoản test là gì?
 2. **Phạm vi** — một chức năng, một luồng nghiệp vụ, hay cả bộ regression?
-3. **Nơi đặt test** — repo đã có khung Playwright chưa, spec nên nằm ở thư mục nào? (Mọi lượt đều trả về spec commit được, nên agent cần biết chỗ ghi.)
+3. **Nơi đặt test** — repo đã có khung Playwright chưa? Nếu không nói, Agent theo suite hiện có hoặc tự dùng `e2e/`.
 
 So sánh:
 
@@ -39,8 +39,8 @@ Agent sẽ:
 
 1. **EXPLORE** — mở trang bằng công cụ browser, đọc cây accessibility để lấy element có thật (không đoán selector), gõ "áo sơ mi" → bấm Tìm, sau mỗi bước đọc network (endpoint + status), đọc console, chụp màn hình tại observation point.
 2. Báo **kết luận sơ bộ** ngay: kết quả đúng/sai, **bug của app hay lỗi thao tác**, phần nào chưa kiểm được và vì sao. Bạn không phải chờ hết pipeline mới biết câu trả lời.
-3. **PLAN** — trình bảng scenario cho bạn duyệt, thường 1–3 dòng: tìm kiếm ra kết quả đúng, tìm từ khoá không tồn tại, và ca lỗi nếu vừa phát hiện được.
-4. **CONFIRM** — bạn cắt/thêm dòng rồi gật.
+3. **PLAN** — ghi bảng scenario, thường 1–3 dòng: tìm kiếm ra kết quả đúng, tìm từ khoá không tồn tại, và ca lỗi nếu vừa phát hiện được.
+4. **CONFIRM** — trên staging với `relaxed`, Agent ghi `agent-self-approved` và đi tiếp; chỉ chờ bạn khi target/rủi ro cần `guarded`. Bạn vẫn có thể chủ động cắt/thêm scope trong lúc Agent chạy.
 5. **GENERATE → EXECUTE → HEAL** — sinh spec, chạy `--repeat-each=3 --workers=1 --retries=0`, fail thì quay lại trình duyệt xem DOM thật rồi sửa.
 6. **VERDICT** — PASS/FAIL kèm số ca, đường dẫn file bàn giao và lệnh chạy lại.
 
@@ -152,7 +152,7 @@ Sau đó nhờ agent điền tiếp:
 
 > Trinh sát https://staging.example.com/login rồi điền hết TODO trong dang-nhap.spec.ts.
 
-**Lưu ý về phạm vi.** Không phải test case nào cũng tự động hóa được. Ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày — agent đưa chúng vào phần **Ngoài phạm vi** của bảng plan kèm lý do, thay vì im lặng bỏ qua hoặc cố sinh code cho chúng. Bạn xem bảng đó ở bước duyệt và cắt/thêm trước khi agent viết dòng code nào.
+**Lưu ý về phạm vi.** Không phải test case nào cũng tự động hóa được. Ca phụ thuộc đánh giá của con người ("giao diện có đẹp không"), ca cần thiết bị ngoài trình duyệt (ký số USB token, máy POS), và luồng còn đang thay đổi từng ngày — Agent đưa chúng vào phần **Ngoài phạm vi** kèm lý do. Với `relaxed`, plan được lưu để bạn xem/sửa bất đồng bộ nhưng Agent không chờ nếu phần còn lại an toàn; `guarded` mới giữ cổng duyệt trước phần rủi ro.
 
 ---
 
@@ -298,7 +298,7 @@ Xuất kết quả về TestRail / Jira Xray: cả hai đều nhận file JUnit 
 
 ## Dùng script trực tiếp
 
-Ba script chạy được độc lập ngoài Codex/Claude. Mỗi script đều có `--help` đầy đủ.
+Bốn script chạy được độc lập ngoài Codex/Claude. Mỗi script đều có `--help` đầy đủ.
 
 ### Trinh sát trang
 
@@ -306,20 +306,19 @@ Ba script chạy được độc lập ngoài Codex/Claude. Mỗi script đều 
 # Cơ bản
 node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
 
-# Trang cần đăng nhập — tự đăng nhập rồi lưu phiên để lần sau dùng lại
-node scripts/explore.mjs --url https://staging.example.com/orders \
-  --login-url https://staging.example.com/login \
-  --username tester@example.com --password "$TEST_PASS" \
-  --save-auth .auth/user.json
+# Trang cần đăng nhập — một lệnh tự dùng lại/gia hạn phiên từ .env
+node scripts/auth-login.mjs \
+  --url https://staging.example.com/login \
+  --out .auth/user.json
 
-# Lần sau dùng lại phiên đã lưu
+# Trinh sát bằng phiên đã bảo đảm
 node scripts/explore.mjs --url https://staging.example.com/orders --auth .auth/user.json
 
 # Phần tử chỉ hiện sau khi bấm (modal, tab, menu)
 node scripts/explore.mjs --url https://staging.example.com --click "Đăng ký"
 ```
 
-Đặt `TEST_PASS` bằng biến môi trường, đừng gõ mật khẩu thẳng vào lệnh — nó nằm lại trong shell history. Khi agent thao tác trực tiếp (Pha 1), agent dừng ở ô mật khẩu và nhờ bạn tự nhập.
+Đặt `TEST_USER`, `TEST_PASS` và nếu cần `TEST_TOTP_SECRET` trong `.env` đã gitignore. Không truyền giá trị qua dòng lệnh hoặc chat. Helper hỗ trợ form một trang, form username → Next → password và tự dùng TOTP; Agent không dừng ở ô mật khẩu.
 
 ```bash
 # Xem giao diện mobile

@@ -2,9 +2,9 @@
 
 [![npm](https://img.shields.io/npm/v/@duong.dev/playwright-automation)](https://www.npmjs.com/package/@duong.dev/playwright-automation)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
-[![node](https://img.shields.io/badge/node-%E2%89%A518-brightgreen)](https://nodejs.org)
+[![node](https://img.shields.io/badge/node-%E2%89%A520-brightgreen)](https://nodejs.org)
 
-> Skill cho Codex và Claude biến mọi yêu cầu kiểm thử thành một **pipeline bắt buộc**: quan sát app thật → lập kế hoạch có truy vết → bạn duyệt → sinh spec Playwright + TypeScript → chạy qua cổng ổn định → tự sửa bằng cách quan sát lại → **verdict có số**. Áp cho cả câu hỏi nhanh, bug log dài, luồng nhiều màn hình/role và bug chỉ xuất hiện khi thao tác nhanh.
+> Skill cho Codex và Claude biến mọi yêu cầu kiểm thử thành một **pipeline tự chủ**: tự đăng nhập → quan sát app thật → lập kế hoạch có truy vết → tự duyệt phần an toàn → sinh spec Playwright + TypeScript → chạy qua cổng ổn định → tự sửa bằng cách quan sát lại → **verdict có số**. Chế độ `relaxed` giúp tester không phải gật đầu sau từng bước; production và side effect thật vẫn dùng `guarded`.
 
 Đây là một Agent Skill theo chuẩn mở, dùng được trong [Codex](https://learn.chatgpt.com/docs/build-skills) và Claude Code. Skill đóng gói hướng dẫn, reference và script để agent tự nạp khi bạn nhờ tái hiện bug hoặc làm automation test. Bạn nói bằng tiếng Việt như nói với đồng nghiệp; agent lo phần trinh sát, selector, cấu hình và code.
 
@@ -19,6 +19,7 @@ Tester chuyển sang automation thường vấp mấy chỗ này:
 | Vấn đề | Skill xử lý thế nào |
 |---|---|
 | **Kiểm thử không có quy trình, mỗi lần một kiểu** | Một pipeline bắt buộc, tám bước, áp cho mọi yêu cầu — từ "xem hộ trang này" tới cả workbook bug log |
+| **Agent cứ dừng hỏi sau mỗi bước** | `relaxed` mặc định trên local/dev/QA/staging/UAT: tự resolve config, login, duyệt plan, chạy, heal và cleanup dữ liệu riêng; chỉ hỏi khi thiếu secret/oracle/quyền thật sự |
 | **Đoán selector** → test lúc chạy lúc không | Bước EXPLORE bắt buộc chạy trên app thật trước khi được lập plan hay sinh code (cây accessibility cho element có thật) |
 | **Kiểm xong rồi để đó, lần sau kiểm lại từ đầu** | Mọi lượt kết thúc bằng spec commit được đã qua cổng ổn định, kèm verdict có số |
 | **File test case Excel nằm một nơi, code nằm một nơi** | `scripts/excel_to_spec.py` đọc file UAT có sẵn, sinh khung spec + bảng truy vết `test-map.json` |
@@ -32,18 +33,20 @@ Nguyên tắc xuyên suốt: **quan sát thật trước, chốt thành test sau
 
 Mọi yêu cầu kiểm thử đi qua đúng tám bước này. Không bước nào tuỳ chọn.
 
+Lệnh thuần thao tác như “chỉ mở URL”/“chỉ chụp ảnh” và không yêu cầu kiểm tra thì giữ đúng scope đó. Ngược lại, URL + ý định test/kiểm tra một màn hình hay feature mặc định là mục tiêu đầu-cuối: tự đăng nhập, explore, plan, generate, execute/heal và report.
+
 ```
 0. FRAME    → chốt target, build/môi trường, role/state, nguồn grounding
 1. EXPLORE  → mở app THẬT bằng công cụ browser, quan sát. Không đoán, không nhớ.
 2. PLAN     → bảng scenario có tầng + truy vết + phần ngoài phạm vi
-3. CONFIRM  → trình bảng cho bạn duyệt
+3. CONFIRM  → relaxed: Agent tự duyệt phần an toàn; guarded/rủi ro: bạn duyệt
 4. GENERATE → spec + Page Object commit được, một scenario một file
 5. EXECUTE  → chạy qua cổng ổn định (3 lượt, flaky bị quarantine)
 6. HEAL     → fail thì quay lại trình duyệt thật, re-observe, sửa, chạy lại
 7. VERDICT  → PASS/FAIL kèm số ca — hoặc Reproduced / Verified fixed với bug log
 ```
 
-Bốn luật: **không bước nào tuỳ chọn** · **không đảo thứ tự** (không sinh code trước khi EXPLORE, không chạy trước khi CONFIRM) · **bỏ bước phải khai báo** là `Blocked` kèm điều kiện mở khoá · **chưa có test chạy được là chưa xong**.
+Bốn luật: **không bước nào tuỳ chọn** · **không đảo thứ tự** (không sinh code trước khi EXPLORE, không chạy trước khi quyết định CONFIRM được ghi lại) · **bỏ bước phải khai báo** là `Blocked` kèm điều kiện mở khoá · **chưa có test chạy được là chưa xong**. Trong `relaxed`, CONFIRM là `agent-self-approved`, không phải một vòng chờ.
 
 Ngoại lệ duy nhất: bạn **nói rõ** không muốn file — agent dừng sau bước chạy tay và ghi `Codify skipped — theo yêu cầu người dùng` vào verdict. Agent không bao giờ tự quyết điều này.
 
@@ -82,6 +85,7 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 | **Accessibility** | `@axe-core/playwright`, WCAG 2.1 AA, kiểm tra bàn phím |
 | **Mock & giả lập lỗi** | `page.route`, HAR, lỗi 500, timeout, offline, mạng 3G |
 | **Đăng nhập tự động** | Agent tự đăng nhập bằng credential trong `.env` — không bắt tester gõ mật khẩu, không đưa mật khẩu vào hội thoại. Tự dò form, hỗ trợ TOTP 2FA, tái dùng phiên. Agent bị chặn egress thì bắc cầu bằng file phiên |
+| **Vận hành zero-touch** | Hai mode `relaxed`/`guarded`, auto-plan, auto-start local server, auto-install dependency, heal/re-run và cleanup theo exact ID |
 | **Dữ liệu & xác thực** | `storageState` đăng nhập một lần, đa role, sinh dữ liệu duy nhất, dọn dữ liệu |
 | **Từ Excel sang script** | Đọc mẫu KỊCH BẢN NGHIỆM THU / UAT, sinh spec + truy vết |
 | **Report & CI/CD** | HTML report, Allure, JUnit cho TestRail/Xray, GitHub Actions, Jenkins, GitLab, sharding |
@@ -99,6 +103,8 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 ```bash
 npx @duong.dev/playwright-automation install --codex
 ```
+
+Installer dùng `$CODEX_HOME/skills/` khi biến này có sẵn, nếu không dùng `~/.codex/skills/`. Chạy lại với `--force` để thay bản đã cài.
 
 Cài theo repo để team dùng chung; Codex tự quét `.agents/skills/` từ thư mục làm việc lên repo root:
 
@@ -139,7 +145,7 @@ Không có cú pháp gì phải nhớ. Cứ nói việc cần làm:
 
 ```
 Test giúp tôi chức năng đăng nhập ở https://staging.example.com, tài khoản test
-để trong .env (TEST_USER/TEST_PASS). Xem có bug gì không.
+để trong .env (TEST_USER/TEST_PASS). Dùng relaxed, tự chạy tới verdict; chỉ hỏi nếu bị chặn thật.
 ```
 
 ```
@@ -173,6 +179,7 @@ playwright-automation/
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
 ├── references/                 # Tài liệu chuyên sâu, agent chỉ đọc file cần dùng
 │   ├── live-browser-investigation.md # Bước EXPLORE: accessibility tree, console, network
+│   ├── autonomous-execution.md # relaxed/guarded, zero-touch loop và decision table
 │   ├── explore-artifacts.md    # Ghi lại & dùng lại phiên EXPLORE, sinh tài liệu test case
 │   ├── bug-reproduction.md     # Tái hiện bug, verify fix, evidence và verdict
 │   ├── complex-flow-race-reproduction.md # Log dài, multi-flow, cadence/race
@@ -200,9 +207,12 @@ Skill dùng cơ chế **progressive disclosure**: `SKILL.md` luôn được nạ
 
 ## Script dùng độc lập
 
-Ba script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự thao tác:
+Bốn script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự thao tác:
 
 ```bash
+# Bảo đảm phiên đăng nhập: còn sống thì dùng lại, hết hạn thì tự login từ .env
+node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+
 # Trinh sát trang, lấy locator có thật thay vì đoán
 node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
 
@@ -219,7 +229,7 @@ Mỗi script đều có `--help` mô tả đầy đủ tham số.
 
 | Thành phần | Yêu cầu | Dùng cho |
 |---|---|---|
-| Node.js | ≥ 18 | `explore.mjs`, `scaffold.mjs`, chạy Playwright |
+| Node.js | ≥ 20 | `explore.mjs`, `scaffold.mjs`, chạy Playwright |
 | Playwright | `npm i -D @playwright/test` | Chạy test và trinh sát |
 | Python | ≥ 3.9 + `openpyxl` | `excel_to_spec.py` (chỉ khi cần đọc Excel) |
 
@@ -229,10 +239,10 @@ Không cài trước cũng được — Codex hoặc Claude sẽ hướng dẫn 
 
 Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên biết lý do:
 
-- **Pipeline bắt buộc, không có cổng bật/tắt.** Bản 1.x cho phép dừng ở lượt quan sát và coi đó là xong. Bản 2.0 bỏ hẳn: quan sát trực tiếp là *bằng chứng*, không phải *sản phẩm bàn giao*. Ngoại lệ duy nhất là người dùng nói rõ không muốn file — agent không tự quyết.
+- **Pipeline bắt buộc, cổng tương tác có mode.** Bản 1.x cho phép dừng ở lượt quan sát; bản 2.0 bắt buộc đầu ra chạy lại được; bản 3.0 giữ đủ tám bước nhưng `relaxed` tự duyệt phần an toàn để tester không phải tương tác liên tục. `guarded` vẫn dùng cho production/side effect thật.
 - **Khung spec sinh từ Excel cố tình FAIL** (`expect(true, ...).toBe(false)`). Một khung test luôn xanh nguy hiểm hơn không có test, vì nó tạo cảm giác đã kiểm tra trong khi chưa kiểm tra gì.
 - **`retries: 2` chỉ bật trên CI.** Retry ở local sẽ giấu lỗi thật của script. Test mới thì phải qua cổng ổn định (`--repeat-each=3 --workers=1 --retries=0`) mới được nhận vào suite; ca lẫn lộn bị tách `@quarantine`, không bao giờ được làm xanh bằng `retries`.
-- **App đang chạy không phải oracle.** Hành vi hiện tại chỉ nói app *đang* làm gì. Khi chưa có acceptance criterion, skill ghi `Unknown` và hỏi thay vì đóng băng hành vi hiện tại thành `expect` — nếu không, bug hôm nay sẽ thành "chuẩn" của ngày mai.
+- **App đang chạy không phải oracle.** Hành vi hiện tại chỉ nói app *đang* làm gì. Khi chưa có acceptance criterion, skill vẫn tự kiểm technical invariant và ghi verdict nghiệp vụ `Inconclusive`; chỉ hỏi nếu thiếu/mâu thuẫn expected result khiến chính ca trọng tâm không thể định nghĩa. Không đóng băng hành vi hiện tại thành `expect` — nếu không, bug hôm nay sẽ thành "chuẩn" của ngày mai.
 - **Sửa test gãy thì không được hạ chuẩn assertion.** Đổi `toHaveText(...)` thành `toBeVisible()` cho xanh là xoá phần kiểm, không phải sửa test.
 - **Race baseline chạy `retries=0`, thường `workers=1`.** Retry làm sai denominator `x/y`; parallel load chỉ được thêm như một biến thử nghiệm riêng.
 - **`waitForTimeout` không dùng để chờ readiness.** Nó chỉ được chấp nhận khi delay chính là test input cadence, được đặt tên, đo và đưa vào ma trận.
@@ -242,7 +252,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 ## Lịch sử thay đổi
 
-Phiên bản hiện tại: **2.5.0** — agent tự đăng nhập bằng `.env`, và khi runtime agent bị chặn egress thì bắc cầu bằng file phiên qua Playwright MCP; template Excel KBKTCN; pipeline tám bước bắt buộc từ 2.0.0.
+Phiên bản hiện tại: **3.0.0** — chế độ `relaxed` zero-touch trên non-production, `guarded` cho ranh giới rủi ro; auth một lệnh idempotent hỗ trợ form hai bước và tự nhận TOTP; pipeline tám bước bắt buộc từ 2.0.0.
 Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp
@@ -251,6 +261,7 @@ Sửa nội dung trong `references/` hoặc `assets/template/` rồi mở pull r
 
 ```bash
 node scripts/explore.mjs --url <trang bất kỳ> --out /tmp/recon
+node scripts/auth-login.mjs --help
 node scripts/scaffold.mjs --dir /tmp/e2e --dry-run
 python scripts/excel_to_spec.py --file <file.xlsx> --dry-run
 ```

@@ -1,4 +1,4 @@
 interface:
   display_name: "Playwright QA Automation"
-  short_description: "Pipeline kiểm thử bắt buộc: explore trên app thật → plan có truy vết → duyệt → sinh spec → chạy qua cổng ổn định → verdict"
-  default_prompt: "Use $playwright-automation on this target. Run the full mandatory pipeline: explore the real app in a browser, show me a traced test plan for approval, generate committable Playwright specs, run them through the stability gate, heal failures by re-observing the live app, and end with a numbered verdict."
+  short_description: "Auto-login và tự chạy Playwright tới verdict"
+  default_prompt: "Use $playwright-automation: classify the target first; use relaxed mode only on confirmed non-production and guarded mode on production or unknown targets. For safe relaxed scope, auto-login, explore, self-approve the traced plan, generate and run committable tests, heal failures, and return an evidence report; stop only at a real authorization or input boundary."

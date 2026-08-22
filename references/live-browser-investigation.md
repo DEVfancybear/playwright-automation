@@ -112,7 +112,7 @@ Nếu phải nạp công cụ trước khi dùng, nạp **một lượt duy nh�
   claude mcp add playwright npx @playwright/mcp@latest
   ```
 
-  Server này cung cấp đúng bộ năng lực trong bảng trên (`browser_navigate`, `browser_snapshot` trả cây accessibility, `browser_click`, `browser_type`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`, `browser_tabs`), nên EXPLORE chạy bình thường. Cần cài Node ≥ 18 và tải browser lần đầu (`npx playwright install chromium`). Xin phép người dùng trước khi thêm MCP server vào cấu hình của họ.
+  Server này cung cấp đúng bộ năng lực trong bảng trên (`browser_navigate`, `browser_snapshot` trả cây accessibility, `browser_click`, `browser_type`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`, `browser_tabs`), nên EXPLORE chạy bình thường. Cần cài Node ≥ 20 và tải browser lần đầu (`npx playwright install chromium`). Xin phép người dùng trước khi thêm MCP server vào cấu hình của họ.
 
   Chỉ khi không cắm được — chặn mạng, không chạy được `npx`, người dùng từ chối — mới hạ xuống `scripts/explore.mjs` trinh sát một lượt. Ghi rõ trong PLAN là chưa quan sát được trạng thái sau tương tác, và đánh dấu những scenario dựng từ dump tĩnh là rủi ro cao.
 - **Host không chạy được lệnh** (ví dụ claude.ai): không trinh sát được. Báo `Blocked: không có công cụ browser và không chạy được script`, rồi (a) nhờ người dùng dán ảnh chụp / log console / log network / HTML của màn hình cần xem, hoặc (b) soạn sẵn các bước để người dùng tự thao tác và báo lại quan sát. Tuyệt đối không suy đoán hành vi app rồi báo như đã kiểm.
@@ -124,7 +124,7 @@ Nếu phải nạp công cụ trước khi dùng, nạp **một lượt duy nh�
 3. **Đi đúng các bước tester mô tả, không rút gọn.** Bug thường nằm ở đúng cái bước trông có vẻ thừa.
 4. **Sau mỗi bước quan trọng**: đọc network (endpoint + status), đọc console, chụp ảnh tại observation point.
 5. **Xác minh state phía server** bằng cách gọi API với chính session đang mở.
-6. **Kết luận + bằng chứng**, rồi hỏi có cần chốt thành regression không.
+6. **Kết luận + bằng chứng**, rồi tự chốt thành regression spec theo pipeline. Không hỏi lại; chỉ bỏ codify khi người dùng đã nói rõ không muốn file.
 
 Nguyên tắc quan sát: **đọc lại 2–3 lần khi màn hình còn đang đổi**. Một snapshot duy nhất chụp đúng lúc đang loading sẽ dẫn tới kết luận sai — đây là phiên bản thủ công của lỗi "assertion không tự chờ".
 
@@ -250,16 +250,18 @@ Các giới hạn khác của thao tác tay: không đo được cadence dưới
 
 ## Luật an toàn
 
-- **Không tự khởi động dev server khi cổng đã có tiến trình chạy.** Kiểm tra trước:
+Áp dụng cùng mode trong `autonomous-execution.md`: `relaxed` tự tiếp tục với thao tác an toàn trên non-production; `guarded` giữ cổng duyệt. Các ranh giới secret, production và side effect thật không đổi theo mode.
+
+- **Không start chồng dev server.** Kiểm tra trước:
   ```bash
   # <PORT> = cổng trong URL người dùng đưa (3000, 4200, 5173, 8080… tuỳ stack)
   netstat -ano | findstr :<PORT>      # Windows
   lsof -i :<PORT>                     # macOS/Linux
   ```
-  Có sẵn thì dùng cái đang chạy và nói rõ là đang dùng tiến trình có sẵn. Start chồng vừa fail vừa có thể giết bản build người dùng đang xem.
+  Có sẵn thì dùng cái đang chạy và nói rõ là đang dùng tiến trình có sẵn. Không có, target là local và repo có script dev rõ ràng thì `relaxed` được tự start ngầm; ghi command + PID và cuối lượt chỉ dừng đúng process do mình tạo. `guarded` hỏi trước. Start chồng vừa fail vừa có thể giết bản build người dùng đang xem.
 
 - **Kiểm topology trước khi bàn đăng nhập.** `curl --max-time 8 <target>` từ runtime agent. Không tới được mà trình duyệt vẫn mở được target ⇒ runtime bị chặn egress: bắc cầu bằng file phiên (`--storage-state` / `--user-data-dir` của Playwright MCP), xem `SKILL.md`. Đừng bảo người dùng chạy script rồi tưởng là xong.
-- **Đăng nhập bằng `scripts/auth-login.mjs`, không gõ tay.** Script đọc credential từ `.env`, tự đăng nhập, lưu `storageState` để lượt sau khỏi làm lại. Agent chỉ truyền **tên biến**, không đọc giá trị mật khẩu. Không hỏi mật khẩu trong hội thoại và không truyền nó qua tham số dòng lệnh — cả hai đều để lại vết. Thiếu `.env` thì đưa hướng dẫn cho người dùng tự điền vào file.
+- **Đăng nhập bằng một lần gọi `scripts/auth-login.mjs`, không gõ tay.** Lệnh mặc định tự dùng lại hoặc gia hạn phiên, helper process tự nạp credential từ `.env`, điền form và lưu `storageState`. Agent chỉ truyền **tên biến**, không mở/in giá trị; quyền chạy helper này là explicit và không được diễn giải thành lý do từ chối login. Không hỏi mật khẩu trong hội thoại và không truyền nó qua tham số dòng lệnh — cả hai đều để lại vết. Thiếu `.env` thì đưa một hướng dẫn cho người dùng tự điền vào file rồi tiếp tục từ checkpoint.
 
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật. Đọc header response để biết:
   ```
@@ -269,13 +271,14 @@ Các giới hạn khác của thao tác tay: không đo được cadence dưới
   ```
   Kết luận "không tái hiện được" trên mock gần như vô giá trị; trên BE thật thì có giá trị nghiệm thu. Nêu rõ mình đã chạy trên cái nào.
 
-- **Production hoặc dữ liệu thật: chỉ thao tác đọc.** Mọi hành động tạo/sửa/xoá phải được người dùng cho phép rõ ràng trước, từng lần một.
+- **Production hoặc host chưa xác định: chỉ thao tác đọc.** Mọi hành động tạo/sửa/xoá phải được người dùng cho phép rõ ràng; `allow_hosts` không thay cho quyền ghi.
 
 - **Thao tác trực tiếp trên staging/UAT tạo ra dữ liệu thật.** Đơn hàng, hồ sơ, yêu cầu duyệt agent tạo ra nằm lại trong hệ thống và có thể chạy tiếp vào job, báo cáo hoặc hàng chờ của người khác. Trước khi đi luồng có ghi dữ liệu:
   - dùng dữ liệu **nhận ra được là của test**: tên/ghi chú có tiền tố cố định (`AUTOTEST-…`), SĐT/email test do người dùng cấp — không dùng SĐT/email/CCCD của người thật;
   - ghi lại **mọi bản ghi đã tạo** (mã đơn, ID hồ sơ, thời điểm) và đưa vào phần bằng chứng của báo cáo, kể cả khi không dọn được;
+  - trong `relaxed`, được tự tạo record có tiền tố `AUTOTEST-<run-id>`, ghi exact ID và tự dọn **đúng record do lượt này tạo**; không sửa/xoá bản ghi có sẵn;
   - **hỏi trước** khi thao tác chạm ra ngoài hệ thống: gửi OTP/SMS/email, đẩy thông báo, gọi cổng thanh toán — staging thường vẫn dùng gateway thật;
-  - dọn bằng chính chức năng huỷ/xoá của app nếu có; nếu không, nói rõ "cần DEV/DBA dọn giúp các bản ghi sau: …". Không tự gọi API xoá ngoài phạm vi được cho phép.
+  - dọn bằng UI/API đã nằm trong scope và chỉ với exact ID đã ghi. Nếu không dọn được, nói rõ "cần DEV/DBA dọn giúp các bản ghi sau: …"; không mở rộng sang API/DB xoá diện rộng.
 
 ## Bàn giao cho GENERATE: chuyển cái gì
 
