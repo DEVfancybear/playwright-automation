@@ -32,7 +32,11 @@ after(async () => {
   await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
 });
 
-test('refreshes a stale session when the SPA login form renders late', { timeout: 30_000 }, async () => {
+// Ca này chạy HAI vòng runAuth (đăng nhập mới, rồi xác minh phiên tốt được tái dùng),
+// gấp đôi việc so với các ca cùng file. Chạy riêng mất ~16s, nên ngân sách 30s chỉ dư
+// chưa tới 2x — đủ để xanh khi chạy lẻ và đỏ khi chạy cả suite trên máy đang tải.
+// Nới thành 60s cho khớp khối lượng thật; assertion giữ nguyên.
+test('refreshes a stale session when the SPA login form renders late', { timeout: 60_000 }, async () => {
   const fixture = makeFixture('delayed-session');
   try {
     writeFileSync(fixture.state, JSON.stringify({
