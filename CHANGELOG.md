@@ -4,6 +4,22 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 
 Định dạng theo [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/); phiên bản theo [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [3.0.1] — 2026-08-24
+
+### Added
+
+- Local MCP auth bridge cho topology runtime bị chặn egress nhưng Chrome/Edge phía người dùng tới được target: wrapper pin `@playwright/mcp@0.0.79`, gắn tab hiện có qua Playwright Extension và auto-login từ `.env` trong process local.
+- Bridge hỗ trợ form một/hai bước, dropdown role/tenant và TOTP; exact login URL allowlist chặn điền credential trên origin/path/query/fragment gần giống.
+- Browser integration suite 9 case và manual bridge mutation gate 5 mutant cho URL boundary, init-page contract, role selection, TOTP, MCP redaction và `NODE_DEBUG` fail-closed.
+
+### Changed
+
+- Runtime bị chặn nhưng browser tới được và `.env` đủ credential giờ ưu tiên local MCP bridge; file phiên/password manager là fallback. Agent không được suy diễn quyền tài khoản từ định dạng username/PIN rồi hỏi login tay — chỉ auth response thật mới là bằng chứng.
+
+### Safety
+
+- MCP bridge không đưa secret lên command/tool argument, dùng `--secrets` cho redaction, fail closed khi `NODE_DEBUG` bật và chỉ điền trên exact URL đã cấu hình.
+
 ## [3.0.0] — 2026-08-22
 
 **Breaking change về interaction gate.** Pipeline vẫn đủ tám bước, nhưng non-production không còn mặc định dừng ở FRAME/CONFIRM/VERDICT để hỏi tester. Chế độ `relaxed` tự chạy từ target tới verdict; `guarded` giữ cổng duyệt cho production và side effect thật.

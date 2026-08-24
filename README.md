@@ -84,7 +84,7 @@ Các pattern kỹ thuật bám theo tài liệu chính thức của Playwright v
 | **Responsive & cross-browser** | Đa viewport, giả lập thiết bị, Chromium/Firefox/WebKit |
 | **Accessibility** | `@axe-core/playwright`, WCAG 2.1 AA, kiểm tra bàn phím |
 | **Mock & giả lập lỗi** | `page.route`, HAR, lỗi 500, timeout, offline, mạng 3G |
-| **Đăng nhập tự động** | Agent tự đăng nhập bằng credential trong `.env` — không bắt tester gõ mật khẩu, không đưa mật khẩu vào hội thoại. Tự dò form, hỗ trợ TOTP 2FA, tái dùng phiên. Agent bị chặn egress thì bắc cầu bằng file phiên |
+| **Đăng nhập tự động** | Agent tự đăng nhập bằng credential trong `.env` — không bắt tester gõ mật khẩu, không đưa mật khẩu vào hội thoại. Tự dò form, role dropdown, TOTP 2FA, tái dùng phiên. Runtime bị chặn egress thì local MCP bridge gắn vào Chrome/Edge qua Playwright Extension và login ngay phía người dùng |
 | **Vận hành zero-touch** | Hai mode `relaxed`/`guarded`, auto-plan, auto-start local server, auto-install dependency, heal/re-run và cleanup theo exact ID |
 | **Dữ liệu & xác thực** | `storageState` đăng nhập một lần, đa role, sinh dữ liệu duy nhất, dọn dữ liệu |
 | **Từ Excel sang script** | Đọc mẫu KỊCH BẢN NGHIỆM THU / UAT, sinh spec + truy vết |
@@ -197,6 +197,9 @@ playwright-automation/
 │   └── troubleshooting.md      # Chẩn đoán flaky, timeout, lỗi CI
 ├── scripts/                    # Gọi trực tiếp, đọc --help trước
 │   ├── auth-login.mjs          # Đăng nhập tự động bằng .env, lưu phiên, hỗ trợ TOTP 2FA
+│   ├── mcp-auth-bridge.mjs      # MCP local: nối Claude/Codex vào Chrome và auto-login khi runtime bị chặn
+│   ├── mcp-auth-init.cjs        # Adapter init-page CommonJS theo contract của Playwright MCP
+│   ├── mcp-auth-init.mjs        # Hook nội bộ của bridge: exact URL, role, form hai bước, TOTP
 │   ├── explore.mjs             # Trinh sát trang, sinh locator có thật
 │   ├── scaffold.mjs            # Dựng khung dự án Playwright TS
 │   └── excel_to_spec.py        # Excel test case → spec + test-map.json
@@ -207,11 +210,15 @@ Skill dùng cơ chế **progressive disclosure**: `SKILL.md` luôn được nạ
 
 ## Script dùng độc lập
 
-Bốn script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự thao tác:
+Các script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự thao tác:
 
 ```bash
 # Bảo đảm phiên đăng nhập: còn sống thì dùng lại, hết hạn thì tự login từ .env
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+
+# Runtime Agent bị chặn nhưng Chrome/Edge máy người dùng tới được staging:
+# kiểm local MCP bridge mà không in credential
+node scripts/mcp-auth-bridge.mjs --env .env --login-url https://staging.example.com/login --dry-run
 
 # Trinh sát trang, lấy locator có thật thay vì đoán
 node scripts/explore.mjs --url https://staging.example.com/login --out ./recon
@@ -252,7 +259,7 @@ Vài quyết định có chủ ý, nếu bạn định sửa skill thì nên bi�
 
 ## Lịch sử thay đổi
 
-Phiên bản hiện tại: **3.0.0** — chế độ `relaxed` zero-touch trên non-production, `guarded` cho ranh giới rủi ro; auth một lệnh idempotent hỗ trợ form hai bước và tự nhận TOTP; pipeline tám bước bắt buộc từ 2.0.0.
+Phiên bản hiện tại: **3.0.1** — chế độ `relaxed` zero-touch trên non-production, `guarded` cho ranh giới rủi ro; auth một lệnh idempotent và local MCP bridge khi runtime bị chặn, hỗ trợ form hai bước/role/TOTP; pipeline tám bước bắt buộc từ 2.0.0.
 Toàn bộ lịch sử: [CHANGELOG.md](CHANGELOG.md).
 
 ## Đóng góp
@@ -262,6 +269,7 @@ Sửa nội dung trong `references/` hoặc `assets/template/` rồi mở pull r
 ```bash
 node scripts/explore.mjs --url <trang bất kỳ> --out /tmp/recon
 node scripts/auth-login.mjs --help
+node scripts/mcp-auth-bridge.mjs --help
 node scripts/scaffold.mjs --dir /tmp/e2e --dry-run
 python scripts/excel_to_spec.py --file <file.xlsx> --dry-run
 ```

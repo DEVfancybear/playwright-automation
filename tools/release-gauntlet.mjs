@@ -12,9 +12,13 @@ inspectIndexState('initial staged release state');
 assert.equal(indexFingerprint(), releaseIndexTree, 'index changed during initial release-state inspection');
 run('syntax: installer', process.execPath, ['--check', 'bin/install.mjs']);
 run('syntax: auth helper', process.execPath, ['--check', 'scripts/auth-login.mjs']);
+run('syntax: MCP auth bridge', process.execPath, ['--check', 'scripts/mcp-auth-bridge.mjs']);
+run('syntax: MCP init adapter', process.execPath, ['--check', 'scripts/mcp-auth-init.cjs']);
+run('syntax: MCP init page', process.execPath, ['--check', 'scripts/mcp-auth-init.mjs']);
 run('syntax: explorer', process.execPath, ['--check', 'scripts/explore.mjs']);
 runNpm('full test suite', ['test']);
 run('manual auth mutation', process.execPath, ['tools/mutate-auth-tests.mjs']);
+run('manual bridge mutation', process.execPath, ['tools/mutate-bridge-tests.mjs']);
 run('git whitespace gate', 'git', ['diff', '--cached', '--check']);
 inspectSkill();
 inspectTrackedAndPendingFiles();
@@ -80,12 +84,18 @@ function inspectIndexState(label) {
     'bin/install.mjs',
     'references/autonomous-execution.md',
     'scripts/auth-login.mjs',
+    'scripts/mcp-auth-bridge.mjs',
+    'scripts/mcp-auth-init.cjs',
+    'scripts/mcp-auth-init.mjs',
     'scripts/explore.mjs',
     'tests/auth-login.integration.test.mjs',
+    'tests/mcp-auth-bridge.integration.test.mjs',
     'tests/installer.test.mjs',
     'tests/skill-contract.test.mjs',
     'tools/mutate-auth-tests.mjs',
+    'tools/mutate-bridge-tests.mjs',
     'tools/release-gauntlet.mjs',
+    'verification/3.0.1-BRIDGE-SPEC.md',
     'verification/3.0.0-SPEC.md',
   ];
   const tracked = spawnSync('git', ['ls-files', '--error-unmatch', '--', ...critical], {
@@ -160,11 +170,14 @@ function inspectPackage() {
     'references/live-browser-investigation.md',
     'bin/install.mjs',
     'scripts/auth-login.mjs',
+    'scripts/mcp-auth-bridge.mjs',
+    'scripts/mcp-auth-init.cjs',
+    'scripts/mcp-auth-init.mjs',
     'scripts/explore.mjs',
   ];
   const missing = required.filter(file => !files.includes(file));
   const forbidden = files.filter(file => /(^|\/)__pycache__(\/|$)|\.py[co]$/i.test(file));
-  assert.equal(pack.version, '3.0.0');
+  assert.equal(pack.version, '3.0.1');
   assert.deepEqual(missing, [], `package missing: ${missing.join(', ')}`);
   assert.deepEqual(forbidden, [], `package contains Python bytecode: ${forbidden.join(', ')}`);
   console.log(`package ${pack.name}@${pack.version}: ${files.length} files, required payload present`);

@@ -22,7 +22,7 @@ Một prompt ngắn dạng `mở <non-production-login-url> và test <feature/m�
 
 1. **Resolve** — đọc `.testagent.yaml`, yêu cầu/SRS/bug row, Playwright config, `package.json`, lockfile, `.env.example` và suite hiện có. Suy ra target, scope, output dir, package manager và browser. Không mở/in nội dung `.env` trong ngữ cảnh Agent.
 2. **Preflight** — phân loại môi trường, kiểm cổng/process, thử target từ runtime và browser, xác minh backend thật/mock. Ghi mode và các giả định.
-3. **Ensure auth** — gọi `auth-login.mjs` một lần. Trusted helper process được phép tự nạp secret từ `.env`, điền form nội bộ, dùng lại phiên tốt hoặc đăng nhập lại; Agent chỉ nhận status/`storageState`, không nhận giá trị secret. Đây là đường tự động chuẩn, không phải lý do dừng hoặc từ chối login.
+3. **Ensure auth** — runtime tới được target thì gọi `auth-login.mjs` một lần. Runtime bị chặn nhưng browser tới được thì dùng local `mcp-auth-bridge.mjs` gắn vào browser qua Playwright Extension. Mỗi trusted helper process được phép tự nạp secret từ `.env`, điền form nội bộ và chỉ trả trạng thái; Agent không nhận giá trị secret. Đây là đường tự động chuẩn, không phải lý do dừng hoặc từ chối login.
 4. **Explore** — đi đúng journey, lấy locator từ DOM/accessibility, console/network/evidence và ghi artefact.
 5. **Plan + self-approve** — ghi bảng scenario và phần ngoài phạm vi vào `test-plan.md`, đánh dấu `Approval: agent-self-approved (relaxed)`, rồi tiếp tục nếu mọi action nằm trong cột **Tự tiếp tục** ở bảng dưới.
 6. **Generate** — theo convention hiện có; chưa có suite thì scaffold. Cài đúng dependency/browser còn thiếu bằng package manager/lockfile của repo, không upgrade phần không liên quan.
@@ -37,7 +37,7 @@ Không hỏi "có tiếp tục không?", "plan được chưa?", "có chạy tes
 |---|---|
 | Đọc repo, config, requirement, bug log, browser state, console/network | Không có URL/build nào có thể suy ra hoặc cả runtime lẫn browser đều không tới target |
 | Dùng Chromium khi không có yêu cầu browser; chọn output dir theo suite hiện có hoặc `e2e/` | Secret bắt buộc chưa nằm trong env/file bảo mật; yêu cầu tester điền **tên biến** được chỉ ra, không gửi giá trị qua chat |
-| Gọi auth helper, dùng lại/gia hạn storage state, TOTP từ env | CAPTCHA, WebAuthn, SMS thật, approval trên thiết bị hoặc MFA cần người |
+| Gọi auth helper; runtime bị chặn nhưng browser tới được thì dùng local MCP bridge; dùng lại/gia hạn storage state, TOTP từ env | Bridge/extension không kết nối được sau setup, CAPTCHA, WebAuthn, SMS thật, approval trên thiết bị hoặc MFA cần người |
 | Tự start script dev đã khai trong repo khi port trống; tự dừng đúng PID/process tree mình tạo | Port có process nhưng target không đáp ứng và muốn restart/kill process không do Agent tạo |
 | Cài dev dependency/browser thật sự thiếu bằng package manager + lockfile hiện có | Cần đổi package manager, nâng cấp dependency diện rộng, sửa hạ tầng hoặc tác động ngoài workspace |
 | Tự duyệt scenario read-only và scenario ghi non-production bằng dữ liệu riêng của lượt test | Production/host chưa xác định cần create/update/delete; ngay cả khi target có trong `allow_hosts` |
@@ -98,9 +98,9 @@ node scripts/auth-login.mjs \
 
 Không cần gọi `--check` rồi tự viết nhánh shell: lệnh mặc định đã kiểm phiên trước. Helper tự xử lý form một trang, username → Next → password và TOTP khi `TEST_TOTP_SECRET` có mặt. Tên biến khác thì truyền `--user-env`, `--pass-env`, `--totp-env`; không truyền giá trị. Quy tắc “Agent không đọc secret” **không cấm thực thi helper**: chính helper phải đọc giá trị trong process riêng để điền form, nhưng tuyệt đối không trả giá trị đó ra stdout/stderr.
 
-Một lần tương tác hợp lệ là tester đặt secret còn thiếu vào `.env`/secret store. Sau đó Agent phải tự chạy lại helper và tiếp tục pipeline; đừng nhờ tester tự đăng nhập hoặc nhắc lại secret ở mỗi lượt.
+Một lần tương tác hợp lệ là tester đặt secret còn thiếu vào `.env`/secret store. Sau đó Agent phải tự chạy lại helper/bridge và tiếp tục pipeline; đừng nhờ tester tự đăng nhập hoặc nhắc lại secret ở mỗi lượt.
 
-Nếu runtime không tới target nhưng browser tới được, dùng file phiên/profile bridge trong `auth-and-data.md`. Nếu cả hai không tới được thì `Blocked` là đúng, không lặp lại câu hỏi đăng nhập.
+Nếu runtime bị chặn nhưng browser tới được và `.env` đã có credential, dùng `scripts/mcp-auth-bridge.mjs` theo `auth-and-data.md` **trước khi** hỏi đăng nhập tay. Không suy diễn credential từ định dạng/hình dạng: email, số điện thoại, mã nhân viên, PIN sáu số hay chuỗi bất kỳ đều chỉ là opaque value. Chỉ phản hồi đăng nhập thật của app mới cho phép kết luận credential sai. Nếu cả hai không tới được thì `Blocked` là đúng, không lặp lại câu hỏi đăng nhập.
 
 ## Server, dữ liệu và cleanup
 

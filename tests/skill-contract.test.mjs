@@ -29,6 +29,24 @@ test('explore CLI has no value-bearing username or password flags', () => {
   assert.match(explore, /auth-login\.mjs/);
 });
 
+test('runtime-blocked auth uses the local MCP bridge before asking for manual login', () => {
+  const skill = read('SKILL.md');
+  const auth = read(path.join('references', 'auth-and-data.md'));
+  const autonomous = read(path.join('references', 'autonomous-execution.md'));
+  const bridge = read(path.join('scripts', 'mcp-auth-bridge.mjs'));
+  const combined = `${skill}\n${auth}\n${autonomous}`;
+
+  assert.match(combined, /runtime[^\n]*bị chặn[^\n]*browser[^\n]*tới được[\s\S]*mcp-auth-bridge\.mjs/i);
+  assert.match(combined, /không[^\n]*(?:suy diễn|đoán)[^\n]*credential[^\n]*(?:định dạng|hình dạng)/i);
+  assert.match(combined, /chỉ[^\n]*(?:kết quả|phản hồi)[^\n]*đăng nhập[^\n]*(?:thật|thực)/i);
+  assert.match(combined, /exact[^\n]*login URL/i);
+  assert.match(bridge, /@playwright\/mcp@0\.0\.79/);
+  assert.match(bridge, /'--extension'/);
+  assert.match(bridge, /'--init-page'/);
+  assert.match(bridge, /'--secrets'/);
+  assert.doesNotMatch(bridge, /--username|--password/);
+});
+
 test('release metadata supports both hosts without runtime dependencies', () => {
   const manifest = JSON.parse(read('package.json'));
   const installer = read(path.join('bin', 'install.mjs'));
@@ -37,7 +55,7 @@ test('release metadata supports both hosts without runtime dependencies', () => 
   const live = read(path.join('references', 'live-browser-investigation.md'));
   const openai = read(path.join('agents', 'openai.yaml'));
 
-  assert.equal(manifest.version, '3.0.0');
+  assert.equal(manifest.version, '3.0.1');
   assert.equal(manifest.engines.node, '>=20');
   assert.deepEqual(manifest.dependencies ?? {}, {});
   assert.match(installer, /claude:[\s\S]*userDir: \['\.claude', 'skills'\]/);

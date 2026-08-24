@@ -8,7 +8,7 @@ Mục lục: [Vì sao cần storageState](#vì-sao-cần-storagestate) · [Setup
 
 ## Đăng nhập tự động ở bước EXPLORE
 
-> **Kiểm topology trước.** Runtime chạy script của agent và trình duyệt agent lái có thể là hai máy khác nhau. `curl --max-time 8 <target>` từ runtime agent: ra mã HTTP thì dùng cách dưới; timeout mà trình duyệt vẫn mở được target thì phải [bắc cầu bằng file phiên](#bắc-cầu-file-phiên-qua-ranh-giới-mạng). Bảng đầy đủ ở `SKILL.md`.
+> **Kiểm topology trước.** Runtime chạy script của agent và browser agent lái có thể là hai máy khác nhau. `curl --max-time 8 <target>` từ runtime agent: ra mã HTTP thì dùng cách dưới; runtime bị chặn nhưng browser tới được target thì dùng [local MCP auth bridge](#local-mcp-auth-bridge-qua-ranh-giới-mạng). Bảng đầy đủ ở `SKILL.md`.
 
 Trước khi thao tác gì trên app cần đăng nhập, chạy một lệnh idempotent. Không gõ mật khẩu bằng tay, không hỏi mật khẩu trong hội thoại.
 
@@ -39,40 +39,54 @@ Script tự dò ô tài khoản/mật khẩu/nút submit theo nhãn và role, h�
 
 Với app không gắn phiên vào cookie/localStorage (token chỉ sống trong `sessionStorage`, hoặc cần header riêng), `storageState` không tái lập được phiên — script sẽ báo rõ ở bước xác minh. Khi đó dùng [đăng nhập qua API](#đăng-nhập-qua-api-nhanh-nhất) rồi bơm token.
 
-## Bắc cầu file phiên qua ranh giới mạng
+## Local MCP auth bridge qua ranh giới mạng
 
-Agent chạy trong container bị chặn egress không chạy `auth-login.mjs` tới staging được — nhưng nó vẫn lái được trình duyệt trên máy người dùng, và trình duyệt đó thì tới được. Thứ đi qua ranh giới là **file phiên**, không phải kết nối.
-
-Người dùng chạy một lần trên máy mình:
+Agent chạy trong container bị chặn egress không thể dùng `auth-login.mjs` tới staging, nhưng browser trên máy người dùng vẫn tới được. Khi `.env` đã có credential, đường mặc định là chạy **MCP server ngay trên máy người dùng** và gắn nó vào tab Chrome/Edge hiện có qua Playwright Extension:
 
 ```bash
+# Kiểm config mà không start server và không in secret value.
+node scripts/mcp-auth-bridge.mjs \
+  --env C:/path/to/project/.env \
+  --login-url https://staging.example.com/login \
+  --user-env CMS_ADMIN_USER \
+  --pass-env CMS_ADMIN_PASS \
+  --select-selector 'select[name="role"]' \
+  --select-value admin \
+  --dry-run
+```
+
+Khai command `node` và toàn bộ argument trên (bỏ `--dry-run`) thành một local MCP server của Claude/Codex. Playwright Extension cần được cài và kết nối với đúng tab; extension token, nếu dùng để bỏ bước approve kết nối, đặt trong secret config của MCP host chứ không commit vào repo. Bridge pin `@playwright/mcp`, bật `--extension`, nạp adapter `mcp-auth-init.cjs` bằng `--init-page`, và dùng `--secrets` để redaction. Giá trị credential chỉ được đọc bên trong local MCP process; Agent chỉ truyền **tên biến**.
+
+Các tuỳ chọn form:
+
+| Tình huống | Argument |
+|---|---|
+| Form hai bước | `--next-selector <css>` |
+| Dropdown Quản trị viên/Đối tác/tenant | `--select-selector <css> --select-value <value-hoặc-label>` |
+| Selector app khác mặc định | `--user-selector`, `--pass-selector`, `--submit-selector`, `--otp-selector` |
+| Password/OTP chuyển sang URL khác | Lặp `--login-url <exact-url>` cho từng URL được phép |
+| Tên biến TOTP khác | `--totp-env <TÊN_BIẾN>` |
+
+Exact login URL là ranh giới credential: khác protocol, host, path, query hoặc fragment thì bridge không điền. Không dùng wildcard. Không suy diễn credential từ định dạng — số điện thoại 10 số và PIN 6 số vẫn có thể là tài khoản CMS admin hợp lệ. Khi các tên biến đã cấu hình đều có giá trị, phải thử bridge một lần; **chỉ kết quả đăng nhập thật** mới chứng minh credential sai. Không được tự kết luận dựa trên hình dạng rồi bắt tester login tay.
+
+Fallback khi không thể cắm local MCP/extension:
+
+```bash
+# Tạo file phiên trên máy tới được target, rồi nạp lúc start MCP.
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+npx @playwright/mcp@0.0.79 --storage-state .auth/staging.json
+
+# Hoặc dùng profile bền.
+npx @playwright/mcp@0.0.79 --user-data-dir ~/.pw-profile-staging
 ```
 
-Rồi nạp vào trình duyệt agent lái. **Nếu agent lái Chrome thật của người dùng thì không cần bước này** — chỉ cần đăng nhập một lần trong chính Chrome đó, phiên nằm trong profile và sống qua nhiều lượt. Ba lệnh dưới chỉ dành cho Playwright MCP:
-
-```bash
-# Cách 1 — gọn nhất: mọi tab agent mở đều đã đăng nhập
-npx @playwright/mcp@latest --storage-state .auth/staging.json
-
-# Cách 2 — profile bền: đăng nhập một lần trong profile, sống qua nhiều phiên
-npx @playwright/mcp@latest --user-data-dir ~/.pw-profile-staging
-
-# Cách 3 — agent tự nạp giữa chừng (đổi role): bật --caps=storage
-#   rồi gọi tool browser_set_storage_state
-```
-
-Ba tuỳ chọn này là của Playwright MCP, và `storageState` mà `auth-login.mjs` sinh ra đúng định dạng Playwright nên nạp thẳng được.
-
-Sau bước một-lần đó, agent không phải nhờ người dùng đăng nhập nữa — kể cả lượt cần soi DOM/network trực tiếp. Còn nếu **trình duyệt cũng** nằm trong container bị chặn thì không cứu được: báo `Blocked` kèm điều kiện mở egress hoặc chuyển agent sang máy có VPN.
+Sau khi bridge đã cắm, Agent không được hỏi người dùng đăng nhập tay trừ khi extension không kết nối, app trả auth failure thật, hoặc gặp CAPTCHA/WebAuthn/SMS/approval cần người. Nếu browser cũng không tới target thì báo `Blocked` kèm điều kiện mở egress hoặc chuyển agent sang máy có VPN.
 
 ## Phiên hết hạn nhanh hơn một lượt chạy
 
 Đăng nhập một lần chỉ ăn thua khi phiên sống đủ lâu. Gặp CMS đặt TTL 15–30 phút thì người dùng bị kéo vào vòng lặp: cứ nửa tiếng lại phải gõ mật khẩu một lần.
 
-Cách gọn nhất khi agent lái Chrome thật: **để trình quản lý mật khẩu của Chrome điền hộ.** Người dùng lưu tài khoản staging vào Chrome một lần; từ đó mỗi lần phiên chết, trang login tự điền sẵn và agent chỉ việc bấm "Đăng nhập". Mật khẩu không đi qua agent, không đi qua hội thoại, không nằm trong `.env` nào cả — nó ở trong password manager, đúng chỗ của nó.
-
-Không dùng được cách đó thì hai lối còn lại: tick "Ghi nhớ đăng nhập" rồi xin BE nâng TTL trên staging; hoặc đổi sang Playwright MCP khởi động bằng `--storage-state`, phiên chết thì chạy lại `auth-login.mjs` một lệnh.
+Cách gọn nhất khi `.env` đã có credential và agent có thể dùng local MCP là auth bridge: mỗi khi tab quay lại exact login URL, bridge tự điền và submit lại trong local process. Nếu không cắm được bridge, để trình quản lý mật khẩu của Chrome điền hộ hoặc tick "Ghi nhớ đăng nhập"/xin BE nâng TTL trên staging; file `storageState` là fallback còn lại.
 
 Dù chọn cách nào, **báo TTL ngắn lên như một finding về môi trường**. Nó phá mọi lượt chạy dài — regression đầy đủ, hay bug race cần vài chục attempt — chứ không chỉ gây phiền.
 

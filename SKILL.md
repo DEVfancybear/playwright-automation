@@ -191,33 +191,39 @@ curl -sS -o /dev/null -w "%{http_code}\n" --max-time 8 <target-url>
 | Kết quả | Topology | Đăng nhập thế nào |
 |---|---|---|
 | Ra mã HTTP (kể cả 401/403) | Runtime agent tới được target | `auth-login.mjs` chạy thẳng — tự động hoàn toàn, xem mục dưới |
-| Timeout / DNS fail, **nhưng** trình duyệt agent lái mở được target | Runtime bị chặn egress, trình duyệt nằm phía người dùng | **Bắc cầu bằng file phiên** — xem mục ngay sau |
+| Timeout / DNS fail, **nhưng** browser agent lái tới được target | Runtime bị chặn egress, browser nằm phía người dùng | `.env` đã có credential → **local MCP auth bridge**; chưa cắm MCP local → file phiên/password manager là fallback — xem mục ngay sau |
 | Cả hai đều không mở được | Không tới được target | `Blocked`. Điều kiện mở khoá: mở egress tới host đó, hoặc chạy agent trên máy có VPN |
 
 Đừng suy ra topology từ cảm giác — chạy `curl` rồi thử điều hướng trình duyệt tới target. Hai kết quả đó mới quyết định.
 
-### Bắc cầu bằng file phiên (khi runtime agent bị chặn egress)
+### Local MCP auth bridge (khi runtime agent bị chặn egress)
 
-Thứ đi qua ranh giới là **file phiên**, không phải kết nối mạng. Agent không cần tới được target; chỉ trình duyệt cần.
-
-Người dùng chạy **một lần** trên máy mình:
+Nếu runtime bị chặn nhưng browser phía người dùng tới được target, và `.env` đã có các biến credential được cấu hình, **dùng `scripts/mcp-auth-bridge.mjs` trước khi yêu cầu đăng nhập tay**. Bridge chạy thành MCP server ngay trên máy người dùng, gắn vào tab Chrome/Edge hiện có qua Playwright Extension, và `scripts/mcp-auth-init.mjs` điền form trong local process. Giá trị secret không đi qua hội thoại hoặc tool argument của Agent.
 
 ```bash
-node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+node scripts/mcp-auth-bridge.mjs \
+  --env <project>/.env \
+  --login-url https://staging.example.com/login \
+  --user-env CMS_ADMIN_USER \
+  --pass-env CMS_ADMIN_PASS \
+  --select-selector 'select[name="role"]' \
+  --select-value admin \
+  --dry-run
 ```
 
-**Trước hết xác định agent đang lái cái gì** — Playwright MCP hay Chrome thật của người dùng. Hai thứ nạp phiên theo cách khác hẳn nhau:
+`--dry-run` xác minh cấu hình mà không in giá trị. Khi khai MCP server cho Claude/Codex, bỏ `--dry-run`; giữ các argument còn lại. Bridge pin một bản `@playwright/mcp`, bật `--extension`, `--init-page` và `--secrets`. Nếu login đổi URL ở bước password/OTP, khai lặp lại từng **exact login URL** bằng `--login-url`; bridge không điền credential trên origin/path/query/fragment gần giống.
 
-| Cách | Lệnh | Khi nào dùng |
+**Không suy diễn credential từ định dạng.** Số điện thoại 10 số, email, mã nhân viên, PIN 6 số hay chuỗi bất kỳ đều có thể là credential admin hợp lệ. Nếu tên biến đã được cấu hình và có giá trị, phải để bridge/helper thử đúng một lần; chỉ kết quả đăng nhập thật của app mới chứng minh credential không hợp lệ. Không được nhìn hình dạng giá trị rồi kết luận “đây là tài khoản miniapp, không phải CMS” và hỏi người dùng đăng nhập tay.
+
+Nếu local MCP/Playwright Extension chưa được cắm, đây là **một lần setup hạ tầng**, không phải một lần nhập mật khẩu cho mỗi run: cài extension, thêm MCP command trên vào host rồi cho extension kết nối đúng tab. Chỉ hạ xuống các fallback sau khi bridge setup thực sự không khả dụng:
+
+| Fallback | Cách dùng | Giới hạn |
 |---|---|---|
-| **Chrome thật của người dùng** | Không cần lệnh nào — đăng nhập một lần trong chính Chrome đó | Khi agent lái Chrome của người dùng (không phải Playwright MCP). Phiên nằm trong profile nên sống qua nhiều lượt; chỉ phải đăng nhập lại khi profile bị xoá hoặc phiên hết hạn |
-| Nạp lúc khởi động MCP | `npx @playwright/mcp@latest --storage-state .auth/staging.json` | Gọn nhất; mọi tab agent mở đều đã đăng nhập sẵn |
-| Profile bền | `npx @playwright/mcp@latest --user-data-dir ~/.pw-profile-staging` | Đăng nhập một lần trong profile đó, sống qua nhiều phiên, không cần file phiên |
-| Agent tự nạp lúc chạy | `--caps=storage`, rồi gọi `browser_set_storage_state` | Khi cần đổi role giữa chừng một lượt |
+| File phiên | Chạy `auth-login.mjs` trên máy tới được target, rồi mở MCP với `--storage-state .auth/<target>.json` | Cần chạy lại helper khi phiên hết hạn |
+| Profile bền | Mở MCP với `--user-data-dir ~/.pw-profile-<target>` | Lần đầu vẫn phải tạo phiên trong profile |
+| Chrome password manager | Chrome tự điền, Agent chỉ bấm submit | Phụ thuộc mật khẩu đã được lưu trong đúng profile |
 
-Sau bước này agent **không phải nhờ người dùng đăng nhập nữa**, kể cả những lượt cần nhìn tận mắt DOM và network. Trước đó thì có: lượt đầu tiên vẫn cần người dùng chạy một lệnh.
-
-Nếu trình duyệt cũng nằm trong container bị chặn thì không có cách nào cứu — đó là `Blocked` thật, đừng vòng vo.
+Sau khi bridge đã cắm và `.env` đủ biến, Agent tự thử login và tiếp tục pipeline. **Không hỏi người dùng đăng nhập tay** trừ khi bridge/extension không kết nối được, app trả kết quả xác thực thất bại thật, hoặc gặp CAPTCHA/WebAuthn/SMS/approval cần người. Nếu browser cũng không tới target thì đó mới là `Blocked` do mạng.
 
 ### Phiên hết hạn nhanh hơn một lượt chạy
 
@@ -229,7 +235,7 @@ Ba cách, theo thứ tự nên thử:
 |---|---|---|
 | **Trình quản lý mật khẩu của Chrome** | Người dùng lưu tài khoản staging vào Chrome **một lần**. Phiên chết → Chrome tự điền lại ở trang login → agent chỉ bấm "Đăng nhập" | **Không.** Chrome điền, agent không bao giờ thấy giá trị |
 | **Kéo dài TTL ở nguồn** | Tick "Ghi nhớ đăng nhập". Vẫn ngắn thì xin BE/DevOps nâng session TTL trên staging, hoặc cấp tài khoản service TTL dài | Không |
-| **Đổi sang Playwright MCP + file phiên** | Chạy `auth-login.mjs` trên máy người dùng, khởi động MCP với `--storage-state`. Phiên chết thì chạy lại **một lệnh**, không gõ tay | Không — script đọc `.env` |
+| **Đổi sang local MCP auth bridge** | Bridge local đọc `.env` và tự login lại ngay trong tab gắn qua extension mỗi khi về exact login URL | Không — secret chỉ sống trong process MCP local |
 
 Cách 1 ít xáo trộn nhất và thường là đủ: nó biến "gõ mật khẩu" thành "bấm một nút", mà nút thì agent bấm được. Chrome không tự điền lúc trang load thì bấm vào ô tài khoản để hiện gợi ý đã lưu rồi chọn.
 
@@ -609,6 +615,9 @@ Script bundled (gọi trực tiếp, đọc `--help` trước, không đọc sou
 | Script | Dùng ở bước |
 |---|---|
 | `scripts/auth-login.mjs` | EXPLORE, khi app cần đăng nhập — một lần gọi tự dùng lại/gia hạn phiên, login form một hoặc hai bước bằng credential trong `.env`, lưu `storageState`, tự nhận `TEST_TOTP_SECRET` |
+| `scripts/mcp-auth-bridge.mjs` | EXPLORE, khi runtime agent bị chặn egress nhưng Chrome/Edge phía người dùng tới được target — start local Playwright MCP bridge, chỉ truyền tên biến và exact login URL |
+| `scripts/mcp-auth-init.cjs` | Adapter nội bộ theo contract `require(...).default(page)` của `--init-page`; không gọi trực tiếp |
+| `scripts/mcp-auth-init.mjs` | Hook nội bộ của MCP bridge — đọc `.env` trong process local, điền form một/hai bước, role dropdown và TOTP; không gọi trực tiếp |
 | `scripts/explore.mjs` | EXPLORE, khi không có công cụ browser — dump một lượt locator + ảnh full page. **Không thay được EXPLORE bằng trình duyệt thật.** |
 | `scripts/scaffold.mjs` | GENERATE, khi repo chưa có khung Playwright TS |
 | `scripts/excel_to_spec.py` | PLAN, khi đầu vào là file test case `.xlsx` (mẫu KBKTCN hoặc UAT phẳng). Không chạy trên bug list. |

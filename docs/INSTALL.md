@@ -1,6 +1,6 @@
 # Hướng dẫn cài đặt
 
-Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhất--npm) · [Codex cá nhân](#cách-1--codex-dùng-cho-mọi-dự-án) · [Codex theo repo](#cách-2--codex-theo-dự-án-chia-sẻ-cho-cả-team) · [claude.ai](#cách-3--claudeai-web--desktop) · [Claude Code](#cách-4--claude-code) · [Kiểm tra](#kiểm-tra-đã-cài-được-chưa) · [Công cụ đi kèm](#cài-công-cụ-để-chạy-test) · [Cập nhật & gỡ](#cập-nhật) · [Sự cố](#sự-cố-thường-gặp)
+Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhất--npm) · [Codex cá nhân](#cách-1--codex-dùng-cho-mọi-dự-án) · [Codex theo repo](#cách-2--codex-theo-dự-án-chia-sẻ-cho-cả-team) · [claude.ai](#cách-3--claudeai-web--desktop) · [Claude Code](#cách-4--claude-code) · [Bridge login local](#cấu-hình-bridge-login-local-cho-claude--chromeedge) · [Kiểm tra](#kiểm-tra-đã-cài-được-chưa) · [Công cụ đi kèm](#cài-công-cụ-để-chạy-test) · [Cập nhật & gỡ](#cập-nhật) · [Sự cố](#sự-cố-thường-gặp)
 
 ## Chọn cách cài
 
@@ -185,6 +185,53 @@ Muốn theo dõi cập nhật từ upstream thì dùng submodule thật thay vì
 ```bash
 git submodule add https://github.com/DEVfancybear/playwright-automation.git .claude/skills/playwright-automation
 ```
+
+---
+
+## Cấu hình bridge login local cho Claude + Chrome/Edge
+
+Mục này dành cho topology: Claude runtime bị chặn egress tới staging nhưng tab Chrome/Edge trên máy bạn vẫn mở được, và credential đã nằm trong `.env`. Cấu hình **một lần**; từ những lần sau Claude phải tự login, không hỏi bạn gõ lại mật khẩu.
+
+1. Cài **Playwright MCP Bridge** extension chính thức của Microsoft vào Chrome/Edge.
+2. Kiểm cấu hình từ terminal local; command này chỉ in tên biến/argument, không in giá trị credential:
+
+   ```powershell
+   node "$env:USERPROFILE\.claude\skills\playwright-automation\scripts\mcp-auth-bridge.mjs" `
+     --env "C:\path\to\your-project\.env" `
+     --login-url "https://staging.example.com/login" `
+     --user-env CMS_ADMIN_USER `
+     --pass-env CMS_ADMIN_PASS `
+     --select-selector 'select[name="role"]' `
+     --select-value admin `
+     --dry-run
+   ```
+
+3. Thêm local stdio server vào MCP config mà Claude Desktop/Claude Code đang đọc. Ví dụ JSON (merge vào object `mcpServers` hiện có):
+
+   ```json
+   {
+     "mcpServers": {
+       "playwright-auth-bridge": {
+         "command": "node",
+         "args": [
+           "C:\\Users\\<you>\\.claude\\skills\\playwright-automation\\scripts\\mcp-auth-bridge.mjs",
+           "--env", "C:\\path\\to\\your-project\\.env",
+           "--login-url", "https://staging.example.com/login",
+           "--user-env", "CMS_ADMIN_USER",
+           "--pass-env", "CMS_ADMIN_PASS",
+           "--select-selector", "select[name=\"role\"]",
+           "--select-value", "admin"
+         ]
+       }
+     }
+   }
+   ```
+
+4. Restart Claude, mở đúng tab login rồi cho Playwright Extension kết nối. Đây là approval kết nối một lần, không phải nhập credential mỗi lượt. Nếu dùng extension token để auto-connect, đặt `PLAYWRIGHT_MCP_EXTENSION_TOKEN` trong secret config local của MCP host; không commit token vào `.mcp.json` hay repo.
+
+`--login-url` là **exact URL allowlist**. Nếu bước password hoặc TOTP chuyển sang URL khác, lặp thêm `--login-url` cho từng URL. Form hai bước dùng `--next-selector`; TOTP dùng `--totp-env`; dropdown Quản trị viên/Đối tác dùng cặp `--select-selector` + `--select-value`. Chạy `node ...\mcp-auth-bridge.mjs --help` để xem đủ tuỳ chọn.
+
+Bridge không đánh giá credential theo hình dạng. Số điện thoại, email, mã nhân viên, PIN sáu số đều được coi là opaque value; chỉ phản hồi đăng nhập thật từ app mới cho phép kết luận credential sai. Secret được đọc trong process MCP local và không đi qua conversation/tool arguments của Claude.
 
 ---
 

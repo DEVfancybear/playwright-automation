@@ -167,6 +167,11 @@ targets:
       credentials_env: [APP_USER, APP_PASS]   # tên biến môi trường, KHÔNG phải giá trị
       totp_env: TEST_TOTP_SECRET
       storage_state: .auth/checkout-staging.json
+      runtime_blocked_bridge:
+        strategy: mcp-extension
+        login_urls: [https://staging.example.com/login] # exact URL, lặp nếu password/OTP đổi URL
+        select_selector: 'select[name="role"]'          # tuỳ chọn, không chứa secret
+        select_value: admin                              # value hoặc label không bí mật
     grounding:                       # theo thứ tự tin cậy
       requirements: [docs/requirements/checkout.md]
       manual_tests: [test-cases/checkout.xlsx]
@@ -184,6 +189,7 @@ targets:
 Bốn luật:
 
 - **Không bao giờ đặt giá trị credential trong file này.** Chỉ đặt *tên biến môi trường*. File này được commit; `.env` thì không.
+- **Bridge chỉ dùng exact login URL.** Không wildcard host/path/query/fragment. Selector và role value được commit phải là metadata form không bí mật; extension token nằm trong secret config của MCP host, không nằm ở YAML.
 - **`autonomy.mode` điều khiển cổng tương tác, không phải quyền.** `relaxed` tự duyệt phần an toàn trên non-production; production/side effect thật vẫn phải chọn `guarded` hoặc xin quyền cụ thể. Chi tiết: `autonomous-execution.md`.
 - **`allow_hosts` là cổng an toàn, không phải tiện ích.** Host không phải `localhost`/IP nội bộ và không khớp `staging|stg|test|qa|dev|uat` thì mặc định bị coi là production. Muốn chạy trên nó phải khai vào đây, và người dùng phải biết mình đang khai gì.
 - **`success` là hợp đồng của bước VERDICT.** `min_scenarios` chặn việc "1 test pass" được báo là xanh; `stability_runs` là số lượt của cổng ổn định.

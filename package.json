@@ -1,6 +1,6 @@
 {
   "name": "@duong.dev/playwright-automation",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Agent Skill tự chủ cho Codex và Claude: auto-login, explore → auto-plan → generate → execute → heal → verdict; relaxed trên non-production, guarded tại ranh giới rủi ro.",
   "keywords": [
     "codex",
@@ -43,6 +43,7 @@
     "bin/",
     "references/",
     "scripts/*.mjs",
+    "scripts/*.cjs",
     "scripts/*.py",
     "assets/",
     "docs/",
@@ -55,9 +56,10 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 tests/installer.test.mjs tests/auth-login.integration.test.mjs tests/skill-contract.test.mjs",
+    "test": "node --test --test-concurrency=1 tests/installer.test.mjs tests/auth-login.integration.test.mjs tests/mcp-auth-bridge.integration.test.mjs tests/skill-contract.test.mjs",
     "test:auth": "node --test --test-concurrency=1 tests/auth-login.integration.test.mjs",
-    "test:mutation": "node tools/mutate-auth-tests.mjs",
+    "test:bridge": "node --test --test-concurrency=1 tests/mcp-auth-bridge.integration.test.mjs",
+    "test:mutation": "node tools/mutate-auth-tests.mjs && node tools/mutate-bridge-tests.mjs",
     "gauntlet": "node tools/release-gauntlet.mjs"
   },
   "devDependencies": {
