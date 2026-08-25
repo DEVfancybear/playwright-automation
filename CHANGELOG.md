@@ -9,6 +9,8 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 ### Added
 
 - Luồng fresh-clone một lệnh `npm run test:standalone`: tự bootstrap dependency/browser, chạy Chromium thật với fixture local và trả marker `STANDALONE_OK` mà không cần cài skill hay dựng project ngoài.
+- `.env` root được tạo rỗng tự động (hoặc bằng `npm run auth:setup`), không overwrite; helper từ chối mọi credential source dưới template/example/fixture/sample.
+- TLS escape hatch có guard kép `--ignore-https-errors --confirm-non-production` cho auth, recon và local MCP bridge; credential không được điền sau redirect khác origin khi bypass đang bật.
 - `npm run test:url -- --url <url>` để tester trinh sát URL thật và thu screenshot/console/network/locator ngay từ repository; `npm run test:standalone:full` chạy toàn bộ regression.
 - Workflow GitHub Actions chạy đúng lệnh fresh-clone trên Windows và Ubuntu, cùng integration test khóa browser/evidence contract.
 - Root `AGENTS.md` và `CLAUDE.md`: tester mở clone bằng Agent rồi chỉ nói “test”; Agent tự chạy standalone smoke, còn full suite chỉ chạy khi được yêu cầu, và không yêu cầu import skill hay cài dependency/browser thủ công.
@@ -16,6 +18,11 @@ Mọi thay đổi đáng chú ý của skill này đều ghi ở đây.
 ### Changed
 
 - `npm test` giờ cũng đi qua standalone bootstrap trước khi chạy full regression; commit `package-lock.json` để clone sạch dùng `npm ci` tái lập. `explore.mjs --help` trả exit code `0`.
+- Agent gặp native certificate warning trên target non-production đã xác nhận giờ tự chuyển sang Playwright context riêng thay vì yêu cầu tester click qua cảnh báo; báo cáo phải ghi TLS validation đã bị bypass.
+
+### Safety
+
+- Npm package loại mọi `.env`/`.auth` kể cả khi nằm trong thư mục `assets/` được whitelist; source gate chỉ cho phép `.env.example` rỗng trong Git clone.
 
 ## [3.0.1] — 2026-08-24
 

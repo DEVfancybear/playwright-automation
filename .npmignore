@@ -1,0 +1,10 @@
+# Never publish local credentials, even when a parent directory is included by
+# package.json "files". Only the empty `.env.example` is re-included below;
+# the release gauntlet verifies that it contains variable names without values.
+.env
+.env.local
+**/.env
+**/.env.local
+.auth/
+**/.auth/
+!.env.example

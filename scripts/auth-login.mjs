@@ -26,6 +26,13 @@ import { pathToFileURL } from 'node:url';
 import crypto from 'node:crypto';
 import path from 'node:path';
 
+import {
+  assertCredentialSubmissionOrigin,
+  ensureCredentialEnvFile,
+  resolveCredentialEnvPath,
+  resolveTlsPolicy,
+} from './runtime-safety.mjs';
+
 const HELP = `
 auth-login.mjs — bảo đảm phiên đăng nhập còn dùng được (idempotent)
 
@@ -70,6 +77,10 @@ CHẾ ĐỘ
   --headed                 Hiện trình duyệt (mặc định chạy ẩn)
   --browser <tên>          chromium | firefox | webkit. Mặc định: chromium
   --timeout <ms>           Timeout mỗi bước. Mặc định: 30000
+  --ignore-https-errors    Bỏ qua lỗi TLS trong context Playwright riêng
+  --confirm-non-production
+                           Cổng bắt buộc cho cờ trên; Agent chỉ tự bật sau khi
+                           xác minh target là local/dev/QA/staging/UAT
   --help
 
 MÃ THOÁT
@@ -112,6 +123,8 @@ try {
       headed: { type: 'boolean', default: false },
       browser: { type: 'string', default: 'chromium' },
       timeout: { type: 'string', default: '30000' },
+      'ignore-https-errors': { type: 'boolean', default: false },
+      'confirm-non-production': { type: 'boolean', default: false },
       help: { type: 'boolean', default: false },
     },
     strict: true,
@@ -127,6 +140,24 @@ if (args.help || !args.url || !args.out) {
 }
 
 const TIMEOUT = Number(args.timeout) || 30_000;
+
+let tlsPolicy;
+try {
+  tlsPolicy = resolveTlsPolicy({
+    url: args.url,
+    ignoreHttpsErrors: args['ignore-https-errors'],
+    confirmedNonProduction: args['confirm-non-production'],
+  });
+} catch (error) {
+  console.error(`Từ chối cấu hình TLS: ${error.message}`);
+  process.exit(1);
+}
+if (tlsPolicy.ignoreHTTPSErrors) {
+  console.warn(
+    `⚠ Đang bỏ qua xác minh TLS cho target non-production ${tlsPolicy.origin}. ` +
+    'Điều này không chứng minh certificate hợp lệ.',
+  );
+}
 
 // --- .env -----------------------------------------------------------------
 // Chỉ nạp biến CHƯA có sẵn trong môi trường, để export ngoài shell luôn thắng file.
@@ -151,7 +182,13 @@ function loadEnvFile(file) {
   return n;
 }
 
-const envFile = args.env ?? path.join(process.cwd(), '.env');
+let envFile;
+try {
+  envFile = resolveCredentialEnvPath(args.env ?? path.join(process.cwd(), '.env'));
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 const loaded = loadEnvFile(envFile);
 if (loaded) console.log(`  Đã nạp ${loaded} biến từ ${path.relative(process.cwd(), envFile) || envFile}`);
 
@@ -441,7 +478,10 @@ async function sessionUsable(statePath) {
 
   const browser = await browserType.launch({ headless: !args.headed });
   try {
-    const ctx = await browser.newContext({ storageState: statePath });
+    const ctx = await browser.newContext({
+      storageState: statePath,
+      ignoreHTTPSErrors: tlsPolicy.ignoreHTTPSErrors,
+    });
     const page = await ctx.newPage();
     page.setDefaultTimeout(TIMEOUT);
     const verifyUrl = resolveVerifyUrl(statePath);
@@ -508,13 +548,25 @@ if (!args.force) {
 // --- Đọc credential -------------------------------------------------------
 if (!username || !password) {
   const missing = [!username && userKey, !password && passKey].filter(Boolean);
+  let setup;
+  try {
+    setup = ensureCredentialEnvFile(envFile, {
+      userEnv: userKey,
+      passEnv: passKey,
+      totpEnv: args['totp-env'] ?? 'TEST_TOTP_SECRET',
+    });
+  } catch (error) {
+    console.error(`Không chuẩn bị được file credential riêng: ${error.message}`);
+    process.exit(1);
+  }
+  const displayEnv = path.relative(process.cwd(), setup.path) || setup.path;
   console.error(
     `Thiếu biến môi trường: ${missing.join(', ')}\n\n` +
-    `Tạo file .env cạnh dự án rồi điền:\n` +
+    `${setup.created ? 'Đã tự tạo' : 'Mở'} file credential riêng ${displayEnv} rồi điền:\n` +
     `  ${userKey}=<tài khoản test>\n` +
     `  ${passKey}=<mật khẩu>\n\n` +
-    `Hoặc export ra môi trường trước khi chạy. .env phải nằm trong .gitignore —\n` +
-    `không commit, kể cả tài khoản staging.`,
+    `Không gửi giá trị qua chat. Helper sẽ tự đọc file local này ở lần chạy kế tiếp.\n` +
+    `File template/example/fixture không bao giờ được dùng làm nguồn credential.`,
   );
   process.exit(1);
 }
@@ -522,7 +574,9 @@ console.log(`  ✓ Credential sẵn sàng trong $${userKey} / $${passKey} (khôn
 
 // --- Đăng nhập ------------------------------------------------------------
 const browser = await browserType.launch({ headless: !args.headed });
-const ctx = await browser.newContext();
+const ctx = await browser.newContext({
+  ignoreHTTPSErrors: tlsPolicy.ignoreHTTPSErrors,
+});
 const page = await ctx.newPage();
 page.setDefaultTimeout(TIMEOUT);
 let exitCode = 0;
@@ -530,6 +584,7 @@ let exitCode = 0;
 try {
   console.log(`  Mở ${safeUrlForLog(args.url)}`);
   await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: TIMEOUT });
+  assertCredentialSubmissionOrigin(page.url(), tlsPolicy.origin);
 
   const findPassField = async (timeout = 1_500) => args['pass-selector']
     ? firstVisible([page.locator(args['pass-selector'])], timeout)

@@ -32,10 +32,11 @@ cd playwright-automation
 npm run test:standalone
 ```
 
-Lần chạy đầu tự thực hiện hai việc còn thiếu trên một clone sạch:
+Lần chạy đầu tự thực hiện ba việc còn thiếu trên một clone sạch:
 
 1. `npm ci` từ lockfile đã commit, nếu chưa có `@playwright/test`.
 2. Tải đúng Chromium của Playwright nếu chưa có; `test:url -- --browser firefox|webkit` sẽ tải browser được chọn khi thiếu.
+3. Tạo `.env` rỗng ở root (đã gitignore) nếu chưa có. Runner không đọc và không overwrite file hiện có; tester chỉ điền local khi target thật cần login.
 
 Sau đó runner dùng Chromium thật với fixture local đi kèm, kiểm script `explore.mjs`, contract của skill và các evidence đầu ra. Thành công phải có marker `STANDALONE_OK` và exit code `0`. Lệnh không ghi vào `.agents/skills`, `.claude/skills`, không tạo project con và không cần tài khoản staging.
 
@@ -51,9 +52,13 @@ npm run test:url -- --url https://playwright.dev
 
 # Mở browser để tester quan sát và chọn thư mục evidence riêng
 npm run test:url -- --url https://staging.example.com --headed --out ./recon/staging
+
+# Chỉ khi certificate lỗi trên staging/non-production đã xác nhận
+npm run test:url -- --url https://staging.example.com \
+  --ignore-https-errors --confirm-non-production
 ```
 
-`TERMINAL_TEST_OK` xác nhận tool đã hoàn tất và evidence đã được ghi; nó không biến hành vi đang quan sát thành expected result nghiệp vụ. Luồng tự hiểu yêu cầu, lập plan, generate, execute/heal và verdict vẫn cần Codex/Claude nạp skill.
+`TERMINAL_TEST_OK` xác nhận tool đã hoàn tất và evidence đã được ghi; nó không biến hành vi đang quan sát thành expected result nghiệp vụ. Hai cờ TLS phải đi cùng nhau và bị cấm trên production/unknown. Agent không dùng dotenv dưới `assets/template`, examples, fixtures hoặc file sample làm credential thật. Luồng tự hiểu yêu cầu, lập plan, generate, execute/heal và verdict vẫn cần Codex/Claude nạp skill.
 
 ---
 

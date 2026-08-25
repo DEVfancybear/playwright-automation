@@ -39,6 +39,7 @@
   "files": [
     "SKILL.md",
     "CHANGELOG.md",
+    ".env.example",
     "agents/",
     "bin/",
     "references/",
@@ -57,12 +58,13 @@
   },
   "scripts": {
     "test": "node tools/standalone.mjs suite",
-    "test:raw": "node --test --test-concurrency=1 tests/installer.test.mjs tests/auth-login.integration.test.mjs tests/mcp-auth-bridge.integration.test.mjs tests/standalone.integration.test.mjs tests/skill-contract.test.mjs",
+    "test:raw": "node --test --test-concurrency=1 tests/installer.test.mjs tests/auth-login.integration.test.mjs tests/mcp-auth-bridge.integration.test.mjs tests/package-safety.test.mjs tests/runtime-safety.test.mjs tests/standalone.integration.test.mjs tests/skill-contract.test.mjs",
     "test:standalone": "node tools/standalone.mjs self-test",
     "test:standalone:full": "node tools/standalone.mjs suite",
     "test:url": "node tools/standalone.mjs url",
     "test:auth": "node --test --test-concurrency=1 tests/auth-login.integration.test.mjs",
     "test:bridge": "node --test --test-concurrency=1 tests/mcp-auth-bridge.integration.test.mjs",
+    "auth:setup": "node scripts/auth-env.mjs",
     "test:mutation": "node tools/mutate-auth-tests.mjs && node tools/mutate-bridge-tests.mjs",
     "gauntlet": "node tools/release-gauntlet.mjs"
   },

@@ -16,6 +16,8 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 
+import { resolveTlsPolicy } from './runtime-safety.mjs';
+
 const HELP = `
 explore.mjs — trinh sát trang web, lấy locator có thật
 
@@ -44,7 +46,10 @@ TUỲ CHỌN
   KHÁC
   --no-screenshot          Không chụp màn hình
   --timeout <ms>           Timeout điều hướng. Mặc định: 45000
-  --ignore-https-errors    Bỏ qua lỗi chứng chỉ (staging dùng self-signed cert)
+  --ignore-https-errors    Bỏ qua lỗi chứng chỉ trong context Playwright riêng
+  --confirm-non-production
+                           Cổng bắt buộc cho cờ trên; chỉ dùng sau khi Agent đã
+                           xác minh target là local/dev/QA/staging/UAT
   --locale <mã>            Ngôn ngữ trình duyệt. Mặc định: vi-VN
   --timezone <id>          Múi giờ, ví dụ "UTC". Mặc định: Asia/Ho_Chi_Minh
   --help
@@ -84,6 +89,7 @@ try {
       'no-screenshot': { type: 'boolean', default: false },
       timeout: { type: 'string', default: '45000' },
       'ignore-https-errors': { type: 'boolean', default: false },
+      'confirm-non-production': { type: 'boolean', default: false },
       locale: { type: 'string' },
       timezone: { type: 'string' },
       help: { type: 'boolean', default: false },
@@ -102,6 +108,24 @@ if (args.help) {
 if (!args.url) {
   console.log(HELP);
   process.exit(1);
+}
+
+let tlsPolicy;
+try {
+  tlsPolicy = resolveTlsPolicy({
+    url: args.url,
+    ignoreHttpsErrors: args['ignore-https-errors'],
+    confirmedNonProduction: args['confirm-non-production'],
+  });
+} catch (error) {
+  console.error(`Từ chối cấu hình TLS: ${error.message}`);
+  process.exit(1);
+}
+if (tlsPolicy.ignoreHTTPSErrors) {
+  console.warn(
+    `⚠ Đang bỏ qua xác minh TLS cho target non-production ${tlsPolicy.origin}. ` +
+    'Evidence này không chứng minh certificate hợp lệ.',
+  );
 }
 
 // --- Nạp Playwright -------------------------------------------------------
@@ -146,7 +170,7 @@ const navTimeout = Number(args.timeout);
 
 const contextOptions = {
   viewport: { width: vw || 1280, height: vh || 800 },
-  ignoreHTTPSErrors: args['ignore-https-errors'],
+  ignoreHTTPSErrors: tlsPolicy.ignoreHTTPSErrors,
   // Hai option này đổi format ngày/số mà app render — mặc định theo VN, đổi bằng --locale/--timezone.
   locale: args.locale || 'vi-VN',
   timezoneId: args.timezone || 'Asia/Ho_Chi_Minh',

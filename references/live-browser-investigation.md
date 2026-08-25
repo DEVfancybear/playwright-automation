@@ -55,7 +55,7 @@ Ba thứ cần đọc trong dòng lệnh:
 | | Trình duyệt profile thật | Trình duyệt tự động hoá / sandbox |
 |---|---|---|
 | Phiên đăng nhập | Có sẵn | Trắng |
-| Cert lỗi/hết hạn | Hiện cảnh báo, người dùng bấm "Nâng cao → Tiếp tục" | Hoặc chặn thẳng (`navigation denied`), hoặc **âm thầm bỏ qua** nếu bật `--ignore-certificate-errors` |
+| Cert lỗi/hết hạn | Hiện cảnh báo native; không biến tester thành bước click thủ công | Agent chuyển sang context Playwright riêng; chỉ bypass khi non-production đã xác nhận |
 | Proxy/VPN, DNS nội bộ | Theo cấu hình máy | Thường không có |
 | Người dùng nhìn thấy | Có | Không, nếu headless |
 | Rủi ro | Chạm vào phiên và dữ liệu thật | Cô lập, an toàn |
@@ -78,7 +78,7 @@ echo | openssl s_client -connect <host>:443 -servername <host> 2>/dev/null | ope
 date -u
 ```
 
-`curl -sk` ra 200 mà bỏ `-k` thì fail → server sống, lỗi nằm ở cert. Lúc đó dùng trình duyệt profile thật để bấm qua cảnh báo, hoặc chạy Playwright với `ignoreHTTPSErrors: true`; đồng thời báo người dùng cert hết hạn kèm ngày `notAfter` đọc được. Đừng đổ cho đồng hồ máy khi chưa đối chiếu `date -u` — timezone lệch **không** ảnh hưởng validate TLS, vì cert so theo UTC tuyệt đối.
+`curl -sk` ra 200 mà bỏ `-k` thì fail → server sống, lỗi nằm ở cert. Nếu target đã xác nhận local/dev/QA/staging/UAT, không hỏi tester bấm qua cảnh báo native: chuyển sang `auth-login.mjs`, `explore.mjs` hoặc MCP bridge với `--ignore-https-errors --confirm-non-production`. Đồng thời báo cert lỗi/hết hạn và ghi rõ TLS validation đã bị bypass; không kết luận cert bình thường. Production/unknown giữ validation và dừng ở ranh giới an toàn. Đừng đổ cho đồng hồ máy khi chưa đối chiếu `date -u` — timezone lệch **không** ảnh hưởng validate TLS, vì cert so theo UTC tuyệt đối.
 
 **Thao tác trên profile thật là chạm vào phiên thật của người dùng.** Áp dụng đầy đủ [Luật an toàn](#luật-an-toàn) bên dưới, và thêm: không đăng xuất hộ, không đóng tab người dùng đang mở dở, không xoá cookie/lịch sử của profile đó, mở tab mới thay vì chiếm tab đang có. Cần state sạch thì nói rõ và chuyển sang bộ tự động hoá, đừng dọn profile thật.
 
@@ -261,7 +261,7 @@ Các giới hạn khác của thao tác tay: không đo được cadence dưới
   Có sẵn thì dùng cái đang chạy và nói rõ là đang dùng tiến trình có sẵn. Không có, target là local và repo có script dev rõ ràng thì `relaxed` được tự start ngầm; ghi command + PID và cuối lượt chỉ dừng đúng process do mình tạo. `guarded` hỏi trước. Start chồng vừa fail vừa có thể giết bản build người dùng đang xem.
 
 - **Kiểm topology trước khi bàn đăng nhập.** `curl --max-time 8 <target>` từ runtime agent. Runtime bị chặn nhưng browser vẫn tới được target và `.env` đã có credential ⇒ dùng local `scripts/mcp-auth-bridge.mjs` gắn qua Playwright Extension trước khi hỏi đăng nhập tay. File phiên/password manager chỉ là fallback nếu bridge setup không khả dụng; xem `SKILL.md`.
-- **Đăng nhập tự động, không gõ tay.** Runtime tới được target thì gọi `scripts/auth-login.mjs` một lần; runtime bị chặn nhưng browser tới được thì dùng local MCP bridge. Trusted helper process tự nạp credential từ `.env`, Agent chỉ truyền **tên biến**, không mở/in giá trị. Không suy diễn credential từ định dạng: chỉ auth response thật mới chứng minh account sai. Không hỏi mật khẩu trong hội thoại và không truyền nó qua tham số dòng lệnh — cả hai đều để lại vết. Thiếu `.env` thì đưa một hướng dẫn cho người dùng tự điền vào file rồi tiếp tục từ checkpoint.
+- **Đăng nhập tự động, không gõ tay.** Runtime tới được target thì gọi `scripts/auth-login.mjs` một lần; runtime bị chặn nhưng browser tới được thì dùng local MCP bridge. Trusted helper process tự tạo/đọc `.env` root trong process riêng, Agent chỉ truyền **tên biến**, không mở/in giá trị. Không dùng dotenv trong template/example/fixture/sample. Không suy diễn credential từ định dạng: chỉ auth response thật mới chứng minh account sai. Không hỏi mật khẩu trong hội thoại và không truyền nó qua tham số dòng lệnh — cả hai đều để lại vết. Thiếu secret thì helper tạo skeleton, tester điền local một lần rồi Agent tiếp tục checkpoint.
 
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật. Đọc header response để biết:
   ```

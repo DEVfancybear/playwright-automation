@@ -47,6 +47,37 @@ test('runtime-blocked auth uses the local MCP bridge before asking for manual lo
   assert.doesNotMatch(bridge, /--username|--password/);
 });
 
+test('native TLS warnings and credential bootstrap stay zero-touch and fail closed', () => {
+  const manifest = JSON.parse(read('package.json'));
+  const skill = read('SKILL.md');
+  const agents = read('AGENTS.md');
+  const autonomous = read(path.join('references', 'autonomous-execution.md'));
+  const live = read(path.join('references', 'live-browser-investigation.md'));
+  const auth = read(path.join('scripts', 'auth-login.mjs'));
+  const explore = read(path.join('scripts', 'explore.mjs'));
+  const bridge = read(path.join('scripts', 'mcp-auth-bridge.mjs'));
+  const safety = read(path.join('scripts', 'runtime-safety.mjs'));
+  const envExample = read('.env.example');
+  const npmignore = read('.npmignore');
+  const templateNpmignore = read(path.join('assets', 'template', '.npmignore'));
+  const combined = `${skill}\n${agents}\n${autonomous}\n${live}`;
+
+  assert.equal(manifest.scripts['auth:setup'], 'node scripts/auth-env.mjs');
+  assert.match(combined, /không[^\n]*(?:nhờ|hỏi)[^\n]*tester[^\n]*(?:click|bấm)[^\n]*(?:cảnh báo|warning)/i);
+  assert.match(combined, /--ignore-https-errors --confirm-non-production/);
+  assert.match(combined, /production\/unknown|production hoặc target chưa xác định/i);
+  assert.match(combined, /TLS validation[^\n]*(?:bypass|bị bypass)/i);
+  assert.match(combined, /template\/example\/fixture|template[^\n]*example[^\n]*fixture/i);
+  assert.match(`${auth}\n${explore}\n${bridge}`, /resolveTlsPolicy/);
+  assert.match(safety, /Từ chối dùng file credential mẫu\/template/);
+  assert.match(envExample, /^TEST_USER=$/m);
+  assert.match(envExample, /^TEST_PASS=$/m);
+  assert.doesNotMatch(envExample, /TEST_(?:USER|PASS)=.+/);
+  assert.match(npmignore, /\*\*\/\.env/);
+  assert.match(npmignore, /\*\*\/\.auth\//);
+  assert.match(templateNpmignore, /^\.env$/m);
+});
+
 test('release metadata supports both hosts without runtime dependencies', () => {
   const manifest = JSON.parse(read('package.json'));
   const installer = read(path.join('bin', 'install.mjs'));
@@ -101,11 +132,13 @@ test('a fresh GitHub clone exposes a one-command standalone terminal contract', 
   assert.equal(manifest.scripts['test:standalone'], 'node tools/standalone.mjs self-test');
   assert.equal(manifest.scripts['test:standalone:full'], 'node tools/standalone.mjs suite');
   assert.equal(manifest.scripts['test:url'], 'node tools/standalone.mjs url');
+  assert.equal(manifest.scripts['auth:setup'], 'node scripts/auth-env.mjs');
   assert.equal(lockfile.packages[''].devDependencies['@playwright/test'], '1.62.1');
   assert.doesNotMatch(gitignore, /^package-lock\.json\s*$/m);
   assert.match(runner, /npm ci|['"]ci['"]/);
   assert.match(runner, /STANDALONE_OK/);
   assert.match(runner, /TERMINAL_TEST_OK/);
+  assert.match(runner, /ensureCredentialEnvFile/);
   assert.match(combinedDocs, /git clone[\s\S]*npm run test:standalone/);
   assert.match(combinedDocs, /không (?:cần )?(?:import|project)/i);
   assert.match(`${agentInstructions}\n${claudeInstructions}`, /(?:says?|nói)[^\n]*["“]?(?:test|kiểm thử)[\s\S]*npm run test:standalone/i);

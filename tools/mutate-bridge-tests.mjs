@@ -18,6 +18,10 @@ const probeRoot = mkdtempSync(path.join(tmpdir(), 'pw-bridge-mutants-'));
 // Wrapper mutants keep their production relative import intact. Copy the init
 // module beside them so a missing fixture cannot masquerade as a mutation kill.
 writeFileSync(path.join(probeRoot, 'mcp-auth-init.mjs'), originals.init);
+writeFileSync(
+  path.join(probeRoot, 'runtime-safety.mjs'),
+  readFileSync(path.join(ROOT, 'scripts', 'runtime-safety.mjs'), 'utf8'),
+);
 
 assert.equal(
   hasIntendedTapFailure('ok 1 - intended test\nnot ok 2 - unrelated test\n', 'intended test'),
@@ -55,7 +59,7 @@ const mutants = [
   {
     id: 'mcp-secrets-redaction-omitted',
     source: 'wrapper',
-    from: "    '--secrets', options.envFile,\n",
+    from: "    '--secrets', envFile,\n",
     to: marker => `    (console.error('BRIDGE_MUTANT_EXECUTED:${marker}'), '--console-level'), 'error',\n`,
     expectedTest: 'wrapper dry-run pins extension MCP and never prints dotenv values',
   },

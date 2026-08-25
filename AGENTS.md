@@ -7,8 +7,10 @@ These instructions apply to the whole repository and are written for an Agent op
 - Treat this repository as the target when the user gives no other target. Run `npm run test:standalone` from the repository root and continue through the terminal conclusion.
 - Do not ask the tester to import this skill into another project, install the skill into Codex/Claude, run `npm install`, or install a Playwright browser first.
 - `npm run test:standalone` owns bootstrap: it runs locked `npm ci` when dependencies are absent and installs the required Chromium/browser when absent. Success ends with `STANDALONE_OK`.
+- Bootstrap also creates an ignored root `.env` skeleton when absent. Never inspect or copy credential values from `assets/template`, `examples`, `fixtures`, or any `*.example`/`*.sample` file. Ask the tester only to fill the empty root `.env` locally, then resume the auth checkpoint yourself.
 - Run `npm test` only when the user asks for the full regression/maintainer suite. It uses the same automatic bootstrap and ends with `STANDALONE_FULL_OK`.
 - If the user supplies a URL for technical smoke/recon, run `npm run test:url -- --url <url>` and preserve its evidence. For a business test request, follow `SKILL.md` through plan, generated tests, execution/healing, and verdict.
+- If a native TLS/certificate warning blocks a target already confirmed as local/dev/QA/staging/UAT, do not ask the tester to click through it. Switch to the repository-owned Playwright helper and pass both `--ignore-https-errors --confirm-non-production`; record that TLS validation was bypassed. Never use those flags on production or an unknown target.
 - Never put usernames, passwords, OTPs, tokens, or other secrets in command arguments or chat. Use the repository's `.env`/storage-state helpers.
 
 Only involve the tester when automation reaches a real blocker: Node.js itself is unavailable or older than 20, npm/browser download is blocked, OS package installation lacks permission, a required secret/oracle is unavailable, or the requested target crosses a guarded production/side-effect boundary.

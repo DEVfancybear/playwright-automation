@@ -81,6 +81,34 @@ test('wrapper dry-run pins extension MCP and never prints dotenv values', async 
   }
 });
 
+test('wrapper only forwards TLS bypass after explicit non-production confirmation', async () => {
+  const fixture = makeFixture();
+  try {
+    const blocked = await runWrapper([
+      '--env', fixture.envFile,
+      '--login-url', 'https://staging.example.test/login',
+      '--ignore-https-errors',
+      '--dry-run',
+    ]);
+    assert.equal(blocked.code, 1, blocked.output);
+    assert.match(blocked.output, /confirm-non-production/);
+
+    const allowed = await runWrapper([
+      '--env', fixture.envFile,
+      '--login-url', 'https://staging.example.test/login',
+      '--ignore-https-errors',
+      '--confirm-non-production',
+      '--dry-run',
+    ]);
+    assert.equal(allowed.code, 0, allowed.output);
+    assert.match(allowed.output, /--ignore-https-errors/);
+    assert.match(allowed.output, /bypassed for confirmed non-production origin/);
+    assertNoSecrets(allowed.output);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('wrapper fails closed for missing credentials, unsafe URL, and NODE_DEBUG', async () => {
   const fixture = makeFixture('# empty on purpose\n');
   try {

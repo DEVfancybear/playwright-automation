@@ -79,21 +79,28 @@ function inspectIndexState(label) {
   );
 
   const critical = [
+    '.env.example',
+    '.npmignore',
     'AGENTS.md',
     'CLAUDE.md',
     'package.json',
     'package-lock.json',
     'SKILL.md',
     'agents/openai.yaml',
+    'assets/template/.npmignore',
     'bin/install.mjs',
     'references/autonomous-execution.md',
     'scripts/auth-login.mjs',
+    'scripts/auth-env.mjs',
     'scripts/mcp-auth-bridge.mjs',
     'scripts/mcp-auth-init.cjs',
     'scripts/mcp-auth-init.mjs',
     'scripts/explore.mjs',
+    'scripts/runtime-safety.mjs',
     'tests/auth-login.integration.test.mjs',
     'tests/mcp-auth-bridge.integration.test.mjs',
+    'tests/package-safety.test.mjs',
+    'tests/runtime-safety.test.mjs',
     'tests/standalone.integration.test.mjs',
     'tests/installer.test.mjs',
     'tests/skill-contract.test.mjs',
@@ -150,10 +157,18 @@ function inspectTrackedAndPendingFiles() {
   assert.equal(result.status, 0, result.stderr);
   const files = result.stdout.split('\0').filter(Boolean);
   const forbidden = files.filter(file =>
-    /(^|\/)(\.env(?:\..+)?|\.auth)(\/|$)/i.test(file)
+    ((/(^|\/)(\.env(?:\..+)?|\.auth)(\/|$)/i.test(file)) && file !== '.env.example')
     || /(^|\/)__pycache__(\/|$)|\.py[co]$/i.test(file),
   );
   assert.deepEqual(forbidden, [], `secret/cache artifacts found: ${forbidden.join(', ')}`);
+  if (files.includes('.env.example')) {
+    const example = readFileSync(path.join(ROOT, '.env.example'), 'utf8');
+    assert.doesNotMatch(
+      example,
+      /^[A-Za-z_][A-Za-z0-9_]*=[ \t]*\S/m,
+      '.env.example must contain variable names only, never credential values',
+    );
+  }
   console.log(`filename gate: ${files.length} files checked`);
 }
 
@@ -170,21 +185,27 @@ function inspectPackage() {
   const pack = JSON.parse(result.stdout)[0];
   const files = pack.files.map(file => file.path);
   const required = [
+    '.env.example',
     'SKILL.md',
     'agents/openai.yaml',
     'references/autonomous-execution.md',
     'references/live-browser-investigation.md',
     'bin/install.mjs',
     'scripts/auth-login.mjs',
+    'scripts/auth-env.mjs',
     'scripts/mcp-auth-bridge.mjs',
     'scripts/mcp-auth-init.cjs',
     'scripts/mcp-auth-init.mjs',
     'scripts/explore.mjs',
+    'scripts/runtime-safety.mjs',
   ];
   const missing = required.filter(file => !files.includes(file));
-  const forbidden = files.filter(file => /(^|\/)__pycache__(\/|$)|\.py[co]$/i.test(file));
+  const forbidden = files.filter(file => (
+    ((/(^|\/)(\.env(?:\..+)?|\.auth)(\/|$)/i.test(file)) && file !== '.env.example')
+    || /(^|\/)__pycache__(\/|$)|\.py[co]$/i.test(file)
+  ));
   assert.equal(pack.version, '3.0.1');
   assert.deepEqual(missing, [], `package missing: ${missing.join(', ')}`);
-  assert.deepEqual(forbidden, [], `package contains Python bytecode: ${forbidden.join(', ')}`);
+  assert.deepEqual(forbidden, [], `package contains secret/cache artifacts: ${forbidden.join(', ')}`);
   console.log(`package ${pack.name}@${pack.version}: ${files.length} files, required payload present`);
 }

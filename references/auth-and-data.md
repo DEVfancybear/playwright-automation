@@ -13,11 +13,14 @@ Mục lục: [Vì sao cần storageState](#vì-sao-cần-storagestate) · [Setup
 Trước khi thao tác gì trên app cần đăng nhập, chạy một lệnh idempotent. Không gõ mật khẩu bằng tay, không hỏi mật khẩu trong hội thoại.
 
 ```bash
+# Fresh clone: lệnh standalone/helper cũng tự tạo file này khi thiếu.
+npm run auth:setup
+
 # Còn phiên thì dùng lại; hết hạn/chưa có thì tự đăng nhập và xác minh lại.
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
 ```
 
-Credential đọc từ `.env` cạnh dự án — agent chỉ truyền **tên biến**:
+Credential đọc từ `.env` riêng ở root dự án — agent chỉ truyền **tên biến**. Helper tạo skeleton rỗng một lần, không overwrite file hiện có. Dotenv trong `assets/template`, `examples`, `fixtures`, `samples` hoặc file `*.example`/`*.sample` luôn bị từ chối, kể cả khi chứa giá trị trông giống tài khoản thật:
 
 ```bash
 TEST_USER=qa_user01
@@ -26,6 +29,15 @@ TEST_TOTP_SECRET=...      # chỉ khi app bật 2FA bằng Authenticator
 ```
 
 Script tự dò ô tài khoản/mật khẩu/nút submit theo nhãn và role, hỗ trợ cả form một trang và luồng username → Tiếp tục → password. Nếu thấy TOTP và `.env` có `TEST_TOTP_SECRET`, helper tự sinh mã; tên biến khác thì dùng `--totp-env`. Dò sai thì truyền `--user-selector` / `--next-selector` / `--pass-selector` / `--submit-selector` lấy từ cây accessibility. `--check` chỉ dùng khi cần chẩn đoán riêng trạng thái phiên, không dùng để dựng một nhánh shell cho pipeline bình thường.
+
+Nếu certificate lỗi trên target đã xác nhận local/dev/QA/staging/UAT, Agent không nhờ tester click native warning. Chạy context riêng:
+
+```bash
+node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json \
+  --ignore-https-errors --confirm-non-production
+```
+
+Hai cờ phải đi cùng nhau. Chúng bị cấm trên production/unknown; báo cáo phải ghi TLS validation đã bị bypass, không được nói certificate hợp lệ.
 
 **Ba thứ script làm mà auth setup viết vội thường quên:**
 
@@ -48,6 +60,8 @@ Agent chạy trong container bị chặn egress không thể dùng `auth-login.m
 node scripts/mcp-auth-bridge.mjs \
   --env C:/path/to/project/.env \
   --login-url https://staging.example.com/login \
+  --ignore-https-errors \
+  --confirm-non-production \
   --user-env CMS_ADMIN_USER \
   --pass-env CMS_ADMIN_PASS \
   --select-selector 'select[name="role"]' \
@@ -55,7 +69,7 @@ node scripts/mcp-auth-bridge.mjs \
   --dry-run
 ```
 
-Khai command `node` và toàn bộ argument trên (bỏ `--dry-run`) thành một local MCP server của Claude/Codex. Playwright Extension cần được cài và kết nối với đúng tab; extension token, nếu dùng để bỏ bước approve kết nối, đặt trong secret config của MCP host chứ không commit vào repo. Bridge pin `@playwright/mcp`, bật `--extension`, nạp adapter `mcp-auth-init.cjs` bằng `--init-page`, và dùng `--secrets` để redaction. Giá trị credential chỉ được đọc bên trong local MCP process; Agent chỉ truyền **tên biến**.
+Khai command `node` và toàn bộ argument trên (bỏ `--dry-run`) thành một local MCP server của Claude/Codex. Chỉ giữ hai cờ TLS khi certificate lỗi trên non-production đã xác nhận. Playwright Extension cần được cài và kết nối với đúng tab; extension token, nếu dùng để bỏ bước approve kết nối, đặt trong secret config của MCP host chứ không commit vào repo. Bridge pin `@playwright/mcp`, bật `--extension`, nạp adapter `mcp-auth-init.cjs` bằng `--init-page`, và dùng `--secrets` để redaction. Giá trị credential chỉ được đọc bên trong local MCP process; Agent chỉ truyền **tên biến**.
 
 Các tuỳ chọn form:
 

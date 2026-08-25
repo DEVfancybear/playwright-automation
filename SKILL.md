@@ -144,7 +144,7 @@ Yêu cầu chạm nhiều mảng ("test luồng đặt hàng, có cả API và �
 
 Thu đủ điều kiện trước khi chạm vào app. Đầu ra của bước này là: **target + build/môi trường + role/state + nguồn grounding**.
 
-**Đọc `.testagent.yaml` ở gốc repo trước khi hỏi bất cứ điều gì.** Nếu file đã có target khớp yêu cầu thì dùng thẳng. Trong `relaxed`, chỉ ghi một dòng tiến độ — *"Dùng target `checkout-staging` (staging.example.com, scope checkout) từ config"* — rồi tiếp tục; đó không phải câu hỏi. Trong `guarded`, xin xác nhận một dòng. Chưa có file thì suy ra từ URL người dùng đưa, `playwright.config.*`, `.env.example`, npm scripts và convention spec hiện có; ghi target mới ở bước VERDICT nếu không đè lên cấu hình mâu thuẫn. Cấu trúc file: `references/explore-artifacts.md`.
+**Đọc `.testagent.yaml` ở gốc repo trước khi hỏi bất cứ điều gì.** Nếu file đã có target khớp yêu cầu thì dùng thẳng. Trong `relaxed`, chỉ ghi một dòng tiến độ — *"Dùng target `checkout-staging` (staging.example.com, scope checkout) từ config"* — rồi tiếp tục; đó không phải câu hỏi. Trong `guarded`, xin xác nhận một dòng. Chưa có file thì suy ra từ URL người dùng đưa, `playwright.config.*`, `.env.example`, npm scripts và convention spec hiện có; ghi target mới ở bước VERDICT nếu không đè lên cấu hình mâu thuẫn. `.env.example` chỉ cho biết **tên biến**, không phải nguồn credential. Không mở hoặc dùng `.env` nằm dưới `assets/template`, `examples`, `fixtures`, `samples` dù giá trị trông có vẻ thật. Cấu trúc file: `references/explore-artifacts.md`.
 
 Nếu đầu vào là bug log/issue sheet, **không hỏi lại những gì row đã nói**. Đọc full row và evidence trước, chuẩn hóa thành environment/platform, precondition, test data/state, actions, actual, expected và unknown. Chỉ hỏi phần thật sự chặn: URL/build đích không thể suy ra, secret/seed data không có nguồn an toàn, evidence bắt buộc nằm ngoài sheet, acceptance criterion còn mâu thuẫn. Xem `references/bug-reproduction.md`.
 
@@ -153,7 +153,7 @@ Nếu đầu vào là yêu cầu kiểm thử mới, tự tìm trước rồi ch
 1. **URL**: lấy từ yêu cầu → `.testagent.yaml` → Playwright config → biến `BASE_URL`. Không tìm được mới hỏi.
 2. **Phạm vi**: lấy đúng chức năng/bug/requirement người dùng nhắc; nếu họ nói chung chung thì bắt đầu bằng critical path + smoke và ghi phần chưa phủ, không hỏi để trì hoãn.
 3. **Nơi đặt test**: theo suite hiện có; chưa có thì dùng `e2e/` và tự scaffold. Không hỏi về convention có thể đọc từ repo.
-4. **Đăng nhập**: chạy helper trước; không hỏi tên tài khoản nếu config đã khai tên biến credential. Chỉ yêu cầu tester đặt secret vào `.env` khi helper báo thiếu.
+4. **Đăng nhập**: chạy helper trước; không hỏi tên tài khoản nếu config đã khai tên biến credential. Helper/`npm run auth:setup` tự tạo `.env` riêng ở root nếu thiếu; tester chỉ điền file đó local một lần, Agent tiếp tục checkpoint và không yêu cầu gửi giá trị qua chat.
 
 Câu hỏi "chạy một lần hay chạy lại lâu dài" **không còn được hỏi nữa** — đầu ra luôn là bộ test chạy lại được. Trong `relaxed`, nếu nhiều giả định nhỏ cùng tồn tại, ghi chúng vào plan/verdict và tiếp tục; đừng biến từng giả định thành một vòng hội thoại.
 
@@ -180,6 +180,8 @@ Năng lực cần dùng: điều hướng · đọc cây accessibility (mỗi el
 
 **Có nhiều bộ công cụ browser thì ưu tiên bộ mang profile thật của người dùng** — có sẵn phiên đăng nhập, ngoại lệ cert, proxy/DNS nội bộ. **Nhưng tên công cụ không cho biết nó lái cái gì**: một bộ tên có chữ "chrome" vẫn có thể là Chromium tự động hoá chạy headless với profile tạm và `--ignore-certificate-errors`. Xác minh bằng dòng lệnh tiến trình trước khi kết luận, và nói rõ trong báo cáo mình đã chạy trên cái nào.
 
+**Native “Lỗi bảo mật” trên target đã xác nhận non-production không phải bước thủ công của tester.** Không nhờ họ mở tab rồi bấm “Nâng cao/Tiếp tục”. Chuyển ngay sang context Playwright do Agent sở hữu và chạy helper với cả `--ignore-https-errors --confirm-non-production`; hai cờ phải đi cùng nhau. Ghi finding rằng TLS validation đã bị bypass — không kết luận certificate khỏe. Production hoặc target chưa xác định thì không tự bypass.
+
 Vòng quan sát: mở đúng URL người dùng nói → đọc cây để biết đang ở state nào → thao tác **đúng các bước tester mô tả, không rút gọn** → sau mỗi bước quan trọng đọc network + console + chụp ảnh → cần state phía server thì gọi API bằng chính session đang mở.
 
 **Đọc `references/live-browser-investigation.md`** cho chi tiết: bảng năng lực đầy đủ, cách xác minh đang lái trình duyệt nào, quy đổi `role + name` → `getByRole`, luật điều hướng SPA, bốn kiểu hỏng im lặng (overlay che, tab mới, element ngoài viewport, dialog gốc), `ref` hết hạn sau mỗi lần DOM đổi, cách biết trang đã render xong khi không có `networkidle`, và giới hạn cookie HttpOnly.
@@ -202,6 +204,8 @@ curl -sS -o /dev/null -w "%{http_code}\n" --max-time 8 <target-url>
 
 Đừng suy ra topology từ cảm giác — chạy `curl` rồi thử điều hướng trình duyệt tới target. Hai kết quả đó mới quyết định.
 
+Nếu `curl`/browser cho thấy lỗi certificate trên local/dev/QA/staging/UAT đã được xác nhận, Agent tự chuyển sang `auth-login.mjs`, `explore.mjs` hoặc MCP bridge với `--ignore-https-errors --confirm-non-production`. Đây là thay đổi runtime tự động, không phải câu hỏi xin tester click cảnh báo. Trên production/unknown, giữ TLS validation và báo blocker/finding.
+
 ### Local MCP auth bridge (khi runtime agent bị chặn egress)
 
 Nếu runtime bị chặn nhưng browser phía người dùng tới được target, và `.env` đã có các biến credential được cấu hình, **dùng `scripts/mcp-auth-bridge.mjs` trước khi yêu cầu đăng nhập tay**. Bridge chạy thành MCP server ngay trên máy người dùng, gắn vào tab Chrome/Edge hiện có qua Playwright Extension, và `scripts/mcp-auth-init.mjs` điền form trong local process. Giá trị secret không đi qua hội thoại hoặc tool argument của Agent.
@@ -210,6 +214,8 @@ Nếu runtime bị chặn nhưng browser phía người dùng tới được tar
 node scripts/mcp-auth-bridge.mjs \
   --env <project>/.env \
   --login-url https://staging.example.com/login \
+  --ignore-https-errors \
+  --confirm-non-production \
   --user-env CMS_ADMIN_USER \
   --pass-env CMS_ADMIN_PASS \
   --select-selector 'select[name="role"]' \
@@ -217,7 +223,7 @@ node scripts/mcp-auth-bridge.mjs \
   --dry-run
 ```
 
-`--dry-run` xác minh cấu hình mà không in giá trị. Khi khai MCP server cho Claude/Codex, bỏ `--dry-run`; giữ các argument còn lại. Bridge pin một bản `@playwright/mcp`, bật `--extension`, `--init-page` và `--secrets`. Nếu login đổi URL ở bước password/OTP, khai lặp lại từng **exact login URL** bằng `--login-url`; bridge không điền credential trên origin/path/query/fragment gần giống.
+`--dry-run` xác minh cấu hình mà không in giá trị. Hai cờ TLS trong ví dụ chỉ dùng khi target đã được xác nhận non-production và certificate đang chặn; certificate hợp lệ thì bỏ cả hai. Khi khai MCP server cho Claude/Codex, bỏ `--dry-run`; giữ các argument còn lại. Bridge pin một bản `@playwright/mcp`, bật `--extension`, `--init-page` và `--secrets`. Nếu login đổi URL ở bước password/OTP, khai lặp lại từng **exact login URL** bằng `--login-url`; bridge không điền credential trên origin/path/query/fragment gần giống.
 
 **Không suy diễn credential từ định dạng.** Số điện thoại 10 số, email, mã nhân viên, PIN 6 số hay chuỗi bất kỳ đều có thể là credential admin hợp lệ. Nếu tên biến đã được cấu hình và có giá trị, phải để bridge/helper thử đúng một lần; chỉ kết quả đăng nhập thật của app mới chứng minh credential không hợp lệ. Không được nhìn hình dạng giá trị rồi kết luận “đây là tài khoản miniapp, không phải CMS” và hỏi người dùng đăng nhập tay.
 
@@ -256,13 +262,17 @@ App cần đăng nhập thì **Agent tự lo, không dừng lại bắt tester g
 ```bash
 # Credential đọc từ .env; lệnh không chứa username/password.
 node scripts/auth-login.mjs --url <trang login> --out .auth/<target>.json
+
+# Chỉ khi certificate lỗi trên target đã xác nhận non-production:
+node scripts/auth-login.mjs --url <trang login> --out .auth/<target>.json \
+  --ignore-https-errors --confirm-non-production
 ```
 
 Script tự dò cả form một trang lẫn luồng username → Tiếp tục → password, tự dùng `TEST_TOTP_SECRET` khi gặp TOTP, tự xác minh phiên bằng context sạch, và nhớ trang đích để lần sau kiểm đúng chỗ. `--check` chỉ dành cho chẩn đoán khi cần biết riêng trạng thái phiên; pipeline bình thường không cần ghép hai lệnh. Chạy `--help` trước, không đọc source.
 
 | Tình huống | Xử lý |
 |---|---|
-| `.env` chưa có `TEST_USER`/`TEST_PASS` | Script in ra đúng tên biến cần điền. Đây là một trong số ít blocker hợp lệ: gửi **một** hướng dẫn để người dùng điền vào file rồi tiếp tục từ auth checkpoint. Tuyệt đối không hỏi mật khẩu trong hội thoại |
+| `.env` chưa có `TEST_USER`/`TEST_PASS` | Helper tự tạo `.env` riêng ở root (không overwrite), in đúng tên biến cần điền. Gửi **một** hướng dẫn để tester điền local rồi tự tiếp tục auth checkpoint. Không hỏi mật khẩu trong hội thoại; không tìm credential trong template/example/fixture |
 | Tên biến khác (`ADMIN_USER`, `QLDH_PASS`…) | `--user-env` / `--pass-env`, hoặc khai `credentials_env` trong `.testagent.yaml` |
 | Dò sai form (SSO, nhiều bước, iframe) | Đọc cây accessibility lấy selector thật rồi truyền `--user-selector` / `--next-selector` / `--pass-selector` / `--submit-selector` |
 | App bật 2FA bằng Authenticator | Nếu `.env` có `TEST_TOTP_SECRET`, script tự nhận và sinh mã; tên khác thì dùng `--totp-env <TÊN>` |
@@ -501,7 +511,7 @@ Với mỗi ca fail, trả lời câu hỏi tester cần nhất: đây là **bug
 Các invariant dưới đây áp dụng cho EXPLORE và EXECUTE ở cả hai chế độ. `relaxed` thay đổi **khi nào phải hỏi**, không thay đổi ranh giới secret, production và side effect thật:
 
 - **Dev server theo quyền sở hữu process.** Lấy cổng từ target hoặc script `dev`, rồi kiểm tra trước: `netstat -ano | findstr :<PORT>` (Windows) / `lsof -i :<PORT>` (macOS/Linux). Có tiến trình thì dùng nó, không start chồng và không kill. Không có tiến trình, target là local và repo có script dev rõ ràng thì `relaxed` được tự start ngầm, ghi PID/lệnh, chờ readiness và cuối lượt chỉ dừng đúng process do mình tạo; `guarded` hỏi trước.
-- **Đăng nhập tự động — nhưng secret không đi qua hội thoại/lệnh.** Credential luôn nằm ở `.env` hoặc biến môi trường; Agent chỉ truyền **tên biến**, không mở/in giá trị. Việc chạy trusted helper `scripts/auth-login.mjs` để process tự nạp secret nội bộ và điền form là **được phép và bắt buộc**, không phải lý do từ chối login. Chạy helper một lần để ensure và lưu phiên, đừng gõ mật khẩu vào form bằng thao tác hội thoại. Ba điều cấm: **không hỏi mật khẩu trong hội thoại**, **không truyền mật khẩu qua tham số dòng lệnh**, **không hard-code trong spec**. Thiếu `.env` thì đưa một hướng dẫn để người dùng tự tạo file rồi tiếp tục từ checkpoint.
+- **Đăng nhập tự động — nhưng secret không đi qua hội thoại/lệnh.** Credential luôn nằm ở `.env` riêng tại root hoặc biến môi trường; Agent chỉ truyền **tên biến**, không mở/in giá trị. Việc chạy trusted helper `scripts/auth-login.mjs` để process tự nạp secret nội bộ và điền form là **được phép và bắt buộc**, không phải lý do từ chối login. Chạy helper một lần để ensure và lưu phiên, đừng gõ mật khẩu vào form bằng thao tác hội thoại. Ba điều cấm: **không hỏi mật khẩu trong hội thoại**, **không truyền mật khẩu qua tham số dòng lệnh**, **không hard-code trong spec**. Thiếu file thì helper/`npm run auth:setup` tự tạo skeleton gitignored; tester điền local rồi Agent tiếp tục. Mọi dotenv dưới template/example/fixture/sample bị cấm làm nguồn secret.
 - **Xác minh backend thật sự là gì trước khi kết luận.** Một cổng localhost có thể là mock, cũng có thể là tunnel tới môi trường thật — đọc response header (`server`, `via`, gateway). Kết luận "không tái hiện được" trên mock gần như vô giá trị.
 - **Production mặc định chỉ đọc.** Không suy ra môi trường từ cảm giác: chỉ coi là non-production khi host là `localhost`/IP nội bộ, tên có `staging`/`stg`/`test`/`qa`/`dev`/`uat`, hoặc người dùng/config nói rõ. Còn lại chọn `guarded`. `allow_hosts` chỉ cho phép kết nối tới host, không phải quyền ghi production.
 - **Dữ liệu tự tạo trên non-production được tự quản.** Trong `relaxed`, Agent được tạo dữ liệu duy nhất có tiền tố `AUTOTEST-`, ghi lại ID, rồi sửa/xoá **đúng các bản ghi do chính lượt này tạo** để setup/teardown. Xác minh ID/target trước khi xoá và báo nếu cleanup thất bại. Bản ghi có sẵn, dữ liệu người khác, huỷ đăng ký, vô hiệu hoá tài khoản hoặc ghi đè ngoài tập ID đã ghi vẫn phải dừng xin phép.
@@ -621,6 +631,7 @@ Script bundled (gọi trực tiếp, đọc `--help` trước, không đọc sou
 | Script | Dùng ở bước |
 |---|---|
 | `scripts/auth-login.mjs` | EXPLORE, khi app cần đăng nhập — một lần gọi tự dùng lại/gia hạn phiên, login form một hoặc hai bước bằng credential trong `.env`, lưu `storageState`, tự nhận `TEST_TOTP_SECRET` |
+| `scripts/auth-env.mjs` | Fresh clone hoặc auth thiếu secret — tạo `.env` riêng ở root một lần, không đọc/overwrite file hiện có và không chấp nhận nguồn template/example/fixture |
 | `scripts/mcp-auth-bridge.mjs` | EXPLORE, khi runtime agent bị chặn egress nhưng Chrome/Edge phía người dùng tới được target — start local Playwright MCP bridge, chỉ truyền tên biến và exact login URL |
 | `scripts/mcp-auth-init.cjs` | Adapter nội bộ theo contract `require(...).default(page)` của `--init-page`; không gọi trực tiếp |
 | `scripts/mcp-auth-init.mjs` | Hook nội bộ của MCP bridge — đọc `.env` trong process local, điền form một/hai bước, role dropdown và TOTP; không gọi trực tiếp |

@@ -1,0 +1,2 @@
+# A developer may keep a local rendered template dotenv here. Never publish it.
+.env

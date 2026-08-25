@@ -13,6 +13,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { ensureCredentialEnvFile } from '../scripts/runtime-safety.mjs';
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REQUIRE = createRequire(path.join(ROOT, 'package.json'));
 const MIN_NODE_MAJOR = 20;
@@ -20,6 +22,8 @@ const FULL_TEST_FILES = [
   'tests/installer.test.mjs',
   'tests/auth-login.integration.test.mjs',
   'tests/mcp-auth-bridge.integration.test.mjs',
+  'tests/package-safety.test.mjs',
+  'tests/runtime-safety.test.mjs',
   'tests/standalone.integration.test.mjs',
   'tests/skill-contract.test.mjs',
 ];
@@ -123,6 +127,11 @@ async function bootstrap(browserName = 'chromium') {
   }
   console.log(`✓ Node.js ${process.versions.node}`);
 
+  const authEnv = ensureCredentialEnvFile(path.join(ROOT, '.env'));
+  console.log(authEnv.created
+    ? '✓ Đã tạo .env riêng ở root; tester điền credential local một lần khi target cần đăng nhập'
+    : '✓ .env riêng ở root đã tồn tại (runner không đọc và không overwrite)');
+
   if (!playwrightIsInstalled()) {
     const lockfile = path.join(ROOT, 'package-lock.json');
     if (!existsSync(lockfile)) {
@@ -218,6 +227,8 @@ async function main(argv = process.argv.slice(2)) {
     run('Standalone smoke suite', process.execPath, [
       '--test',
       '--test-concurrency=1',
+      'tests/package-safety.test.mjs',
+      'tests/runtime-safety.test.mjs',
       'tests/standalone.integration.test.mjs',
       'tests/skill-contract.test.mjs',
     ]);

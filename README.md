@@ -189,6 +189,8 @@ Test giúp tôi chức năng đăng nhập ở https://staging.example.com, tài
 để trong .env (TEST_USER/TEST_PASS). Dùng relaxed, tự chạy tới verdict; chỉ hỏi nếu bị chặn thật.
 ```
 
+Fresh clone tự tạo `.env` rỗng ở root (đã gitignore). Tester điền credential local một lần; Agent không đọc giá trị và không lấy nhầm `.env` trong `assets/template`, examples hay fixtures.
+
 ```
 Dựng khung automation cho dự án, staging ở https://staging.example.com,
 API ở https://api-staging.example.com. Cần cả test API và visual.
@@ -217,6 +219,7 @@ Nhiều kịch bản hơn kèm output mẫu: [docs/USAGE.md](docs/USAGE.md)
 playwright-automation/
 ├── AGENTS.md                   # Codex/Agent vào repo: tự bootstrap và test khi tester chỉ nói “test”
 ├── CLAUDE.md                   # Claude Code nạp cùng contract tự động
+├── .env.example               # Tên biến an toàn; npm run auth:setup tạo .env thật đã gitignore
 ├── SKILL.md                    # Điểm vào — pipeline 8 bước, định tuyến, nguyên tắc chống flaky
 ├── CHANGELOG.md                # Lịch sử phiên bản
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
@@ -240,6 +243,8 @@ playwright-automation/
 │   └── troubleshooting.md      # Chẩn đoán flaky, timeout, lỗi CI
 ├── scripts/                    # Gọi trực tiếp, đọc --help trước
 │   ├── auth-login.mjs          # Đăng nhập tự động bằng .env, lưu phiên, hỗ trợ TOTP 2FA
+│   ├── auth-env.mjs            # Tạo .env root rỗng một lần, không overwrite/template fallback
+│   ├── runtime-safety.mjs      # Guard TLS non-production và nguồn credential
 │   ├── mcp-auth-bridge.mjs      # MCP local: nối Claude/Codex vào Chrome và auto-login khi runtime bị chặn
 │   ├── mcp-auth-init.cjs        # Adapter init-page CommonJS theo contract của Playwright MCP
 │   ├── mcp-auth-init.mjs        # Hook nội bộ của bridge: exact URL, role, form hai bước, TOTP
@@ -259,11 +264,18 @@ Các script chạy được ngoài Codex/Claude, hữu ích cho tester muốn t�
 # Từ repository vừa clone: tự bootstrap dependency/browser rồi smoke ngay
 npm run test:standalone
 
+# Tuỳ chọn tường minh; standalone/auth helper cũng tự tạo khi thiếu
+npm run auth:setup
+
 # Trinh sát URL thật ngay trong repository, không cần import project khác
 npm run test:url -- --url https://staging.example.com --headed
 
 # Bảo đảm phiên đăng nhập: còn sống thì dùng lại, hết hạn thì tự login từ .env
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
+
+# Certificate lỗi trên staging/non-production đã xác nhận: Agent tự dùng context riêng
+node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json \
+  --ignore-https-errors --confirm-non-production
 
 # Runtime Agent bị chặn nhưng Chrome/Edge máy người dùng tới được staging:
 # kiểm local MCP bridge mà không in credential

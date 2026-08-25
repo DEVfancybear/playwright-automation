@@ -11,6 +11,12 @@ const SOURCE = path.join(ROOT, 'scripts', 'auth-login.mjs');
 const AUTH_TEST = path.join(ROOT, 'tests', 'auth-login.integration.test.mjs');
 const original = readFileSync(SOURCE, 'utf8');
 const probeRoot = mkdtempSync(path.join(tmpdir(), 'pw-auth-mutants-'));
+// Mutant giữ relative import của production helper; copy dependency cạnh file
+// tạm để lỗi fixture không bị tính nhầm thành mutation kill.
+writeFileSync(
+  path.join(probeRoot, 'runtime-safety.mjs'),
+  readFileSync(path.join(ROOT, 'scripts', 'runtime-safety.mjs'), 'utf8'),
+);
 
 assert.equal(
   hasIntendedTapFailure('ok 1 - intended test\nnot ok 2 - unrelated test\n', 'intended test'),

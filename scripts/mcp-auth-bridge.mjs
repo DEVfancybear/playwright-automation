@@ -5,6 +5,11 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { readDotEnvFile } from './mcp-auth-init.mjs';
+import {
+  ensureCredentialEnvFile,
+  resolveCredentialEnvPath,
+  resolveTlsPolicy,
+} from './runtime-safety.mjs';
 
 export const PLAYWRIGHT_MCP_PACKAGE = '@playwright/mcp@0.0.79';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -18,6 +23,7 @@ const RESERVED_MCP_FLAGS = [
   '--host',
   '--init-page',
   '--init-script',
+  '--ignore-https-errors',
   '--port',
   '--secrets',
 ];
@@ -48,6 +54,8 @@ FORM TUỲ CHỌN
   --timeout <ms>               Mặc định 30000
 
 MCP
+  --ignore-https-errors        Bỏ qua TLS lỗi trong MCP browser context
+  --confirm-non-production     Cổng bắt buộc; chỉ dùng cho local/dev/QA/staging/UAT
   --dry-run                    In command đã che secret, không start MCP
   -- <args>                    Chuyển args không dành riêng cho bridge sang MCP
 
@@ -68,6 +76,8 @@ export function parseBridgeArgs(argv = process.argv.slice(2)) {
     totpEnv: 'TEST_TOTP_SECRET',
     timeout: 30_000,
     dryRun: false,
+    ignoreHttpsErrors: false,
+    confirmedNonProduction: false,
     help: false,
     mcpArgs,
   };
@@ -80,6 +90,14 @@ export function parseBridgeArgs(argv = process.argv.slice(2)) {
     }
     if (flag === '--dry-run') {
       result.dryRun = true;
+      continue;
+    }
+    if (flag === '--ignore-https-errors') {
+      result.ignoreHttpsErrors = true;
+      continue;
+    }
+    if (flag === '--confirm-non-production') {
+      result.confirmedNonProduction = true;
       continue;
     }
     const value = bridgeArgs[index + 1];
@@ -121,23 +139,45 @@ export function buildMcpLaunch(options, inheritedEnv = process.env) {
   if (enabledNodeDebug.length) {
     throw new Error('Hãy unset NODE_DEBUG/NODE_DEBUG_NATIVE; debug child process có thể làm lộ credential.');
   }
-  if (!existsSync(options.envFile)) throw new Error(`Không tìm thấy file env: ${options.envFile}`);
   if (!options.loginUrls.length) throw new Error('Cần ít nhất một --login-url exact.');
   const loginUrls = options.loginUrls.map(validateLoginUrl);
+  const tlsPolicy = resolveTlsPolicy({
+    url: loginUrls[0],
+    ignoreHttpsErrors: options.ignoreHttpsErrors,
+    confirmedNonProduction: options.confirmedNonProduction,
+  });
+  if (tlsPolicy.ignoreHTTPSErrors) {
+    const origins = new Set(loginUrls.map(value => new URL(value).origin));
+    if (origins.size !== 1) {
+      throw new Error('Khi bỏ qua TLS, mọi exact login URL phải thuộc cùng một non-production origin.');
+    }
+  }
   if (Boolean(options.selectSelector) !== Boolean(options.selectValue)) {
     throw new Error('Cần truyền cùng lúc --select-selector và --select-value.');
   }
 
-  const dotenv = readDotEnvFile(options.envFile);
+  const envFile = resolveCredentialEnvPath(options.envFile);
+  const envSetup = ensureCredentialEnvFile(envFile, {
+    userEnv: options.userEnv,
+    passEnv: options.passEnv,
+    totpEnv: options.totpEnv,
+  });
+  const dotenv = readDotEnvFile(envFile);
   const missing = [options.userEnv, options.passEnv].filter(key => !dotenv[key]);
-  if (missing.length) throw new Error(`Thiếu credential trong file env: ${missing.join(', ')}`);
+  if (missing.length) {
+    const created = envSetup.created ? `Đã tự tạo file credential riêng ${envFile}. ` : '';
+    throw new Error(
+      `${created}Thiếu credential trong file env: ${missing.join(', ')}. ` +
+      'Tester điền file local này; không gửi giá trị qua chat.',
+    );
+  }
 
   const childEnv = { ...inheritedEnv };
   for (const key of ['DEBUG', 'DEBUG_FILE', 'PWDEBUG', 'PWDEBUGIMPL', 'NODE_DEBUG', 'NODE_DEBUG_NATIVE']) {
     delete childEnv[key];
   }
   Object.assign(childEnv, {
-    PW_AUTH_BRIDGE_ENV_FILE: options.envFile,
+    PW_AUTH_BRIDGE_ENV_FILE: envFile,
     PW_AUTH_BRIDGE_LOGIN_URLS: JSON.stringify(loginUrls),
     PW_AUTH_BRIDGE_USER_ENV: options.userEnv,
     PW_AUTH_BRIDGE_PASS_ENV: options.passEnv,
@@ -161,8 +201,9 @@ export function buildMcpLaunch(options, inheritedEnv = process.env) {
     '--',
     'playwright-mcp',
     '--extension',
+    ...(tlsPolicy.ignoreHTTPSErrors ? ['--ignore-https-errors'] : []),
     '--init-page', INIT_PAGE,
-    '--secrets', options.envFile,
+    '--secrets', envFile,
     ...options.mcpArgs,
   ];
   return {
@@ -174,6 +215,9 @@ export function buildMcpLaunch(options, inheritedEnv = process.env) {
       args,
       credentialVariables: [options.userEnv, options.passEnv, options.totpEnv],
       exactLoginUrls: loginUrls,
+      tlsValidation: tlsPolicy.ignoreHTTPSErrors
+        ? `bypassed for confirmed non-production origin ${tlsPolicy.origin}`
+        : 'enforced',
       secretValues: '[loaded only inside local MCP process]',
     },
   };

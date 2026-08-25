@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import { createServer } from 'node:http';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -293,6 +293,43 @@ test('fails closed before browser spawn when NODE_DEBUG can dump the secret envi
     }, '1500');
     assert.equal(result.code, 1, result.output);
     assert.match(result.output, /unset NODE_DEBUG\/NODE_DEBUG_NATIVE/);
+    assertNoSecrets(result.output);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('creates a safe credential file skeleton when the configured dotenv is missing', async () => {
+  const fixture = makeFixture('missing-safe-env');
+  try {
+    rmSync(fixture.envFile);
+    const result = await runAuth('/product-login', fixture, [], {
+      TEST_USER: undefined,
+      TEST_PASS: undefined,
+    }, '1500');
+    assert.equal(result.code, 1, result.output);
+    assert.match(result.output, /Đã tự tạo.*file credential riêng/i);
+    assert.match(readFileSync(fixture.envFile, 'utf8'), /^TEST_USER=$/m);
+    assert.match(readFileSync(fixture.envFile, 'utf8'), /^TEST_PASS=$/m);
+    assertNoSecrets(result.output);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('rejects a realistic dotenv under template before reading credentials', async () => {
+  const fixture = makeFixture('template-env');
+  try {
+    const templateDirectory = path.join(fixture.dir, 'assets', 'template');
+    mkdirSync(templateDirectory, { recursive: true });
+    fixture.envFile = path.join(templateDirectory, '.env');
+    writeFileSync(fixture.envFile, `TEST_USER=${TEST_USER}\nTEST_PASS=${TEST_PASS}\n`);
+    const result = await runAuth('/product-login', fixture, [], {
+      TEST_USER: undefined,
+      TEST_PASS: undefined,
+    }, '1500');
+    assert.equal(result.code, 1, result.output);
+    assert.match(result.output, /Từ chối dùng file credential mẫu\/template/);
     assertNoSecrets(result.output);
   } finally {
     fixture.cleanup();

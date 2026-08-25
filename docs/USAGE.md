@@ -95,6 +95,8 @@ cp .env.example .env      # điền tài khoản test vào đây
 npx playwright test --ui  # chế độ giao diện — tester rất dễ theo dõi
 ```
 
+Khi chạy ngay trong repo skill đã clone, tester không cần copy tay: `npm run test:standalone`, `npm run auth:setup` hoặc auth helper tự tạo `.env` root rỗng và không overwrite. Agent tuyệt đối không lấy credential từ `assets/template`, examples, fixtures hay file `.env.example`.
+
 Bước tiếp theo nên làm ngay: nhờ agent trinh sát trang login thật và sửa `pages/LoginPage.ts`, vì locator trong template chỉ là phỏng đoán cho form đăng nhập điển hình.
 
 > Trinh sát https://staging.example.com/login rồi sửa lại LoginPage.ts và auth.setup.ts cho khớp.
