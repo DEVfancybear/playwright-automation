@@ -298,7 +298,24 @@ Xuất kết quả về TestRail / Jira Xray: cả hai đều nhận file JUnit 
 
 ## Dùng script trực tiếp
 
-Bốn script chạy được độc lập ngoài Codex/Claude. Mỗi script đều có `--help` đầy đủ.
+Nếu vừa clone repository từ GitHub, tester không cần dựng hay import một project khác:
+
+```text
+Mở repo bằng Agent → nói: "Test repo này"
+```
+
+Agent đọc `AGENTS.md`/`CLAUDE.md`, tự chạy `npm run test:standalone`, tự bootstrap dependency/browser và chỉ trả kết quả hoặc blocker thật. Tester không phải biết lệnh cài đặt; chỉ yêu cầu “full regression” mới chạy `npm test`.
+
+Nếu muốn tự thao tác terminal:
+
+```bash
+npm run test:standalone
+npm run test:url -- --url https://playwright.dev
+```
+
+Lệnh đầu tự bootstrap toolchain và phải kết thúc bằng `STANDALONE_OK`; `npm test` chạy full suite và kết thúc bằng `STANDALONE_FULL_OK`. Lệnh URL dùng Chromium thật để lưu evidence/locator vào `recon-output/`; thêm `--headed` nếu muốn nhìn browser. Đây là smoke/trinh sát kỹ thuật, không tự đặt expected result nghiệp vụ.
+
+Các script bên dưới cũng chạy độc lập ngoài Codex/Claude. Mỗi script đều có `--help` đầy đủ.
 
 ### Trinh sát trang
 

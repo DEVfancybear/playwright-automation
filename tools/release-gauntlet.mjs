@@ -16,6 +16,7 @@ run('syntax: MCP auth bridge', process.execPath, ['--check', 'scripts/mcp-auth-b
 run('syntax: MCP init adapter', process.execPath, ['--check', 'scripts/mcp-auth-init.cjs']);
 run('syntax: MCP init page', process.execPath, ['--check', 'scripts/mcp-auth-init.mjs']);
 run('syntax: explorer', process.execPath, ['--check', 'scripts/explore.mjs']);
+run('syntax: standalone runner', process.execPath, ['--check', 'tools/standalone.mjs']);
 runNpm('full test suite', ['test']);
 run('manual auth mutation', process.execPath, ['tools/mutate-auth-tests.mjs']);
 run('manual bridge mutation', process.execPath, ['tools/mutate-bridge-tests.mjs']);
@@ -78,7 +79,10 @@ function inspectIndexState(label) {
   );
 
   const critical = [
+    'AGENTS.md',
+    'CLAUDE.md',
     'package.json',
+    'package-lock.json',
     'SKILL.md',
     'agents/openai.yaml',
     'bin/install.mjs',
@@ -90,11 +94,13 @@ function inspectIndexState(label) {
     'scripts/explore.mjs',
     'tests/auth-login.integration.test.mjs',
     'tests/mcp-auth-bridge.integration.test.mjs',
+    'tests/standalone.integration.test.mjs',
     'tests/installer.test.mjs',
     'tests/skill-contract.test.mjs',
     'tools/mutate-auth-tests.mjs',
     'tools/mutate-bridge-tests.mjs',
     'tools/release-gauntlet.mjs',
+    'tools/standalone.mjs',
     'verification/3.0.1-BRIDGE-SPEC.md',
     'verification/3.0.0-SPEC.md',
   ];

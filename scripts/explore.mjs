@@ -95,9 +95,13 @@ try {
   process.exit(1);
 }
 
-if (args.help || !args.url) {
+if (args.help) {
   console.log(HELP);
-  process.exit(args.url ? 0 : 1);
+  process.exit(0);
+}
+if (!args.url) {
+  console.log(HELP);
+  process.exit(1);
 }
 
 // --- Nạp Playwright -------------------------------------------------------

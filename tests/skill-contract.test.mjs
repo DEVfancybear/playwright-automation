@@ -82,3 +82,34 @@ test('a generic URL plus test request expands to zero-touch workflow without pro
   assert.match(installDoc, /mở trình duyệt trước[\s\S]*plan → generate → execute\/heal → verdict/);
   assert.match(installDoc, /“chỉ mở”[\s\S]*mới dừng mà không codify test/);
 });
+
+test('a fresh GitHub clone exposes a one-command standalone terminal contract', () => {
+  const manifest = JSON.parse(read('package.json'));
+  const lockfile = JSON.parse(read('package-lock.json'));
+  const readme = read('README.md');
+  const installDoc = read(path.join('docs', 'INSTALL.md'));
+  const usageDoc = read(path.join('docs', 'USAGE.md'));
+  const gitignore = read('.gitignore');
+  const runner = read(path.join('tools', 'standalone.mjs'));
+  const workflow = read(path.join('.github', 'workflows', 'standalone.yml'));
+  const agentInstructions = read('AGENTS.md');
+  const claudeInstructions = read('CLAUDE.md');
+  const combinedDocs = `${readme}\n${installDoc}\n${usageDoc}`;
+
+  assert.equal(manifest.scripts.test, 'node tools/standalone.mjs suite');
+  assert.match(manifest.scripts['test:raw'], /^node --test /);
+  assert.equal(manifest.scripts['test:standalone'], 'node tools/standalone.mjs self-test');
+  assert.equal(manifest.scripts['test:standalone:full'], 'node tools/standalone.mjs suite');
+  assert.equal(manifest.scripts['test:url'], 'node tools/standalone.mjs url');
+  assert.equal(lockfile.packages[''].devDependencies['@playwright/test'], '1.62.1');
+  assert.doesNotMatch(gitignore, /^package-lock\.json\s*$/m);
+  assert.match(runner, /npm ci|['"]ci['"]/);
+  assert.match(runner, /STANDALONE_OK/);
+  assert.match(runner, /TERMINAL_TEST_OK/);
+  assert.match(combinedDocs, /git clone[\s\S]*npm run test:standalone/);
+  assert.match(combinedDocs, /không (?:cần )?(?:import|project)/i);
+  assert.match(`${agentInstructions}\n${claudeInstructions}`, /(?:says?|nói)[^\n]*["“]?(?:test|kiểm thử)[\s\S]*npm run test:standalone/i);
+  assert.match(agentInstructions, /Do not ask[\s\S]*npm install[\s\S]*Playwright browser/i);
+  assert.match(agentInstructions, /npm test[\s\S]*full regression/i);
+  assert.match(workflow, /run: npm run test:standalone/);
+});

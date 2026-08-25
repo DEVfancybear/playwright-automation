@@ -1,4 +1,4 @@
 interface:
   display_name: "Playwright QA Automation"
   short_description: "Auto-login và tự chạy Playwright tới verdict"
-  default_prompt: "Use $playwright-automation: classify the target first; use relaxed mode only on confirmed non-production and guarded mode on production or unknown targets. For safe relaxed scope, auto-login, explore, self-approve the traced plan, generate and run committable tests, heal failures, and return an evidence report; stop only at a real authorization or input boundary."
+  default_prompt: "Use $playwright-automation: if cwd is this skill's source repo and the user only asks to test, run npm run test:standalone and let its runner bootstrap dependencies/browser without asking for project import or manual install; reserve npm test for explicit full regression. Otherwise classify the target first; use relaxed mode only on confirmed non-production and guarded mode on production or unknown targets. For safe relaxed scope, auto-login, explore, self-approve the traced plan, generate and run committable tests, heal failures, and return an evidence report; stop only at a real authorization or input boundary."

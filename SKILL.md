@@ -14,6 +14,12 @@ Một lệnh thuần thao tác như “chỉ mở URL” hoặc “chỉ chụp 
 
 Đối tượng dùng skill này thường là tester thủ công đang chuyển sang automation. Họ biết rất rõ *nghiệp vụ cần test gì*, nhưng chưa chắc rành *selector, async, CI*. Vì vậy: giải thích ngắn gọn bằng tiếng Việt, tự hoàn tất phần kỹ thuật có thể suy ra an toàn, và chỉ kéo tester vào khi thiếu một quyết định nghiệp vụ hoặc quyền thực sự chặn lượt chạy.
 
+### Khi Agent được mở ngay trong source repository của skill
+
+Nếu `package.json` ở thư mục hiện tại có tên `@duong.dev/playwright-automation` và tester chỉ nói “test”/“kiểm thử”, coi chính repository này là target: chạy `npm run test:standalone` tới marker `STANDALONE_OK`. Chỉ dùng `npm test` khi họ yêu cầu full regression. Không yêu cầu tester import skill vào project khác, cài skill vào Agent, chạy `npm install` hay cài browser thủ công. Runner của repository tự chạy locked `npm ci` và tải browser cần thiết khi thiếu. Chỉ báo blocker khi thiếu chính Node.js ≥ 20, mạng/npm/browser download bị chặn hoặc quyền cài system dependency không có.
+
+Nếu họ đưa URL, `npm run test:url -- --url <url>` là smoke/trinh sát và thu evidence; yêu cầu business test vẫn phải đi đủ pipeline bên dưới.
+
 Mục lục: [Chế độ tự chủ](#chế-độ-tự-chủ) · [Pipeline](#pipeline-bắt-buộc) · [Một lượt chạy trông thế nào](#một-lượt-chạy-trông-thế-nào) · [Định tuyến](#bước-1--định-tuyến) · [0 FRAME](#0--frame) · [1 EXPLORE](#1--explore) · [2 PLAN](#2--plan) · [3 CONFIRM](#3--confirm) · [4 GENERATE](#4--generate) · [5 EXECUTE](#5--execute) · [6 HEAL](#6--heal) · [7 VERDICT](#7--verdict) · [An toàn](#luật-an-toàn) · [Chống flaky](#7-nguyên-tắc-để-test-không-flaky) · [Chạy & debug](#chạy-và-debug) · [Checklist](#checklist-trước-khi-coi-là-xong) · [Bản đồ tài liệu](#bản-đồ-tài-liệu)
 
 ## Chế độ tự chủ

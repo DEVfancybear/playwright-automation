@@ -6,6 +6,7 @@ Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhấ
 
 | Bạn dùng agent ở đâu | Cách cài | Ai dùng được |
 |---|---|---|
+| Chỉ muốn clone rồi test ngay trong terminal | `git clone` → `npm run test:standalone` | Bất kỳ tester nào có Node ≥ 20; không cần project khác |
 | Codex CLI / IDE / desktop | `npx @duong.dev/playwright-automation install --codex` | Chỉ mình bạn, ở mọi dự án trên máy |
 | Codex, muốn chia sẻ cho team | Thêm `--project` rồi commit `.agents/skills/` | Cả team, khi làm việc trong dự án đó |
 | Claude Code (terminal / IDE) | `npx @duong.dev/playwright-automation install` | Chỉ mình bạn, ở mọi dự án trên máy |
@@ -14,6 +15,45 @@ Mục lục: [Chọn cách cài](#chọn-cách-cài) · [npm](#cách-nhanh-nhấ
 | claude.ai (web hoặc app desktop) | Upload file `.skill` vào profile | Chỉ mình bạn, ở mọi cuộc trò chuyện |
 
 Cài nhiều cách cùng lúc cũng được. Bản trong dự án sẽ được ưu tiên hơn bản cá nhân.
+
+---
+
+## Chạy độc lập ngay trong repo clone
+
+Đây là luồng dành cho tester muốn kiểm tra repository hoặc dùng tool terminal mà **không import skill vào project nào khác**:
+
+Nếu dùng Agent, tester chỉ cần mở clone này trong Codex/Claude Code rồi nói **“Test repo này.”** Root `AGENTS.md`/`CLAUDE.md` hướng Agent chạy `npm run test:standalone`; Agent tự bootstrap và không được hỏi tester cài npm dependency hay Playwright browser thủ công. `npm test` chỉ dành cho yêu cầu full regression.
+
+Nếu tự gõ terminal:
+
+```bash
+git clone https://github.com/DEVfancybear/playwright-automation.git
+cd playwright-automation
+npm run test:standalone
+```
+
+Lần chạy đầu tự thực hiện hai việc còn thiếu trên một clone sạch:
+
+1. `npm ci` từ lockfile đã commit, nếu chưa có `@playwright/test`.
+2. Tải đúng Chromium của Playwright nếu chưa có; `test:url -- --browser firefox|webkit` sẽ tải browser được chọn khi thiếu.
+
+Sau đó runner dùng Chromium thật với fixture local đi kèm, kiểm script `explore.mjs`, contract của skill và các evidence đầu ra. Thành công phải có marker `STANDALONE_OK` và exit code `0`. Lệnh không ghi vào `.agents/skills`, `.claude/skills`, không tạo project con và không cần tài khoản staging.
+
+Các chế độ khác:
+
+```bash
+# Chạy toàn bộ regression suite (đây cũng là lệnh Agent tự chọn khi chỉ nghe “test”)
+npm test
+# Bí danh tường minh: npm run test:standalone:full
+
+# Trinh sát/smoke một URL thật ngay từ repo clone
+npm run test:url -- --url https://playwright.dev
+
+# Mở browser để tester quan sát và chọn thư mục evidence riêng
+npm run test:url -- --url https://staging.example.com --headed --out ./recon/staging
+```
+
+`TERMINAL_TEST_OK` xác nhận tool đã hoàn tất và evidence đã được ghi; nó không biến hành vi đang quan sát thành expected result nghiệp vụ. Luồng tự hiểu yêu cầu, lập plan, generate, execute/heal và verdict vẫn cần Codex/Claude nạp skill.
 
 ---
 
@@ -282,7 +322,9 @@ Chưa có thì tải ở [nodejs.org](https://nodejs.org) (chọn bản LTS).
 
 ### Playwright (bắt buộc để chạy test)
 
-Cài trong **thư mục dự án test**, không cài toàn cục:
+Nếu đang đứng trong **repository skill vừa clone**, không cần cài tay: `npm run test:standalone` tự dùng lockfile và tải Chromium khi thiếu.
+
+Nếu đã cài skill vào Agent và muốn sinh/chạy test trong **một dự án ứng dụng bên ngoài**, cài Playwright trong dự án test đó, không cài toàn cục:
 
 ```bash
 npm i -D @playwright/test
@@ -363,6 +405,8 @@ Trên claude.ai: **Settings → Capabilities → Skills** → xoá skill.
 | Cấu trúc thư mục sai | Clone tạo thêm một tầng lồng nhau | `SKILL.md` phải nằm ngay trong `playwright-automation/`, không phải `playwright-automation/playwright-automation/` |
 | `Executable doesn't exist at ...` | Chưa tải trình duyệt | `npx playwright install --with-deps chromium` |
 | `Host system is missing dependencies` | Thiếu thư viện hệ thống (Linux) | `npx playwright install-deps`, hoặc dùng Docker image chính thức |
+| `npm run test:standalone` báo thiếu `package-lock.json` | Clone/tải source chưa đầy đủ hoặc đang ở sai thư mục | Clone lại repository và chạy tại thư mục có cả `package.json` lẫn `package-lock.json` |
+| `STANDALONE_FAIL` khi bootstrap | Mạng/npm registry bị chặn hoặc không có quyền cài system dependency | Kiểm tra kết nối npm; trên Linux cấp quyền phù hợp cho bước Playwright `--with-deps`, rồi chạy lại cùng lệnh |
 | `Thiếu thư viện openpyxl` | Chưa cài gói Python | `pip install openpyxl` |
 | `Không tìm thấy Playwright` khi chạy `explore.mjs` | Playwright cài ở dự án, script chạy từ thư mục khác | Chạy script **từ trong thư mục dự án** có `node_modules` |
 | Script Python in ra ký tự lạ trên Windows | Console dùng bảng mã cp1252 | Script đã tự ép UTF-8; nếu vẫn lỗi, chạy `chcp 65001` trước |

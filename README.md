@@ -12,6 +12,47 @@ Phát triển dựa trên ý tưởng của [`anthropics/skills/webapp-testing`]
 
 ---
 
+## Chạy ngay sau khi clone — không cần project khác
+
+Cách dễ nhất cho tester không rành terminal:
+
+1. Clone/mở repository này bằng Codex hoặc Claude Code.
+2. Chỉ cần nói: **“Test repo này.”**
+
+`AGENTS.md` và `CLAUDE.md` sẽ buộc Agent tự chạy smoke `npm run test:standalone`, tự cài dependency/browser còn thiếu và theo tới marker `STANDALONE_OK`. Agent không được đẩy các bước `npm install`/`playwright install` về cho tester. Chỉ yêu cầu “full regression” mới dùng `npm test`.
+
+Nếu tester muốn tự chạy terminal, chỉ cần **Node.js ≥ 20** rồi dùng:
+
+```bash
+git clone https://github.com/DEVfancybear/playwright-automation.git
+cd playwright-automation
+npm run test:standalone
+```
+
+Lần đầu, lệnh tự chạy `npm ci` theo `package-lock.json` và chỉ tải Chromium nếu máy chưa có đúng browser. Với `test:url -- --browser firefox|webkit`, runner tải browser được chọn khi thiếu. Sau đó smoke mặc định mở một trang fixture local bằng Chromium thật, chạy contract và kết thúc bằng:
+
+```text
+STANDALONE_OK
+```
+
+Luồng này **không** cài skill vào Codex/Claude, không ghi `.agents/` hay `.claude/`, không scaffold project con và không cần credential. Muốn chạy toàn bộ regression suite của repository:
+
+```bash
+npm test
+# tương đương: npm run test:standalone:full
+```
+
+Muốn dùng ngay tool của skill với một URL thật, vẫn từ chính terminal đó:
+
+```bash
+npm run test:url -- --url https://playwright.dev
+# Thêm --headed nếu muốn nhìn browser; mặc định evidence nằm ở ./recon-output
+```
+
+`test:url` là smoke/trinh sát kỹ thuật: nó lưu screenshot, console, request lỗi và locator thật; `TERMINAL_TEST_OK` có nghĩa tool đã chạy xong, **không tự suy diễn business verdict**. Với yêu cầu tự hiểu nghiệp vụ rồi generate/heal test bằng ngôn ngữ tự nhiên, cài skill vào Codex/Claude theo phần dưới.
+
+---
+
 ## Skill này giải quyết vấn đề gì
 
 Tester chuyển sang automation thường vấp mấy chỗ này:
@@ -174,6 +215,8 @@ Nhiều kịch bản hơn kèm output mẫu: [docs/USAGE.md](docs/USAGE.md)
 
 ```
 playwright-automation/
+├── AGENTS.md                   # Codex/Agent vào repo: tự bootstrap và test khi tester chỉ nói “test”
+├── CLAUDE.md                   # Claude Code nạp cùng contract tự động
 ├── SKILL.md                    # Điểm vào — pipeline 8 bước, định tuyến, nguyên tắc chống flaky
 ├── CHANGELOG.md                # Lịch sử phiên bản
 ├── agents/openai.yaml          # Metadata UI và prompt mặc định cho Codex/ChatGPT
@@ -213,6 +256,12 @@ Skill dùng cơ chế **progressive disclosure**: `SKILL.md` luôn được nạ
 Các script chạy được ngoài Codex/Claude, hữu ích cho tester muốn tự thao tác:
 
 ```bash
+# Từ repository vừa clone: tự bootstrap dependency/browser rồi smoke ngay
+npm run test:standalone
+
+# Trinh sát URL thật ngay trong repository, không cần import project khác
+npm run test:url -- --url https://staging.example.com --headed
+
 # Bảo đảm phiên đăng nhập: còn sống thì dùng lại, hết hạn thì tự login từ .env
 node scripts/auth-login.mjs --url https://staging.example.com/login --out .auth/staging.json
 
@@ -237,7 +286,7 @@ Mỗi script đều có `--help` mô tả đầy đủ tham số.
 | Thành phần | Yêu cầu | Dùng cho |
 |---|---|---|
 | Node.js | ≥ 20 | `explore.mjs`, `scaffold.mjs`, chạy Playwright |
-| Playwright | `npm i -D @playwright/test` | Chạy test và trinh sát |
+| Playwright | Tự bootstrap với `npm run test:standalone`; project ngoài dùng `npm i -D @playwright/test` | Chạy test và trinh sát |
 | Python | ≥ 3.9 + `openpyxl` | `excel_to_spec.py` (chỉ khi cần đọc Excel) |
 
 Không cài trước cũng được — Codex hoặc Claude sẽ hướng dẫn cài đúng lúc cần.
