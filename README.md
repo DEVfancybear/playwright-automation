@@ -87,6 +87,35 @@ Lệnh thuần thao tác như “chỉ mở URL”/“chỉ chụp ảnh” và 
 7. VERDICT  → PASS/FAIL kèm số ca — hoặc Reproduced / Verified fixed với bug log
 ```
 
+```mermaid
+flowchart TD
+    F["0 · FRAME<br/>chốt target · build/môi trường · role/state · nguồn grounding"]
+    E["1 · EXPLORE<br/>mở app THẬT bằng công cụ browser · quan sát<br/>không đoán selector, không nhớ"]
+    P["2 · PLAN<br/>scenario có tầng + truy vết + phần ngoài phạm vi"]
+    C{"3 · CONFIRM<br/>relaxed → agent tự duyệt phần an toàn<br/>guarded/rủi ro → người dùng duyệt"}
+    G["4 · GENERATE<br/>spec + Page Object commit được · một scenario một file"]
+    X{"5 · EXECUTE<br/>chạy qua cổng ổn định · 3 lượt · flaky quarantine"}
+    H["6 · HEAL<br/>fail → về trình duyệt thật · re-observe · sửa · chạy lại"]
+    V(["7 · VERDICT<br/>PASS/FAIL kèm số ca<br/>hoặc Reproduced / Verified fixed"])
+
+    F --> E --> P --> C
+    C -->|đã ghi lại quyết định| G --> X
+    X -->|pass| V
+    X -->|fail| H --> X
+    E -.->|trả lời sớm: kết luận sơ bộ kèm bằng chứng| V
+    C -.->|người dùng nói rõ không cần file → Codify skipped| V
+
+    subgraph BUG ["Biến thể bug log — cùng tám bước, khác nội dung"]
+      direction LR
+      B1["EXPLORE = decode row + evidence + recon"]
+      B2["PLAN = fingerprint + kịch bản tái hiện + oracle"]
+      B3["EXECUTE = replay đo x/y"]
+      B4["VERDICT = reproduction outcome / verified fixed"]
+      B1 --> B2 --> B3 --> B4
+    end
+    E -.->|nếu đầu vào là bug log| BUG
+```
+
 Bốn luật: **không bước nào tuỳ chọn** · **không đảo thứ tự** (không sinh code trước khi EXPLORE, không chạy trước khi quyết định CONFIRM được ghi lại) · **bỏ bước phải khai báo** là `Blocked` kèm điều kiện mở khoá · **chưa có test chạy được là chưa xong**. Trong `relaxed`, CONFIRM là `agent-self-approved`, không phải một vòng chờ.
 
 Ngoại lệ duy nhất: bạn **nói rõ** không muốn file — agent dừng sau bước chạy tay và ghi `Codify skipped — theo yêu cầu người dùng` vào verdict. Agent không bao giờ tự quyết điều này.
